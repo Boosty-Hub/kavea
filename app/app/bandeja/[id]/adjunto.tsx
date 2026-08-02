@@ -47,7 +47,19 @@ function Pieza({ a }: { a: Adjunto }) {
   const [caido, setCaido] = useState(false)
   const url = a.cdn_url
 
-  if (!url) return <p className="adjunto__caido">{nombre(a.tipo)} sin URL utilizable.</p>
+  // Sin URL. Antes esto ni llegaba a pintarse: el adjunto se perdía al guardarlo
+  // y la burbuja decía «Sin contenido», que se lee como un mensaje vacío del
+  // cliente. Ahora la fila existe y se dice qué llegó y por qué no se ve.
+  if (!url) {
+    return (
+      <p className="adjunto__caido">
+        {a.origen === 'sin_servir'
+          ? `${nombre(a.tipo)} · llegó desde un servicio que Kavea todavía no sirve, así que no se `
+            + 'puede mostrar aquí. Se ve en Instagram.'
+          : `${nombre(a.tipo)} sin URL utilizable.`}
+      </p>
+    )
+  }
 
   // Meta no documenta cuánto viven estas URLs y no guardamos el binario, así
   // que cuando caduca el adjunto se pierde. Decirlo es mejor que dejar el icono

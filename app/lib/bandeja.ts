@@ -164,6 +164,8 @@ export type Adjunto = {
   cdn_url: string | null
   cdn_host: string | null
   cdn_url_recibida_en: string | null
+  /** `meta_cdn`, `kavea_storage` o `sin_servir`. Ver la migración 0055. */
+  origen: string
 }
 
 /**
@@ -179,7 +181,7 @@ export const adjuntosDe = cache(async (conversacionIds: string[]) => {
   const { data, error } = await supabase
     .from('media')
     .select(
-      'message_id, tipo, cdn_url, cdn_host, cdn_url_recibida_en, messages!media_mensaje_mismo_tenant!inner(conversation_id)',
+      'message_id, tipo, origen, cdn_url, cdn_host, cdn_url_recibida_en, messages!media_mensaje_mismo_tenant!inner(conversation_id)',
     )
     .in('messages.conversation_id', conversacionIds)
   if (error) throw new Error(error.message)

@@ -74,9 +74,33 @@ const HOSTS_PERMITIDOS = [
   'scontent.xx.fbcdn.net',
 ]
 
+/**
+ * Y los que NO son de Meta pero sirven contenido que Meta entrega.
+ *
+ * MEDIDO EL 2 DE AGOSTO DE 2026. Un GIF elegido desde el selector que Instagram
+ * lleva dentro de sus mensajes directos llega con `payload.url` apuntando a
+ * `media4.giphy.com`, no a un CDN de Meta. La allowlist original solo conocía
+ * hosts de Meta, así que la URL se descartaba, la fila de `media` reventaba
+ * contra su CHECK y el adjunto desaparecía sin dejar rastro: dos burbujas que
+ * decían «Sin contenido» donde el contacto había mandado dos GIF.
+ *
+ * Tenor va también, sin haberlo visto llegar: es el otro proveedor que Meta usa
+ * en sus productos y la alternativa es enterarse el día que un cliente mande uno
+ * y no llegue.
+ *
+ * El riesgo que la allowlist frena es el SSRF, y estos hosts no lo abren: Kavea
+ * NO descarga la media entrante, solo guarda la dirección para que la cargue el
+ * navegador de quien mira. Lo que cambia al añadirlos es qué imágenes de
+ * terceros se pintan en la bandeja, no qué red alcanza el servidor.
+ */
+function hostDeTercero(h: string): boolean {
+  return /(^|\.)giphy\.com$/.test(h) || /(^|\.)tenor\.com$/.test(h)
+}
+
 function hostPermitido(host: string): boolean {
   const h = host.toLowerCase()
   if (HOSTS_PERMITIDOS.includes(h)) return true
+  if (hostDeTercero(h)) return true
   // Comodines: *.fbcdn.net y scontent-*.
   return h.endsWith('.fbcdn.net') || h.startsWith('scontent')
 }
