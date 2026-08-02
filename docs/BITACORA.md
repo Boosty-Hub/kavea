@@ -21,12 +21,55 @@ verificado, no se escribe como hecho.
 | Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
 | Esquema de base de datos | ✅ 13 migraciones aplicadas | 15 tablas, 20 políticas, verificado en `pg_catalog` |
 | Aislamiento entre tenants | ✅ 16 de 16 comprobaciones | Validado rompiendo una política a propósito |
-| Aplicación Next.js | ✅ Desplegada | `admin.kavea.ai` sirviendo con certificado |
-| Comodín `*.kavea.ai` | ⛔ **Bloqueado por Netlify** | Requiere ticket de soporte, no es autoservicio |
+| Aplicación Next.js | ✅ Desplegada | `boosty.kavea.ai` y `admin.kavea.ai` sirviendo |
+| Usuario de Boosty | ✅ Sembrado | Owner de la organización y staff |
+| Integración continua | ✅ 5 trabajos en verde | Validada provocando una regresión |
+| Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias. Ver más abajo |
+
+**La fase 0 está terminada.** Lo que queda del bloque —el comodín— no bloquea el dogfooding.
 
 ---
 
 ## 2. Entradas
+
+### 2026-08-02 · Integración continua en verde
+
+Cinco trabajos en GitHub Actions, todos pasando: tipos y build, sitio público, esquema desde
+cero con aislamiento, coherencia entre proveedores, y fuga de secretos.
+
+**Los canarios lanzan excepción en lugar de imprimir.** Uno que solo imprime se ignora en
+cuanto la salida del CI pasa de veinte líneas. Son siete y se generan desde `pg_catalog`, así
+que cubren también las tablas que creen las fases futuras sin tener que actualizarlos.
+
+**Validado provocando una regresión:** creando una tabla sin RLS dentro de una transacción, C1
+la detecta por nombre y rompe el build. Igual que la batería de sesiones, que ya se validó
+rompiendo una política. Una prueba que no se ha visto fallar no es una prueba.
+
+Dos canarios que no estaban en el plan y se añadieron: función `security definer` sin
+`search_path` fijado —vía de escalada por sombreado de objetos— y existencia del `CHECK` que
+impide cachear media entrante de Meta, que es causa documentada de rechazo del App Review.
+
+Comprobaciones del sitio público que van en CI: las tres páginas legales existen en el build y
+**no se emite ni un byte de JavaScript**. Lo segundo es lo que garantiza que el rastreador de
+Meta lea la página entera sin ejecutar nada.
+
+#### Cuatro cosas que costaron y quedan anotadas
+
+1. **`supabase start` ya aplica las migraciones.** El CLI sí reconoce el convenio `0001_`; el
+   bucle manual las reaplicaba y fallaba con "type already exists". Se sustituyó por una
+   comprobación de que el esquema existe: que `start` no dé error no significa que aplicara
+   nada, y sin esa comprobación los canarios pasarían sobre una base vacía.
+2. **El CLI 2.15.8 rechaza Postgres 17.** Se subió a 2.111.0. Probar contra 15 lo que corre en
+   17.6 es la deriva entre entornos que ese trabajo existe para evitar.
+3. **`npm ci` falla en Linux** con un lockfile generado en Windows: faltan las dependencias
+   opcionales que arrastra sharp. Se usa `npm install`; las versiones las sigue fijando el
+   lockfile.
+4. **Un bloque `begin ... exception` de PL/pgSQL abre una subtransacción.** Al capturar el
+   error revierte todo lo hecho dentro, incluidas las filas de preparación que las
+   comprobaciones siguientes necesitan. El fichero de aislamiento falló por esto y lleva la
+   nota.
+
+---
 
 ### 2026-08-02 · Fase 0 — aplicación desplegada, comodín bloqueado por Netlify
 
