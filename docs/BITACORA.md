@@ -18,8 +18,8 @@ verificado, no se escribe como hecho.
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, en modo desarrollo | `compliant`, sin violaciones |
 | Plan de construcción | ✅ 8 fases, 8.000 líneas | `docs/fases/` |
-| Zona DNS en Netlify | ⏳ Creada, sin delegar | Nameservers aún en GoDaddy |
-| Certificado comodín | ⬜ Bloqueado por lo anterior | — |
+| Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
+| Certificado comodín | ⬜ Desbloqueado, pendiente del sitio de la app | Se pide en la fase 0 |
 | Aplicación | ⬜ No empezada | Fase 0 |
 
 ---
@@ -98,8 +98,27 @@ DNS-only no resuelve el problema —Netlify seguiría sin poder escribir el TXT 
 y en modo proxy Netlify desaconseja por escrito poner su CDN detrás de otro. Además su
 Universal SSL solo cubre el primer nivel de subdominio.
 
-**Pendiente:** cambiar los nameservers en GoDaddy a `dns1` … `dns4.p05.nsone.net`.
-Comprobado a las 07:30 UTC: tres resolvedores públicos siguen devolviendo los de GoDaddy.
+**Delegación completada el 2-ago-2026, 07:12 UTC.** Nameservers cambiados en GoDaddy y
+propagación confirmada.
+
+Verificación posterior, toda con evidencia:
+
+- SOA `dns1.p01.nsone.net` —NS1, el proveedor de Netlify— desde siete resolvedores públicos:
+  Google, Cloudflare, Quad9, OpenDNS y Verisign.
+- Los siete registros resuelven correctos a través de resolvedores públicos.
+- Dominio en Resend sigue `verified`, con sus cuatro registros verificados.
+- **Prueba de correo de extremo a extremo tras la migración:** enviado
+  `cffcb8d0-5534-4065-9af7-f356ff882208` y localizado en la bandeja de entrantes. El correo
+  no se cayó en ningún momento.
+- Web sirviendo HTTP 200 con el contenido correcto.
+
+Detalle que confundió durante la comprobación: los registros NS cacheados en los resolvedores
+seguían devolviendo GoDaddy mientras el SOA ya era de NS1. **El SOA es la señal fiable de que
+la delegación cambió**, no el NS, que sobrevive en caché hasta que vence su TTL.
+
+**Lo que queda desbloqueado:** Netlify ya puede emitir y renovar el certificado comodín. No
+se pide todavía porque el alias `*.kavea.ai` se añade al sitio de la aplicación, que aún no
+existe. Añadirlo al sitio público haría que todos los subdominios sirvieran la landing.
 
 ---
 
@@ -175,11 +194,14 @@ Signup usa Facebook Login **for Business**, que se configura desde el panel.
 
 | Qué | Quién |
 |---|---|
-| Cambiar nameservers en GoDaddy. Comprobado a las 07:45 UTC: sin propagar | Gabriel |
+| ~~Cambiar nameservers en GoDaddy~~ — **hecho y verificado** | ✅ |
 | ~~Ingesta en Cloudflare o Netlify~~ — **decidido: Netlify** | ✅ |
 | ~~Contraste de colores semánticos~~ — **decidido: dos tokens por estado** | ✅ |
 | ~~Tres o cuatro estados~~ — **decidido: cuatro** | ✅ |
 | Rehacer las fases 1 y 2 sobre Netlify. Están escritas contra Cloudflare | Claude |
+
+**Nada bloquea ya la fase 0 por parte de Gabriel.** Lo único pendiente antes de arrancar es
+rehacer los planes de las fases 1 y 2, que no bloquean el bloque 0.
 
 ### Bloquea el App Review
 
