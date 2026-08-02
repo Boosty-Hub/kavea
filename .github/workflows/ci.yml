@@ -49,7 +49,12 @@ jobs:
         with:
           node-version-file: .nvmrc
 
-      - run: npm ci
+      # `npm install` y no `npm ci`: el lockfile se genera en Windows y no
+      # incluye las dependencias opcionales de Linux que arrastra sharp, así que
+      # `ci` falla por lockfile desincronizado en el runner. Las versiones
+      # siguen fijadas por el lockfile; lo único que se pierde es el rechazo
+      # ante una desincronización, que aquí es permanente por plataforma.
+      - run: npm install --no-audit --no-fund
         working-directory: web
 
       - run: npm run build
@@ -94,39 +99,37 @@ jobs:
         with:
           version: 2.111.0
 
-      - name: Levantar el stack local
+      # `supabase start` aplica por sí solo todo lo que hay en
+      # supabase/migrations, en orden lexicográfico. Reaplicarlas después a mano
+      # falla con "type already exists", que es como se descubrió esto.
+      - name: Levantar el stack y aplicar el esquema desde cero
         run: supabase start -x studio,inbucket,imgproxy,edge-runtime,logflare,vector
 
-      # Se aplican una a una en lugar de con `db reset`, para no depender del
-      # convenio de nombres con marca temporal del CLI. El orden lexicográfico
-      # del prefijo 00NN es el orden de aplicación.
-      - name: Aplicar las migraciones desde cero
+      - name: Exportar la URL de la base
         run: |
-          for f in supabase/migrations/*.sql; do
-            echo "-- $f"
-            psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" \
-              -v ON_ERROR_STOP=1 -q -f "$f"
-          done
+          echo "DB=$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" >> "$GITHUB_ENV"
+
+      # Que `start` no diera error no significa que aplicara nada: si el CLI
+      # cambiara de convenio de nombres, se saltaría las migraciones en silencio
+      # y los canarios pasarían sobre una base vacía.
+      - name: El esquema existe de verdad
+        run: |
+          n=$(psql "$DB" -tAc "select count(*) from pg_tables where schemaname='public';")
+          test "$n" -ge 14 || { echo "Solo $n tablas en public: las migraciones no se aplicaron"; exit 1; }
+          echo "$n tablas en public."
 
       - name: Canarios de esquema
-        run: |
-          psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" \
-            -v ON_ERROR_STOP=1 -f supabase/tests/canarios.sql
+        run: psql "$DB" -v ON_ERROR_STOP=1 -f supabase/tests/canarios.sql
 
       - name: Aislamiento entre organizaciones
-        run: |
-          psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" \
-            -v ON_ERROR_STOP=1 -f supabase/tests/aislamiento.sql
+        run: psql "$DB" -v ON_ERROR_STOP=1 -f supabase/tests/aislamiento.sql
 
-      # Aplicar dos veces tiene que fallar de forma ruidosa, no dejar el esquema
-      # a medias. Es lo que separa una migración reproducible de una que solo
-      # funcionó una vez.
+      # Volver a aplicar la semilla no puede duplicar ni fallar. Es lo que
+      # separa una migración reproducible de una que solo funcionó una vez.
       - name: La semilla es idempotente
         run: |
-          psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" \
-            -v ON_ERROR_STOP=1 -q -f supabase/migrations/0013_semilla_boosty.sql
-          n=$(psql "$(supabase status -o env | grep DB_URL | cut -d= -f2- | tr -d '\"')" \
-            -tAc "select count(*) from public.organizations where slug='boosty';")
+          psql "$DB" -v ON_ERROR_STOP=1 -q -f supabase/migrations/0013_semilla_boosty.sql
+          n=$(psql "$DB" -tAc "select count(*) from public.organizations where slug='boosty';")
           test "$n" = "1" || { echo "La semilla duplico: $n filas"; exit 1; }
           echo "Semilla idempotente."
 
