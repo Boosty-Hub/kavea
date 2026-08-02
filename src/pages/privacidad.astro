@@ -1,0 +1,348 @@
+---
+import Legal from '../layouts/Legal.astro'
+import { legal } from '../data/legal'
+
+const indice = [
+  { id: 'responsable', label: 'Quién trata tus datos' },
+  { id: 'roles', label: 'Nuestro papel en el tratamiento' },
+  { id: 'datos', label: 'Qué datos tratamos' },
+  { id: 'origen', label: 'De dónde vienen los datos' },
+  { id: 'archivos', label: 'Fotos, audios y archivos' },
+  { id: 'finalidades', label: 'Para qué los usamos' },
+  { id: 'ia', label: 'Uso de inteligencia artificial' },
+  { id: 'terceros', label: 'Con quién los compartimos' },
+  { id: 'transferencias', label: 'Transferencias internacionales' },
+  { id: 'conservacion', label: 'Cuánto tiempo los guardamos' },
+  { id: 'seguridad', label: 'Cómo los protegemos' },
+  { id: 'derechos', label: 'Tus derechos' },
+  { id: 'eliminacion', label: 'Eliminación de datos' },
+  { id: 'menores', label: 'Menores de edad' },
+  { id: 'cookies', label: 'Cookies y rastreo' },
+  { id: 'cambios', label: 'Cambios en esta política' },
+  { id: 'contacto', label: 'Contacto' },
+]
+---
+
+<Legal
+  title="Política de privacidad"
+  description="Cómo Kavea trata los datos personales de los usuarios de la plataforma y de las personas que conversan con los negocios que la usan."
+  path="/privacidad"
+  intro="Qué datos tratamos, con qué fin, con quién los compartimos y cómo puedes ejercer tus derechos sobre ellos."
+  indice={indice}
+>
+  <h2 id="responsable">1. Quién trata tus datos</h2>
+  <p>
+    El servicio <strong>{legal.producto}</strong>, accesible en <code>{legal.dominio}</code>, es
+    operado por <strong>{legal.razonSocial}</strong>, sociedad constituida en {legal.jurisdiccion},
+    con domicilio en {legal.domicilio}.
+  </p>
+  <p>
+    Para cualquier asunto relacionado con datos personales puedes escribir a
+    <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a>.
+  </p>
+
+  <h2 id="roles">2. Nuestro papel en el tratamiento</h2>
+  <p>Kavea trata datos personales en dos posiciones distintas, y conviene separarlas:</p>
+  <ul>
+    <li>
+      <strong>Como responsable.</strong> Sobre los datos de las personas que contratan y usan Kavea:
+      quien crea una cuenta, los miembros de su equipo y quien nos escribe por el sitio web.
+    </li>
+    <li>
+      <strong>Como encargado del tratamiento.</strong> Sobre los datos de las personas que conversan
+      con un negocio a través de sus canales. Esos datos pertenecen al negocio, que decide para qué
+      se usan. Kavea los procesa siguiendo sus instrucciones y los términos del servicio.
+    </li>
+  </ul>
+  <p>
+    Si escribiste por WhatsApp, Instagram o Messenger a una empresa que usa Kavea y quieres ejercer
+    tus derechos, puedes dirigirte a esa empresa o a nosotros. Si nos escribes directamente,
+    trasladamos la solicitud al negocio correspondiente y te confirmamos el resultado.
+  </p>
+
+  <h2 id="datos">3. Qué datos tratamos</h2>
+
+  <h3>3.1 De quien usa Kavea</h3>
+  <ul>
+    <li>Nombre, dirección de correo y, si se aporta, teléfono y cargo.</li>
+    <li>Nombre de la organización y datos de facturación.</li>
+    <li>
+      Credenciales de acceso. Las contraseñas se guardan siempre cifradas y nadie de nuestro equipo
+      puede leerlas.
+    </li>
+    <li>
+      Registros técnicos de uso: fecha y hora de acceso, dirección IP, tipo de navegador y acciones
+      realizadas dentro de la plataforma.
+    </li>
+    <li>
+      Credenciales de conexión a las plataformas de Meta, guardadas cifradas y usadas únicamente para
+      enviar y recibir mensajes en nombre del negocio.
+    </li>
+  </ul>
+
+  <h3>3.2 De quien conversa con un negocio que usa Kavea</h3>
+  <ul>
+    <li>
+      Identificadores asignados por Meta. En Instagram y Messenger son identificadores acotados a la
+      aplicación, distintos para cada negocio y no reutilizables fuera de él. En WhatsApp, el número
+      de teléfono desde el que se escribe.
+    </li>
+    <li>Nombre de perfil público, tal como lo muestra la plataforma de origen.</li>
+    <li>
+      Contenido de los mensajes intercambiados con el negocio: texto, y referencias a los archivos
+      adjuntos en los términos de la sección 5.
+    </li>
+    <li>
+      Metadatos de la conversación: fecha y hora de cada mensaje, canal de origen, estado de entrega
+      y lectura, y si el mensaje llegó a partir de un anuncio.
+    </li>
+    <li>
+      Los datos adicionales que el propio negocio registre sobre ese contacto dentro de Kavea, como
+      etiquetas, notas o campos personalizados.
+    </li>
+  </ul>
+
+  <h2 id="origen">4. De dónde vienen los datos</h2>
+  <p>
+    Los datos de conversación no se obtienen rastreando nada ni comprándolos a terceros. Llegan por
+    dos vías, y solo por esas dos:
+  </p>
+  <ul>
+    <li>
+      <strong>Los aportas tú.</strong> Cuando escribes a un negocio por WhatsApp, Instagram o
+      Messenger, o cuando rellenas un formulario suyo.
+    </li>
+    <li>
+      <strong>Nos los entrega Meta.</strong> A través de las notificaciones automáticas de sus
+      plataformas, y únicamente después de que el negocio dueño de la cuenta haya autorizado de forma
+      expresa a Kavea a recibir sus mensajes. Esa autorización puede retirarse en cualquier momento
+      desde la configuración de su cuenta de Meta.
+    </li>
+  </ul>
+
+  <h2 id="archivos">5. Fotos, audios y archivos</h2>
+  <p>
+    Cuando alguien envía una imagen, un audio, un vídeo o un documento a través de WhatsApp,
+    Instagram o Messenger, <strong>Kavea no descarga ni almacena ese archivo</strong>. Solo guarda la
+    dirección que apunta al archivo en los servidores de Meta, junto con su tipo y su tamaño.
+  </p>
+  <p>
+    La consecuencia práctica es doble y conviene conocerla: el contenido sigue viviendo en la
+    infraestructura de Meta y sujeto a sus políticas, y cuando allí se borra o caduca, deja de verse
+    también dentro de Kavea. Es una decisión deliberada, no una limitación técnica.
+  </p>
+  <p>
+    Los archivos que sí se guardan en nuestra infraestructura son los <em>salientes</em>: los que el
+    negocio o sus agentes generan y envían desde Kavea.
+  </p>
+
+  <h2 id="finalidades">6. Para qué los usamos</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Finalidad</th>
+          <th>Qué implica</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Prestar el servicio</td>
+          <td>
+            Recibir, unificar, mostrar y responder conversaciones; mantener el historial y el estado
+            de cada una.
+          </td>
+        </tr>
+        <tr>
+          <td>Unificar contactos</td>
+          <td>
+            Reconocer que la misma persona escribió por más de un canal, para no duplicar su ficha.
+          </td>
+        </tr>
+        <tr>
+          <td>Operar con agentes</td>
+          <td>
+            Clasificar la intención del mensaje, redactar borradores de respuesta y decidir cuándo
+            escalar a una persona.
+          </td>
+        </tr>
+        <tr>
+          <td>Registro de auditoría</td>
+          <td>
+            Dejar constancia de cada decisión automática, para poder revisarla y corregirla después.
+          </td>
+        </tr>
+        <tr>
+          <td>Seguridad y abuso</td>
+          <td>Detectar accesos indebidos, fraude y uso contrario a los términos del servicio.</td>
+        </tr>
+        <tr>
+          <td>Obligaciones legales</td>
+          <td>Conservar lo que la ley exija y atender requerimientos de autoridad competente.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    No vendemos datos personales. No los cedemos a anunciantes. No los usamos para entrenar modelos
+    de inteligencia artificial, ni propios ni de terceros.
+  </p>
+
+  <h2 id="ia">7. Uso de inteligencia artificial</h2>
+  <p>
+    Kavea usa modelos de lenguaje para clasificar mensajes, proponer respuestas y decidir cuándo
+    interviene una persona. Para ello, el contenido necesario de la conversación se envía a nuestro
+    proveedor de modelos, que lo procesa para devolver un resultado y no lo utiliza para entrenar sus
+    modelos.
+  </p>
+  <p>
+    Cuando una respuesta la genera un agente automático, el negocio es responsable de declararlo
+    donde la ley aplicable lo exija. Kavea deja registrada la naturaleza de cada respuesta —humana o
+    automática— para que esa declaración sea verificable.
+  </p>
+
+  <h2 id="terceros">8. Con quién los compartimos</h2>
+  <p>
+    Compartimos datos únicamente con los proveedores necesarios para que el servicio funcione. Cada
+    uno actúa por cuenta nuestra y bajo obligaciones contractuales de confidencialidad y seguridad.
+  </p>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Para qué</th>
+          <th>Dónde</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          legal.subencargados.map((s) => (
+            <tr>
+              <td>{s.nombre}</td>
+              <td>{s.proposito}</td>
+              <td>{s.region}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Además podemos comunicar datos a autoridades competentes cuando exista una obligación legal, y a
+    asesores profesionales sujetos a secreto. Si la titularidad del servicio cambiara por una
+    operación societaria, lo comunicaríamos antes de que el cambio afecte a estos datos.
+  </p>
+
+  <h2 id="transferencias">9. Transferencias internacionales</h2>
+  <p>
+    Kavea opera en {legal.mercados.join(', ')}, y parte de su infraestructura y la de sus proveedores
+    está fuera del país donde resides. Eso implica que tus datos pueden tratarse en otras
+    jurisdicciones. En esos casos exigimos a nuestros proveedores garantías contractuales de
+    protección equivalentes a las que aplicamos nosotros.
+  </p>
+
+  <h2 id="conservacion">10. Cuánto tiempo los guardamos</h2>
+  <ul>
+    <li>
+      <strong>Conversaciones y contactos:</strong> mientras el negocio mantenga su cuenta activa,
+      porque el historial es la razón de ser del producto. Cada negocio puede fijar su propio plazo de
+      borrado.
+    </li>
+    <li>
+      <strong>Tras cerrar una cuenta:</strong> 30 días para permitir la recuperación de datos por
+      error, y después se eliminan de forma definitiva de los sistemas activos.
+    </li>
+    <li>
+      <strong>Copias de seguridad:</strong> hasta 90 días. Un dato eliminado puede permanecer en una
+      copia cifrada durante ese periodo, sin uso ni acceso, hasta su rotación.
+    </li>
+    <li>
+      <strong>Registros de facturación y obligaciones legales:</strong> el plazo que exija la
+      normativa aplicable.
+    </li>
+    <li>
+      <strong>Registros de auditoría de decisiones automáticas:</strong> se conservan disociados del
+      contenido de la conversación cuando esta se elimina.
+    </li>
+  </ul>
+
+  <h2 id="seguridad">11. Cómo los protegemos</h2>
+  <ul>
+    <li>Cifrado en tránsito en todas las comunicaciones, y en reposo en la base de datos.</li>
+    <li>
+      Aislamiento entre organizaciones aplicado en la propia base de datos, no solo en la aplicación:
+      una organización no puede leer las filas de otra aunque la aplicación fallara.
+    </li>
+    <li>Credenciales de las plataformas de Meta cifradas y con acceso restringido.</li>
+    <li>Verificación criptográfica de la firma de cada notificación que llega desde Meta.</li>
+    <li>Acceso del equipo por principio de mínimo privilegio y con registro de actividad.</li>
+  </ul>
+  <p>
+    Ningún sistema es infalible. Si se produjera una brecha que afecte a datos personales, lo
+    notificaremos a los negocios afectados y a las autoridades que corresponda en los plazos que fije
+    la normativa aplicable. Si detectas una vulnerabilidad, escríbenos a
+    <a href={`mailto:${legal.correos.seguridad}`}>{legal.correos.seguridad}</a>: la revisaremos y no
+    emprenderemos acciones contra quien la reporte de buena fe.
+  </p>
+
+  <h2 id="derechos">12. Tus derechos</h2>
+  <p>Sobre tus datos personales puedes solicitar:</p>
+  <ul>
+    <li><strong>Acceso:</strong> saber qué datos tuyos tratamos.</li>
+    <li><strong>Rectificación:</strong> corregir los que sean inexactos.</li>
+    <li><strong>Eliminación:</strong> que los borremos, con los límites de la sección 10.</li>
+    <li><strong>Oposición y limitación:</strong> que dejemos de tratarlos o restrinjamos su uso.</li>
+    <li><strong>Portabilidad:</strong> recibirlos en un formato estructurado y legible.</li>
+    <li>
+      <strong>Revisión humana:</strong> que una persona revise una decisión tomada automáticamente
+      que te afecte.
+    </li>
+  </ul>
+  <p>
+    Escribe a <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a>.
+    Responderemos en un plazo máximo de {legal.plazoRespuestaDatos}. Podemos pedirte que acredites tu
+    identidad antes de actuar, precisamente para que nadie pueda pedir tus datos haciéndose pasar por
+    ti.
+  </p>
+
+  <h2 id="eliminacion">13. Eliminación de datos</h2>
+  <p>
+    Hay una página aparte con las instrucciones paso a paso, incluida la vía para retirar el acceso
+    desde tu propia cuenta de Facebook: <a href="/eliminacion-de-datos">eliminación de datos</a>.
+  </p>
+
+  <h2 id="menores">14. Menores de edad</h2>
+  <p>
+    Kavea es una herramienta de uso profesional y no está dirigida a menores de edad. No recogemos
+    datos de menores de forma consciente. Si detectamos que un negocio conversa con una persona menor
+    de la edad mínima que exija su legislación local, atenderemos la solicitud de eliminación en
+    cuanto se nos comunique.
+  </p>
+
+  <h2 id="cookies">15. Cookies y rastreo</h2>
+  <p>
+    <strong>Este sitio web no usa cookies</strong>, ni analítica de terceros, ni píxeles publicitarios,
+    ni fuentes cargadas desde servidores externos. Es HTML estático: no hay nada que rastrear y no
+    hay banner de consentimiento porque no hace falta.
+  </p>
+  <p>
+    La aplicación de Kavea, cuando esté disponible, sí usará cookies estrictamente necesarias para
+    mantener la sesión iniciada. Se documentarán aquí antes de su puesta en marcha.
+  </p>
+
+  <h2 id="cambios">16. Cambios en esta política</h2>
+  <p>
+    Podemos actualizar esta política. La fecha de vigencia que aparece al principio indica siempre la
+    última revisión. Si un cambio afecta de forma sustancial a cómo tratamos los datos, avisaremos a
+    los negocios con cuenta activa antes de que entre en vigor.
+  </p>
+
+  <h2 id="contacto">17. Contacto</h2>
+  <p>
+    {legal.razonSocial}<br />
+    {legal.domicilio}<br />
+    Privacidad: <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a><br />
+    Asuntos legales: <a href={`mailto:${legal.correos.legal}`}>{legal.correos.legal}</a>
+  </p>
+</Legal>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Versión de dos arcos del isotipo. A 16 px, tres arcos se cierran. -->
+  <style>
+    .arc { stroke: #1A1917; }
+    @media (prefers-color-scheme: dark) { .arc { stroke: #EDEAE3; } }
+  </style>
+  <g class="arc" fill="none" stroke-width="3.6" stroke-linecap="round">
+    <path d="M3 23 A13 13 0 0 1 29 23" />
+    <path d="M8 23 A8 8 0 0 1 24 23" />
+  </g>
+  <path d="M12.6 23 A3.4 3.4 0 0 1 19.4 23 Z" fill="#B04E2C" />
+</svg>

@@ -1,0 +1,284 @@
+---
+import Legal from '../layouts/Legal.astro'
+import { legal } from '../data/legal'
+
+const indice = [
+  { id: 'objeto', label: 'Objeto y aceptación' },
+  { id: 'quien', label: 'Quién puede contratar' },
+  { id: 'cuenta', label: 'Cuenta y credenciales' },
+  { id: 'canales', label: 'Conexión de canales de Meta' },
+  { id: 'uso', label: 'Uso aceptable' },
+  { id: 'contenido', label: 'Contenido del cliente' },
+  { id: 'ia', label: 'Agentes automáticos' },
+  { id: 'disponibilidad', label: 'Disponibilidad del servicio' },
+  { id: 'tarifas', label: 'Tarifas y pagos' },
+  { id: 'propiedad', label: 'Propiedad intelectual' },
+  { id: 'datos', label: 'Datos personales' },
+  { id: 'terminacion', label: 'Suspensión y terminación' },
+  { id: 'garantias', label: 'Garantías y responsabilidad' },
+  { id: 'indemnidad', label: 'Indemnidad' },
+  { id: 'cambios', label: 'Cambios en los términos' },
+  { id: 'ley', label: 'Ley aplicable' },
+  { id: 'contacto', label: 'Contacto' },
+]
+---
+
+<Legal
+  title="Términos del servicio"
+  description="Condiciones bajo las que Boosty Digital LLC presta el servicio Kavea: uso aceptable, responsabilidades, disponibilidad y límites."
+  path="/terminos"
+  intro="Las condiciones bajo las que se presta Kavea. Léelas: fijan qué se garantiza, qué no, y qué responsabilidad asume cada parte."
+  indice={indice}
+>
+  <h2 id="objeto">1. Objeto y aceptación</h2>
+  <p>
+    Estos términos regulan el acceso y uso de <strong>{legal.producto}</strong>, plataforma de
+    operaciones conversacionales prestada por <strong>{legal.razonSocial}</strong> ("Kavea",
+    "nosotros"), sociedad constituida en {legal.jurisdiccion}.
+  </p>
+  <p>
+    Al crear una cuenta, conectar un canal o usar el servicio de cualquier forma, aceptas estos
+    términos. Si contratas en nombre de una empresa, declaras tener poder para obligarla, y "tú" se
+    refiere a esa empresa.
+  </p>
+  <p>
+    Si suscribes un contrato firmado con nosotros y alguna cláusula lo contradice, prevalece el
+    contrato firmado.
+  </p>
+
+  <h2 id="quien">2. Quién puede contratar</h2>
+  <p>
+    Kavea es un servicio para empresas y profesionales. Para contratarlo debes ser mayor de edad y
+    tener capacidad legal para obligarte, y el negocio debe operar de forma lícita en su jurisdicción.
+  </p>
+
+  <h2 id="cuenta">3. Cuenta y credenciales</h2>
+  <ul>
+    <li>Los datos que registres deben ser veraces y estar actualizados.</li>
+    <li>
+      Eres responsable de la confidencialidad de tus credenciales y de toda la actividad que ocurra
+      bajo tu cuenta.
+    </li>
+    <li>
+      Si detectas un acceso no autorizado, avísanos de inmediato en
+      <a href={`mailto:${legal.correos.seguridad}`}>{legal.correos.seguridad}</a>.
+    </li>
+    <li>
+      Cada persona de tu equipo usa su propio acceso. Compartir un mismo usuario entre varias
+      personas rompe la trazabilidad y no está permitido.
+    </li>
+  </ul>
+
+  <h2 id="canales">4. Conexión de canales de Meta</h2>
+  <p>
+    Kavea se conecta a WhatsApp, Instagram y Messenger mediante las interfaces oficiales de Meta
+    Platforms, Inc. Al conectar un canal aceptas lo siguiente:
+  </p>
+  <ul>
+    <li>
+      Eres titular de las cuentas que conectas, o cuentas con autorización expresa de su titular.
+    </li>
+    <li>
+      El uso de esos canales queda sujeto además a las políticas de Meta, que pueden cambiar sin que
+      nosotros intervengamos.
+    </li>
+    <li>
+      Meta puede restringir, suspender o retirar el acceso a sus plataformas, a tu cuenta o a la
+      nuestra, por decisión propia. Cuando eso ocurra, el servicio se verá afectado en la parte
+      correspondiente y no nos es imputable.
+    </li>
+    <li>
+      La calidad y los límites de envío de un número de WhatsApp dependen de la calificación que Meta
+      asigne a ese número en función de cómo lo reciban sus destinatarios. Un uso que genere bloqueos
+      o reportes puede reducir esos límites o inhabilitar el número.
+    </li>
+  </ul>
+  <p>
+    Kavea no es un producto de Meta Platforms, Inc., ni está afiliada, patrocinada o respaldada por
+    ella.
+  </p>
+
+  <h2 id="uso">5. Uso aceptable</h2>
+  <p>No está permitido usar Kavea para:</p>
+  <ul>
+    <li>
+      Enviar mensajes no solicitados a personas que no hayan dado su consentimiento, ni comprar,
+      alquilar o raspar listas de contactos.
+    </li>
+    <li>Suplantar a una persona o entidad, o hacer pasar por humana una respuesta automática cuando la ley exija declararla.</li>
+    <li>Difundir contenido ilícito, engañoso, difamatorio, o que infrinja derechos de terceros.</li>
+    <li>Vulnerar la seguridad del servicio, sondearlo sin autorización o eludir sus límites de uso.</li>
+    <li>
+      Revender, sublicenciar o dar acceso al servicio a terceros fuera de tu organización, salvo
+      acuerdo escrito.
+    </li>
+    <li>
+      Tratar categorías especiales de datos —salud, biometría, ideología, orientación sexual— sin
+      contar con la base legal y las medidas que exija la normativa aplicable.
+    </li>
+  </ul>
+
+  <h2 id="contenido">6. Contenido del cliente</h2>
+  <p>
+    Las conversaciones, contactos, notas y archivos que entran a tu cuenta son tuyos. No reclamamos
+    propiedad sobre ellos.
+  </p>
+  <p>
+    Nos concedes una licencia limitada, no exclusiva y revocable para alojarlos, procesarlos y
+    mostrarlos con el único fin de prestarte el servicio. Esa licencia termina cuando terminan los
+    datos, conforme a los plazos de la
+    <a href="/privacidad">política de privacidad</a>.
+  </p>
+  <p>
+    Eres responsable de tener base legal para tratar los datos de las personas que conversan contigo,
+    y de atender los derechos que ejerzan sobre ellos.
+  </p>
+
+  <h2 id="ia">7. Agentes automáticos</h2>
+  <p>
+    Kavea incorpora modelos de lenguaje que clasifican mensajes, redactan borradores y proponen
+    decisiones. Sobre eso conviene ser explícito:
+  </p>
+  <ul>
+    <li>
+      <strong>Los modelos se equivocan.</strong> Pueden malinterpretar un mensaje, redactar algo
+      inexacto o clasificar mal una intención.
+    </li>
+    <li>
+      <strong>La configuración es tuya.</strong> Tú decides qué intenciones se responden de forma
+      autónoma y cuáles requieren aprobación humana. Recomendamos empezar con aprobación humana en
+      todo y abrir el modo autónomo solo después de medir resultados sobre conversaciones reales.
+    </li>
+    <li>
+      <strong>La responsabilidad frente a tu cliente final es tuya.</strong> Un mensaje enviado desde
+      tu canal es tu mensaje, lo haya redactado una persona de tu equipo o un agente.
+    </li>
+    <li>
+      Kavea registra cada decisión automática para que puedas auditarla, y pone a tu disposición el
+      control para desactivar los agentes en cualquier momento.
+    </li>
+  </ul>
+
+  <h2 id="disponibilidad">8. Disponibilidad del servicio</h2>
+  <p>
+    Trabajamos para que Kavea esté disponible de forma continua, pero <strong>no comprometemos un
+    nivel de servicio sobre aquello que no controlamos</strong>. En concreto, no garantizamos
+    disponibilidad frente a interrupciones, cambios de política, restricciones o fallos de las
+    plataformas de Meta ni de otros proveedores de infraestructura.
+  </p>
+  <p>
+    Podemos realizar mantenimientos programados, avisando con antelación razonable cuando impliquen
+    interrupción, y mantenimientos urgentes sin preaviso cuando la seguridad lo requiera.
+  </p>
+  <p>
+    Mientras Kavea se encuentre en fase de pruebas o acceso anticipado, el servicio se presta tal cual
+    está, sin compromiso de continuidad y sujeto a cambios.
+  </p>
+
+  <h2 id="tarifas">9. Tarifas y pagos</h2>
+  <p>
+    Las tarifas, el modelo de facturación y el periodo de contratación se acuerdan por escrito antes
+    de la puesta en marcha. Salvo pacto distinto:
+  </p>
+  <ul>
+    <li>Los importes se facturan por adelantado y no son reembolsables por periodos ya iniciados.</li>
+    <li>Los impuestos aplicables van por tu cuenta.</li>
+    <li>
+      El coste que Meta cobre por los mensajes de WhatsApp es independiente de la tarifa de Kavea y se
+      rige por las tarifas vigentes de Meta para cada país.
+    </li>
+    <li>Los cambios de tarifa se comunican con al menos 30 días de antelación.</li>
+    <li>La falta de pago puede llevar a la suspensión del servicio tras el aviso correspondiente.</li>
+  </ul>
+
+  <h2 id="propiedad">10. Propiedad intelectual</h2>
+  <p>
+    El software, la marca Kavea, su identidad visual, la documentación y todo lo que compone el
+    servicio son propiedad de {legal.razonSocial} o de sus licenciantes. Estos términos no te
+    transfieren ningún derecho sobre ellos más allá del uso del servicio.
+  </p>
+  <p>
+    No está permitido descompilar, aplicar ingeniería inversa ni crear obras derivadas del software,
+    salvo en la medida en que la ley lo permita expresamente.
+  </p>
+  <p>
+    Si nos envías sugerencias o comentarios sobre el producto, podemos usarlos sin obligación ni
+    contraprestación.
+  </p>
+
+  <h2 id="datos">11. Datos personales</h2>
+  <p>
+    El tratamiento de datos personales se rige por la
+    <a href="/privacidad">política de privacidad</a>, que forma parte de estos términos. Respecto a
+    los datos de las personas que conversan contigo, tú actúas como responsable y nosotros como
+    encargado del tratamiento, siguiendo tus instrucciones.
+  </p>
+
+  <h2 id="terminacion">12. Suspensión y terminación</h2>
+  <ul>
+    <li>Puedes cerrar tu cuenta cuando quieras desde el propio servicio o escribiéndonos.</li>
+    <li>
+      Podemos suspender el acceso de inmediato ante un incumplimiento grave de la sección 5, una
+      amenaza a la seguridad, un requerimiento legal o una falta de pago no subsanada.
+    </li>
+    <li>
+      Podemos terminar el servicio con 30 días de aviso. Si la terminación es por nuestra decisión y
+      no por incumplimiento tuyo, reembolsamos la parte proporcional no consumida.
+    </li>
+    <li>
+      Tras la terminación dispones de 30 días para exportar tus datos. Después se eliminan conforme a
+      la política de privacidad.
+    </li>
+  </ul>
+
+  <h2 id="garantias">13. Garantías y responsabilidad</h2>
+  <p>
+    En la máxima medida que permita la ley aplicable, el servicio se presta <strong>tal cual</strong>
+    y <strong>según disponibilidad</strong>, sin garantías implícitas de comerciabilidad, idoneidad
+    para un fin concreto o ausencia de errores. No garantizamos que el servicio funcione sin
+    interrupciones ni que los resultados de los agentes automáticos sean exactos.
+  </p>
+  <p>
+    En la máxima medida que permita la ley, no respondemos por daños indirectos, lucro cesante,
+    pérdida de oportunidad de negocio, daño reputacional ni pérdida de datos derivada de causas ajenas
+    a nuestro control. Nuestra responsabilidad total acumulada, por cualquier concepto, queda limitada
+    al importe efectivamente pagado por ti en los doce meses anteriores al hecho que la origine.
+  </p>
+  <p>
+    Nada en esta sección limita la responsabilidad por dolo, culpa grave, daños personales, ni
+    cualquier otra que la ley aplicable declare no excluible.
+  </p>
+
+  <h2 id="indemnidad">14. Indemnidad</h2>
+  <p>
+    Nos mantendrás indemnes frente a reclamaciones de terceros derivadas del contenido que envíes a
+    través del servicio, del incumplimiento de la sección 5, o de la falta de base legal para tratar
+    los datos de las personas con las que conversas.
+  </p>
+
+  <h2 id="cambios">15. Cambios en los términos</h2>
+  <p>
+    Podemos modificar estos términos. Los cambios sustanciales se comunican con al menos 30 días de
+    antelación a las cuentas activas. Seguir usando el servicio después de la fecha de entrada en
+    vigor equivale a aceptarlos; si no estás de acuerdo, puedes cerrar tu cuenta antes de esa fecha.
+  </p>
+
+  <h2 id="ley">16. Ley aplicable</h2>
+  <p>
+    Estos términos se rigen por las leyes de {legal.jurisdiccion}, sin aplicación de sus normas sobre
+    conflicto de leyes. Cualquier controversia se someterá a los tribunales competentes de esa
+    jurisdicción, sin perjuicio de los derechos irrenunciables que la ley del país de residencia del
+    cliente le reconozca.
+  </p>
+  <p>
+    Si una cláusula resulta inválida, el resto sigue en vigor y esa cláusula se sustituye por la que
+    más se acerque a su finalidad original.
+  </p>
+
+  <h2 id="contacto">17. Contacto</h2>
+  <p>
+    {legal.razonSocial}<br />
+    {legal.domicilio}<br />
+    <a href={`mailto:${legal.correos.legal}`}>{legal.correos.legal}</a>
+  </p>
+</Legal>

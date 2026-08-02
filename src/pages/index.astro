@@ -1,0 +1,310 @@
+---
+import Base from '../layouts/Base.astro'
+import Cavea from '../components/Cavea.astro'
+import { legal } from '../data/legal'
+
+const canales = [
+  {
+    nombre: 'WhatsApp',
+    api: 'WhatsApp Business Platform',
+    texto:
+      'El canal dominante en Latinoamérica. Mensajes, plantillas aprobadas y control de la ventana de servicio de 24 horas.',
+  },
+  {
+    nombre: 'Instagram',
+    api: 'Instagram Messaging API',
+    texto:
+      'Los mensajes directos de la cuenta profesional, con el mismo hilo y el mismo contacto que el resto de canales.',
+  },
+  {
+    nombre: 'Messenger',
+    api: 'Messenger Platform',
+    texto:
+      'Las conversaciones de la Página de Facebook, incluidas las que tu equipo responde desde el móvil o desde Business Suite.',
+  },
+]
+
+const noEs = [
+  {
+    titulo: 'No es un CRM',
+    texto:
+      'Un CRM es un archivador de contactos con un pipeline encima. Donde el CRM guarda, Kavea opera.',
+  },
+  {
+    titulo: 'No es un chatbot',
+    texto:
+      'Un chatbot responde. Kavea atiende: entiende el contexto, decide si responde o escala, y deja registro de por qué.',
+  },
+  {
+    titulo: 'No es una herramienta de marketing',
+    texto:
+      'El envío proactivo existe como capacidad, no como eje. Kavea no nace para mandar campañas masivas.',
+  },
+]
+---
+
+<Base
+  title="Todas tus conversaciones convergen en un punto"
+  description="Kavea unifica WhatsApp, Instagram y Messenger en una sola bandeja y opera sobre las conversaciones con agentes que clasifican, responden y escalan."
+  path="/"
+>
+  <!-- Hero -->
+  <section class="section section--flush hero">
+    <div class="page hero__inner">
+      <div class="hero__text">
+        <p class="pill"><span class="pill__dot" aria-hidden="true"></span>En construcción</p>
+        <h1>Nada se pierde.<br />Todo llega al centro.</h1>
+        <p class="lead">
+          Kavea recibe todo lo que llega por WhatsApp, Instagram y Messenger, lo unifica en una sola
+          bandeja y opera sobre esas conversaciones con agentes que clasifican, responden, dan
+          seguimiento y escalan a una persona cuando corresponde.
+        </p>
+        <div class="hero__acciones">
+          <a class="btn btn--primary" href={`mailto:${legal.correos.general}`}>Escribir a Kavea</a>
+          <a class="btn btn--ghost" href="#que-es">Ver de qué se trata</a>
+        </div>
+      </div>
+
+      <div class="hero__pieza">
+        <Cavea />
+      </div>
+    </div>
+  </section>
+
+  <!-- Qué es -->
+  <section class="section" id="que-es">
+    <div class="page">
+      <p class="label">Qué es</p>
+      <h2>Un centro de operaciones conversacionales</h2>
+      <p class="lead">
+        La IA es el actor en escena. Cualquiera puede contratar un buen actor. Lo que decide si el
+        público oye o no es la arquitectura.
+      </p>
+
+      <div class="grid grid--3 bloque">
+        {
+          noEs.map((item) => (
+            <div class="card">
+              <h3>{item.titulo}</h3>
+              <p class="muted">{item.texto}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- El problema -->
+  <section class="section" id="problema">
+    <div class="page cols">
+      <div>
+        <p class="label">El problema</p>
+        <h2>Vender por conversación sin un sistema debajo</h2>
+      </div>
+      <div class="stack">
+        <p>Las empresas que venden conversando tienen todas el mismo cuadro:</p>
+        <ul class="lista">
+          <li>Los mensajes entran por tres o cuatro canales y cada canal vive en su propia app.</li>
+          <li>Nadie sabe cuántas conversaciones se quedaron sin responder.</li>
+          <li>El seguimiento depende de que alguien se acuerde.</li>
+          <li>
+            El histórico está repartido entre el celular de un vendedor, una hoja de cálculo y la
+            memoria de alguien.
+          </li>
+          <li>
+            Cuando contratan un software genérico, pagan por asiento y por funciones que no usan, y
+            siguen operando a mano dentro de la herramienta.
+          </li>
+        </ul>
+        <p>
+          La IA no resuelve esto contestando mejor. Lo resuelve cuando está dentro del sistema, con
+          acceso al contexto, con reglas de escalamiento y con registro verificable.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Canales -->
+  <section class="section" id="canales">
+    <div class="page">
+      <p class="label">Canales</p>
+      <h2>Tres entradas, una sola bandeja</h2>
+      <p class="lead">
+        Una persona que te escribe por Instagram y por WhatsApp es un solo contacto, no dos fichas
+        sueltas.
+      </p>
+
+      <div class="grid grid--3 bloque">
+        {
+          canales.map((c) => (
+            <div class="card">
+              <p class="label">{c.api}</p>
+              <h3 class="canal__nombre">{c.nombre}</h3>
+              <p class="muted">{c.texto}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Agentes -->
+  <section class="section" id="agentes">
+    <div class="page cols">
+      <div>
+        <p class="label">Agentes</p>
+        <h2>Copiloto antes que piloto automático</h2>
+      </div>
+      <div class="stack">
+        <p>
+          Los agentes clasifican la intención del mensaje, redactan la respuesta con el contexto de
+          la conversación y del contacto, y aplican reglas de escalamiento cuando hace falta una
+          persona.
+        </p>
+        <p>
+          Cada decisión automática queda registrada: qué entró, qué se decidió, con qué modelo y
+          cuánto costó. Es lo que permite decir <em>el sistema decidió esto por esto</em> en vez de
+          suponerlo.
+        </p>
+        <p>
+          El orden no es negociable. Primero el agente propone y una persona aprueba. Solo después de
+          medir la calidad sobre conversaciones reales se habilita el modo autónomo, y se habilita por
+          tipo de intención, nunca de golpe.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- El nombre -->
+  <section class="section" id="nombre">
+    <div class="page cols">
+      <div>
+        <p class="label">El nombre</p>
+        <h2>De <em>cavea</em></h2>
+      </div>
+      <div class="stack">
+        <p>
+          La <em>cavea</em> es la grada semicircular del teatro romano, excavada en la ladera
+          alrededor de la orquesta. Vitruvio codificó sus proporciones en <em>De Architectura</em> con
+          un solo objetivo: que cada voz llegara a todos y nada se perdiera.
+        </p>
+        <p>
+          No es una metáfora decorativa. La cavea es una pieza de ingeniería cuyo único propósito es
+          la acústica y la línea de visión. Esa es exactamente la promesa del producto, y por eso la
+          marca habla de arquitectura y no de inteligencia artificial.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Estado -->
+  <section class="section" id="estado">
+    <div class="page">
+      <div class="cierre">
+        <p class="label">Estado del proyecto</p>
+        <h2>Kavea está en construcción</h2>
+        <p class="lead">
+          Todavía no hay registro abierto. La plataforma se está probando primero sobre la operación
+          propia de {legal.razonSocial}, y no entra ningún cliente hasta que esa operación lleve un mes
+          completo funcionando sobre ella.
+        </p>
+        <p>
+          Si te interesa seguir el proceso o quieres saber cuándo se abre, escribe a
+          <a href={`mailto:${legal.correos.general}`}>{legal.correos.general}</a>.
+        </p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .hero {
+    padding-block: var(--s-16) var(--s-20);
+  }
+
+  .hero__inner {
+    display: grid;
+    gap: var(--s-12);
+    align-items: center;
+  }
+
+  @media (min-width: 940px) {
+    .hero__inner {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-16);
+    }
+  }
+
+  .hero__text .pill {
+    margin-bottom: var(--s-6);
+  }
+
+  .hero__text h1 {
+    margin-bottom: var(--s-5);
+  }
+
+  .hero__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-3);
+    margin-top: var(--s-8);
+  }
+
+  .hero__pieza {
+    max-width: 560px;
+    width: 100%;
+    justify-self: center;
+  }
+
+  .bloque {
+    margin-top: var(--s-10);
+  }
+
+  .cols {
+    display: grid;
+    gap: var(--s-8);
+  }
+
+  @media (min-width: 880px) {
+    .cols {
+      grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+      gap: var(--s-16);
+      align-items: start;
+    }
+  }
+
+  .lista {
+    margin: 0 0 var(--s-4);
+    padding-left: var(--s-5);
+    max-width: var(--k-measure);
+  }
+
+  .lista li {
+    margin-bottom: var(--s-2);
+  }
+
+  .lista li::marker {
+    color: var(--k-text-3);
+  }
+
+  .canal__nombre {
+    margin-block: var(--s-2) var(--s-3);
+  }
+
+  .card h3 {
+    margin-bottom: var(--s-3);
+  }
+
+  .card p {
+    margin-bottom: 0;
+    font-size: 14px;
+  }
+
+  .cierre {
+    max-width: var(--k-measure);
+  }
+
+  .cierre h2 {
+    margin-block: var(--s-3) var(--s-4);
+  }
+</style>

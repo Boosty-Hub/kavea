@@ -1,0 +1,7 @@
+# Acceso abierto y deliberado. El rastreador de Meta tiene que poder leer la
+# política de privacidad y las instrucciones de eliminación de datos: un enlace
+# que no responde 200 es causa de rechazo del App Review, sin más explicación.
+User-agent: *
+Allow: /
+
+Sitemap: https://kavea.ai/sitemap.xml

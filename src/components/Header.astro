@@ -1,0 +1,65 @@
+---
+import Logo from './Logo.astro'
+---
+
+<header class="hdr">
+  <div class="page hdr__inner">
+    <a href="/" class="hdr__brand" aria-label="Kavea — inicio">
+      <Logo size={26} />
+    </a>
+
+    <nav class="hdr__nav" aria-label="Principal">
+      <a href="/#que-es">Qué es</a>
+      <a href="/#canales">Canales</a>
+      <a href="/#nombre">El nombre</a>
+      <a href="/privacidad">Privacidad</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .hdr {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--k-bg) 88%, transparent);
+    backdrop-filter: saturate(1.4) blur(8px);
+    border-bottom: 1px solid var(--k-border);
+  }
+
+  .hdr__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s-6);
+    min-height: 64px;
+  }
+
+  .hdr__brand {
+    text-decoration: none;
+    flex: none;
+  }
+
+  .hdr__nav {
+    display: flex;
+    align-items: center;
+    gap: var(--s-6);
+    font-size: 14px;
+  }
+
+  .hdr__nav a {
+    color: var(--k-text-2);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .hdr__nav a:hover {
+    color: var(--k-text);
+  }
+
+  @media (max-width: 720px) {
+    .hdr__nav a:not(:last-child) {
+      display: none;
+    }
+  }
+</style>

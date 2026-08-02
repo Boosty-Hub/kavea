@@ -1,0 +1,12 @@
+# Alias en inglés. Se usan en los campos de configuración de la app de Meta
+# y en cualquier integración que espere las rutas convencionales.
+/privacy              /privacidad            301
+/privacy-policy       /privacidad            301
+/terms                /terminos              301
+/terms-of-service     /terminos              301
+/data-deletion        /eliminacion-de-datos  301
+/data-deletion-instructions  /eliminacion-de-datos  301
+
+# Variantes en español sin la preposición, por si alguien las teclea.
+/politica-de-privacidad  /privacidad            301
+/eliminacion-datos       /eliminacion-de-datos  301

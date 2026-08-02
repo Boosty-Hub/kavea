@@ -1,0 +1,169 @@
+---
+import Legal from '../layouts/Legal.astro'
+import { legal } from '../data/legal'
+
+const indice = [
+  { id: 'que-se-borra', label: 'Qué se elimina' },
+  { id: 'facebook', label: 'Vía 1 — desde tu cuenta de Facebook' },
+  { id: 'correo', label: 'Vía 2 — por correo' },
+  { id: 'negocio', label: 'Vía 3 — desde el negocio' },
+  { id: 'cuenta-completa', label: 'Eliminar una cuenta de Kavea' },
+  { id: 'plazos', label: 'Plazos' },
+  { id: 'limites', label: 'Qué no podemos eliminar' },
+  { id: 'seguimiento', label: 'Seguimiento de tu solicitud' },
+]
+
+const respuestaCallback = '{ "url": "...", "confirmation_code": "..." }'
+---
+
+<Legal
+  title="Eliminación de datos"
+  description="Cómo solicitar la eliminación de los datos personales que Kavea trata, incluida la vía automática desde tu cuenta de Facebook."
+  path="/eliminacion-de-datos"
+  intro="Instrucciones para pedir que borremos tus datos. Hay tres vías y todas terminan en lo mismo: los datos se eliminan."
+  indice={indice}
+>
+  <div class="note">
+    <p>
+      <strong>Si tienes prisa:</strong> escribe a
+      <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a> desde el correo
+      asociado a tu cuenta, o indicando el canal y el nombre del negocio con el que conversaste.
+      Respondemos en un plazo máximo de {legal.plazoRespuestaDatos}.
+    </p>
+  </div>
+
+  <h2 id="que-se-borra">1. Qué se elimina</h2>
+  <p>Una solicitud de eliminación cubre todo lo que Kavea guarda sobre ti:</p>
+  <ul>
+    <li>Los identificadores que te asignaron las plataformas de Meta, y tu número de teléfono si escribiste por WhatsApp.</li>
+    <li>Tu nombre de perfil tal como lo recibimos de la plataforma de origen.</li>
+    <li>El contenido de los mensajes que intercambiaste con el negocio.</li>
+    <li>Los metadatos de esas conversaciones: fechas, canal, estados de entrega y lectura.</li>
+    <li>Las etiquetas, notas y campos personalizados que el negocio haya registrado sobre ti.</li>
+    <li>Las referencias a los archivos que enviaste.</li>
+  </ul>
+  <p>
+    Sobre los archivos conviene una precisión: Kavea no guarda copias de las fotos, audios o
+    documentos que envías por los canales de Meta, solo la dirección que apunta a ellos en la
+    infraestructura de Meta. Al eliminar tus datos, esa dirección desaparece de nuestros sistemas. El
+    archivo original en los servidores de Meta se rige por sus propias políticas y hay que gestionarlo
+    con ellos.
+  </p>
+
+  <h2 id="facebook">2. Vía 1 — desde tu cuenta de Facebook</h2>
+  <p>
+    Si conversaste por Instagram o Messenger, puedes retirar el acceso desde tu propia cuenta, sin
+    escribirnos:
+  </p>
+  <ol>
+    <li>Entra a Facebook y abre <strong>Configuración y privacidad</strong>.</li>
+    <li>Ve a <strong>Configuración</strong>.</li>
+    <li>Abre <strong>Apps y sitios web</strong>.</li>
+    <li>Busca <strong>Kavea</strong> en la lista de aplicaciones con acceso.</li>
+    <li>Pulsa <strong>Eliminar</strong>.</li>
+  </ol>
+  <p>
+    Al hacerlo, Meta nos envía automáticamente una notificación firmada de eliminación de datos.
+    Nuestro sistema la verifica, pone en marcha el borrado y devuelve a Meta una respuesta con la
+    dirección de seguimiento y un código de confirmación, con esta forma:
+  </p>
+  <p><code>{respuestaCallback}</code></p>
+  <p>
+    Guarda ese código de confirmación si lo ves en pantalla. Sirve para consultarnos el estado de tu
+    solicitud sin tener que acreditar tu identidad de nuevo.
+  </p>
+
+  <h2 id="correo">3. Vía 2 — por correo</h2>
+  <p>
+    Escribe a <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a> con el
+    asunto <em>Eliminación de datos</em>. Para poder localizarte, incluye:
+  </p>
+  <ul>
+    <li>El canal por el que escribiste: WhatsApp, Instagram o Messenger.</li>
+    <li>El nombre del negocio o la cuenta con la que conversaste.</li>
+    <li>
+      El número de teléfono desde el que escribiste, si fue por WhatsApp, o tu usuario de Instagram o
+      Facebook en los otros dos casos.
+    </li>
+  </ul>
+  <p>
+    Podemos pedirte que acredites tu identidad antes de proceder. No es burocracia: es lo que impide
+    que un tercero borre tus datos, o los pida, haciéndose pasar por ti.
+  </p>
+
+  <h2 id="negocio">4. Vía 3 — desde el negocio</h2>
+  <p>
+    Los datos de tu conversación pertenecen al negocio con el que hablaste. Kavea los procesa por
+    cuenta suya. Puedes pedirle directamente que los elimine, y podrá hacerlo desde su panel sin
+    intervención nuestra.
+  </p>
+  <p>
+    Si prefieres escribirnos a nosotros, trasladamos la solicitud al negocio correspondiente y te
+    confirmamos el resultado.
+  </p>
+
+  <h2 id="cuenta-completa">5. Eliminar una cuenta de Kavea</h2>
+  <p>
+    Si eres cliente y quieres cerrar tu cuenta con todos sus datos, escribe a
+    <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a> desde el correo del
+    administrador de la organización. Antes de proceder te ofrecemos exportar tus conversaciones y
+    contactos: una vez eliminada, la cuenta no se recupera.
+  </p>
+
+  <h2 id="plazos">6. Plazos</h2>
+  <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Paso</th>
+          <th>Plazo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Acuse de recibo de la solicitud</td>
+          <td>72 horas hábiles</td>
+        </tr>
+        <tr>
+          <td>Eliminación de los sistemas activos</td>
+          <td>Hasta 30 días naturales</td>
+        </tr>
+        <tr>
+          <td>Desaparición de las copias de seguridad</td>
+          <td>Hasta 90 días, al rotar la copia</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    Durante el periodo en que un dato eliminado siga existiendo en una copia de seguridad cifrada, no
+    se usa, no se consulta y no está accesible para el negocio ni para nuestro equipo.
+  </p>
+
+  <h2 id="limites">7. Qué no podemos eliminar</h2>
+  <p>Hay dos excepciones, y las decimos por delante:</p>
+  <ul>
+    <li>
+      <strong>Lo que obliga la ley a conservar.</strong> Registros de facturación y documentación
+      contable o fiscal, durante el plazo que exija la normativa aplicable.
+    </li>
+    <li>
+      <strong>Los registros de auditoría de decisiones automáticas.</strong> Se conservan, pero
+      disociados: se elimina el contenido de la conversación y cualquier dato que permita
+      identificarte, y queda únicamente el registro técnico de que hubo una decisión, con qué modelo y
+      con qué resultado. En ese estado ya no son datos personales.
+    </li>
+  </ul>
+
+  <h2 id="seguimiento">8. Seguimiento de tu solicitud</h2>
+  <p>
+    Para consultar el estado, responde al mismo hilo de correo o escribe a
+    <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a> indicando el código
+    de confirmación si lo tienes.
+  </p>
+  <p>
+    Si consideras que no atendimos tu solicitud como corresponde, puedes reclamar ante la autoridad de
+    protección de datos de tu país. Preferimos resolverlo contigo primero, pero ese derecho es tuyo y
+    no te lo vamos a esconder.
+  </p>
+</Legal>

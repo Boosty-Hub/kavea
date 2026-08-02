@@ -1,0 +1,68 @@
+---
+/**
+ * Isotipo + wordmark.
+ *
+ * El isotipo se dibuja en SVG en vez de servir el PNG de marca porque tiene que
+ * funcionar en fondo claro y oscuro sin dos archivos: los arcos heredan
+ * currentColor y el núcleo se queda en terracota, que es su única regla de color.
+ *
+ * Construcción del libro de marca: tres arcos concéntricos con radios en
+ * proporción decreciente constante, trazo uniforme, terminaciones redondeadas,
+ * núcleo semicircular sólido. Las gradas abren siempre hacia arriba.
+ */
+interface Props {
+  /** Alto del isotipo en px. Mínimo de marca: 24. */
+  size?: number
+  /** Oculta el wordmark y deja solo el símbolo. */
+  soloIsotipo?: boolean
+  class?: string
+}
+
+const { size = 28, soloIsotipo = false, class: className = '' } = Astro.props
+const width = (size * 120) / 68
+---
+
+<span class:list={['logo', className]}>
+  <svg
+    class="logo__mark"
+    viewBox="0 0 120 68"
+    width={width}
+    height={size}
+    fill="none"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <g stroke="currentColor" stroke-width="7" stroke-linecap="round">
+      <path d="M7 62 A53 53 0 0 1 113 62" />
+      <path d="M21.5 62 A38.5 38.5 0 0 1 98.5 62" />
+      <path d="M35 62 A25 25 0 0 1 85 62" />
+    </g>
+    <path class="logo__core" d="M51 62 A9 9 0 0 1 69 62 Z" fill="var(--k-accent)" />
+  </svg>
+  {!soloIsotipo && <span class="logo__word">kavea</span>}
+</span>
+
+<style>
+  .logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--k-text);
+    text-decoration: none;
+    line-height: 1;
+  }
+
+  .logo__mark {
+    display: block;
+    flex: none;
+  }
+
+  /* El wordmark siempre en minúsculas. Nunca Kavea ni KAVEA como marca gráfica. */
+  .logo__word {
+    font-size: 21px;
+    font-weight: 500;
+    font-variation-settings: 'wght' 500;
+    letter-spacing: -0.015em;
+    text-transform: lowercase;
+  }
+</style>

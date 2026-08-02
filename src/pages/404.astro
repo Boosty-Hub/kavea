@@ -1,0 +1,37 @@
+---
+import Base from '../layouts/Base.astro'
+---
+
+<Base
+  title="Página no encontrada"
+  description="La dirección que buscas no existe en kavea.ai."
+  path="/404"
+>
+  <section class="section section--flush">
+    <div class="page nf">
+      <p class="label">Error 404</p>
+      <h1>Esta dirección no existe</h1>
+      <p class="lead">
+        El enlace está roto o la página se movió. Desde el inicio se llega a todo lo demás.
+      </p>
+      <p class="nf__acciones">
+        <a class="btn btn--primary" href="/">Volver al inicio</a>
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .nf {
+    padding-block: var(--s-24) var(--s-20);
+    max-width: var(--k-measure);
+  }
+
+  .nf h1 {
+    margin-block: var(--s-3) var(--s-5);
+  }
+
+  .nf__acciones {
+    margin-top: var(--s-8);
+  }
+</style>

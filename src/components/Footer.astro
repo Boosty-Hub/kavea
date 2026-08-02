@@ -1,0 +1,139 @@
+---
+import Logo from './Logo.astro'
+import { legal } from '../data/legal'
+
+const anio = 2026
+---
+
+<footer class="ftr">
+  <div class="page">
+    <div class="ftr__top">
+      <div class="ftr__brand">
+        <Logo size={24} />
+        <p class="ftr__claim">Nada se pierde. Todo llega al centro.</p>
+      </div>
+
+      <nav class="ftr__cols" aria-label="Pie de página">
+        <div>
+          <p class="label">Producto</p>
+          <ul>
+            <li><a href="/#que-es">Qué es Kavea</a></li>
+            <li><a href="/#canales">Canales</a></li>
+            <li><a href="/#agentes">Agentes</a></li>
+            <li><a href="/#nombre">El nombre</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="label">Legal</p>
+          <ul>
+            <li><a href="/privacidad">Política de privacidad</a></li>
+            <li><a href="/terminos">Términos del servicio</a></li>
+            <li><a href="/eliminacion-de-datos">Eliminación de datos</a></li>
+          </ul>
+        </div>
+
+        <div>
+          <p class="label">Contacto</p>
+          <ul>
+            <li><a href={`mailto:${legal.correos.general}`}>{legal.correos.general}</a></li>
+            <li><a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a></li>
+            <li><a href={`mailto:${legal.correos.seguridad}`}>{legal.correos.seguridad}</a></li>
+          </ul>
+        </div>
+      </nav>
+    </div>
+
+    <div class="ftr__bottom">
+      <p>
+        Kavea es un producto de <strong>{legal.razonSocial}</strong>.
+        <span class="ftr__sep" aria-hidden="true">·</span>
+        © {anio} {legal.razonSocial}. Todos los derechos reservados.
+      </p>
+      <p class="ftr__disclaimer">
+        WhatsApp, Instagram, Messenger y Facebook son marcas de Meta Platforms, Inc.
+        Kavea no está afiliada, patrocinada ni respaldada por Meta Platforms, Inc.
+      </p>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .ftr {
+    border-top: 1px solid var(--k-border);
+    background: var(--k-surface-2);
+    padding-block: var(--s-16) var(--s-10);
+    margin-top: var(--s-24);
+  }
+
+  .ftr__top {
+    display: grid;
+    gap: var(--s-12);
+    padding-bottom: var(--s-12);
+  }
+
+  @media (min-width: 860px) {
+    .ftr__top {
+      grid-template-columns: 1fr auto;
+      gap: var(--s-20);
+    }
+  }
+
+  .ftr__claim {
+    margin: var(--s-4) 0 0;
+    color: var(--k-text-2);
+    font-size: 14px;
+    max-width: 34ch;
+  }
+
+  .ftr__cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--s-8);
+  }
+
+  .ftr__cols ul {
+    list-style: none;
+    margin: var(--s-3) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--s-2);
+    font-size: 14px;
+  }
+
+  .ftr__cols a {
+    color: var(--k-text-2);
+    text-decoration: none;
+  }
+
+  .ftr__cols a:hover {
+    color: var(--k-text);
+    text-decoration: underline;
+    text-decoration-color: var(--k-accent);
+    text-underline-offset: 3px;
+  }
+
+  .ftr__bottom {
+    border-top: 1px solid var(--k-border);
+    padding-top: var(--s-6);
+  }
+
+  .ftr__bottom p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--k-text-2);
+    max-width: none;
+  }
+
+  .ftr__sep {
+    padding-inline: var(--s-1);
+    color: var(--k-text-3);
+  }
+
+  .ftr__disclaimer {
+    margin-top: var(--s-2) !important;
+    color: var(--k-text-3) !important;
+    max-width: 78ch !important;
+  }
+</style>

@@ -1,0 +1,143 @@
+---
+/**
+ * La pieza narrativa: los tres canales convergiendo en la orquesta.
+ *
+ * No es el logo. Es el argumento hecho imagen, y por eso vive en el hero.
+ * Reglas que respeta: nunca más de tres canales, ningún logotipo de Meta sobre
+ * las etiquetas (solo el nombre en texto), y los arcos jamás cierran en círculo.
+ *
+ * La animación sigue la secuencia del libro de marca, en CSS puro y sin una sola
+ * línea de JavaScript: arcos de afuera hacia adentro, línea base, canales,
+ * encendido del núcleo y por último el texto. Curvas suaves, sin rebotes:
+ * la marca es piedra, no goma.
+ */
+---
+
+<figure class="cavea">
+  <svg viewBox="0 0 400 216" role="img" aria-labelledby="cavea-t cavea-d">
+    <title id="cavea-t">La cavea de Kavea</title>
+    <desc id="cavea-d">
+      Cuatro gradas semicirculares concéntricas sobre una línea base. Desde las
+      etiquetas Instagram, WhatsApp y Facebook bajan tres líneas que convergen en
+      un núcleo semicircular en el centro.
+    </desc>
+
+    <!-- Gradas -->
+    <g class="cavea__arcs" fill="none" stroke="var(--k-ceniza)" stroke-width="1.4">
+      <path pathLength="1" style="--i: 0" d="M24 206 A176 176 0 0 1 376 206" />
+      <path pathLength="1" style="--i: 1" d="M65 206 A135 135 0 0 1 335 206" />
+      <path pathLength="1" style="--i: 2" d="M97 206 A103 103 0 0 1 303 206" />
+      <path pathLength="1" style="--i: 3" d="M130 206 A70 70 0 0 1 270 206" />
+    </g>
+
+    <!-- Línea base. Implícita en el isotipo, dibujada solo en esta pieza. -->
+    <path class="cavea__base" pathLength="1" d="M10 206 H390" stroke="var(--k-ceniza)" stroke-width="1.4" fill="none" />
+
+    <!-- Los tres canales -->
+    <g class="cavea__lines" fill="none" stroke="var(--k-accent)" stroke-width="2.6" stroke-linecap="round">
+      <path pathLength="1" style="--i: 0" d="M63 30 L173.1 179.1" />
+      <path pathLength="1" style="--i: 1" d="M200 30 L200 168" />
+      <path pathLength="1" style="--i: 2" d="M337 30 L226.9 179.1" />
+    </g>
+
+    <!-- La orquesta: donde converge todo lo que se dice -->
+    <path
+      class="cavea__core"
+      d="M162 206 A38 38 0 0 1 238 206 Z"
+      fill="var(--k-accent-soft)"
+      stroke="var(--k-accent)"
+      stroke-width="2.2"
+    />
+
+    <g class="cavea__labels" fill="var(--k-text-2)" font-size="11" font-weight="500" letter-spacing="0.66" text-anchor="middle">
+      <text x="63" y="14">INSTAGRAM</text>
+      <text x="200" y="14">WHATSAPP</text>
+      <text x="337" y="14">FACEBOOK</text>
+    </g>
+  </svg>
+</figure>
+
+<style>
+  .cavea {
+    margin: 0;
+    width: 100%;
+  }
+
+  .cavea svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .cavea__arcs path,
+  .cavea__lines path,
+  .cavea__base {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+  }
+
+  /* 0.0 – 1.0 s · los arcos se dibujan de afuera hacia adentro */
+  .cavea__arcs path {
+    animation: trazo 0.55s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+    animation-delay: calc(var(--i) * 0.15s);
+  }
+
+  /* 1.0 – 1.4 s · aparece la línea base */
+  .cavea__base {
+    animation: trazo 0.4s cubic-bezier(0.33, 0, 0.2, 1) 1s forwards;
+  }
+
+  /* 1.4 – 2.4 s · los canales se trazan hacia el centro */
+  .cavea__lines path {
+    animation: trazo 0.85s cubic-bezier(0.33, 0, 0.2, 1) forwards;
+    animation-delay: calc(1.4s + var(--i) * 0.08s);
+  }
+
+  /* 2.4 – 2.8 s · el núcleo se enciende */
+  .cavea__core {
+    opacity: 0;
+    transform: scale(0.9);
+    transform-box: view-box;
+    transform-origin: 200px 206px;
+    animation: encendido 0.4s cubic-bezier(0.33, 0, 0.2, 1) 2.4s forwards;
+  }
+
+  /* 2.8 – 4.0 s · entra el texto */
+  .cavea__labels {
+    opacity: 0;
+    animation: entrada 0.7s ease 2.8s forwards;
+  }
+
+  @keyframes trazo {
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+
+  @keyframes encendido {
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes entrada {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cavea__arcs path,
+    .cavea__lines path,
+    .cavea__base,
+    .cavea__core,
+    .cavea__labels {
+      animation: none;
+      stroke-dashoffset: 0;
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
