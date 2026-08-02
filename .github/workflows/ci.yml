@@ -86,9 +86,13 @@ jobs:
 
       # Versión fijada, nunca `latest`: una publicación del CLI rompería CI en
       # un PR que no tocó la base de datos.
+      #
+      # Tiene que soportar Postgres 17, que es lo que corre producción. Probar
+      # el esquema contra 15 mientras producción va en 17 es justo la deriva
+      # entre entornos que este trabajo existe para evitar.
       - uses: supabase/setup-cli@v1
         with:
-          version: 2.15.8
+          version: 2.111.0
 
       - name: Levantar el stack local
         run: supabase start -x studio,inbucket,imgproxy,edge-runtime,logflare,vector
