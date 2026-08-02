@@ -48,8 +48,8 @@ tenant por subdominio, y qué puede ver Boosty sobre los datos de sus clientes.
 | Ingesta y normalización | **Supabase Edge Functions** | decisión de Gabriel, 2-ago — **anula `02` §5.3** |
 | Cola | Postgres `webhook_events` | ídem |
 | Crones | **`pg_cron` + `pg_net`** | ídem |
-| Amortiguador de emergencia de la ingesta | **Cloudflare R2** | mitigación, ver §1.1 |
-| Media saliente | **Cloudflare R2** | `00` §5 |
+| Amortiguador de emergencia de la ingesta | **Netlify Blobs** | mitigación, ver §1.1 |
+| Media saliente | **Supabase Storage** | decisión de Gabriel, 2-ago — **enmienda `00` §5** |
 | Aislamiento | Una sola base, RLS desde el día uno | `02` §7.7 |
 | Enrutado de tenant | **Subdominio, desde el día uno** | decisión de Gabriel, 2-ago |
 | Acceso del panel interno | **Solo metadatos, con break-glass auditado** | decisión de Gabriel, 2-ago |
@@ -73,9 +73,19 @@ fallidas, en silencio y por cliente, con resuscripción manual.
 
 ### Por qué se decide igual
 
-Gabriel eligió consolidar: **todo el backend en Supabase, todo el frontend en Netlify, y de
-Cloudflare solo queda R2 como almacén, sin cómputo.** Menos superficie operativa, menos
-almacenes de secretos, menos pipelines.
+Gabriel eligió consolidar en **dos proveedores: Supabase para todo el backend y Netlify para
+todo el frontend.** Cloudflare sale por completo de la arquitectura. Menos superficie
+operativa, menos almacenes de secretos, menos pipelines.
+
+**Enmienda al `00` §5**, que fijaba Cloudflare R2 para media con la nota *"no guardar
+archivos en Supabase"*. La media saliente pasa a **Supabase Storage**. El motivo de aquella
+nota era el coste de egreso, que es un problema de escala y no de v1: la media saliente son
+los adjuntos que manda un agente humano, un goteo durante el dogfooding. Queda como decisión
+a revisar, con el volumen y el egreso medidos desde el principio para saber cuándo.
+
+Recordatorio para no confundir las dos medias: **la entrante de Meta no se almacena nunca,
+solo su URL.** Eso no cambia y es invariante del `03`. Storage es solo para lo que Kavea
+genera.
 
 ### Los límites que condicionan el diseño
 
@@ -95,7 +105,7 @@ trocear el trabajo. Es una medición pendiente de la fase 2, con cifra concreta 
 
 ### La mitigación que hace viable la decisión
 
-**Cloudflare R2.** El receptor queda así:
+**Netlify Blobs.** El receptor queda así:
 
 ```
 POST del webhook
@@ -105,17 +115,24 @@ POST del webhook
   ├─ 2. intenta insertar en webhook_events (Postgres)
   │       └─ si funciona → 200
   │
-  └─ 3. si Postgres falla → escribe el cuerpo crudo en R2 → 200
-          └─ un cron drena R2 hacia Postgres al recuperarse
+  └─ 3. si Postgres falla → escribe el cuerpo crudo en Netlify Blobs → 200
+          └─ un cron drena Blobs hacia Postgres al recuperarse
 ```
+
+`@netlify/blobs` funciona fuera del runtime de Netlify pasándole `siteID` y un token de
+acceso personal, así que una Edge Function de Supabase puede escribir ahí. El token va como
+secreto del proyecto de Supabase.
 
 **No puede ser Supabase Storage.** Sus metadatos viven en `storage.buckets` y
 `storage.objects`, dentro del propio Postgres: si la base no está, escribir en Storage falla
-igual. R2 ya está en la arquitectura para media saliente, es compatible con S3 y es de verdad
-independiente de Supabase.
+igual. El amortiguador tiene que vivir en un proveedor distinto por definición.
 
-**El camino de R2 no es un extra opcional: es lo que sustituye a la cola externa.** Va desde
-el primer despliegue y se prueba apagando Supabase.
+**Cuándo gana su sitio, dicho con precisión:** solo en caídas de más de una hora. Por debajo
+de eso, Meta reintenta las entregas fallidas y sus propios reintentos hacen de colchón.
+Pasada la hora, Meta desuscribe la Página y ahí sí se pierden eventos. Se mantiene porque la
+promesa del producto es que nada se pierda, no porque sea el caso frecuente.
+
+**Va desde el primer despliegue** y se prueba apagando Supabase.
 
 ### Lo que se pierde, y hay que saberlo
 
@@ -126,9 +143,9 @@ el primer despliegue y se prueba apagando Supabase.
    necesita la base para leer el token; no lo era en la ingesta.
 3. **2 s de CPU por petición.** Ver arriba. Es el límite que más condiciona la fase 2.
 4. **Un incidente del proyecto de Supabase afecta a receptor y base a la vez.** Es
-   exactamente lo que temía el `02` §5.3. R2 cubre el caso frecuente —pool agotado, migración
-   larga, mantenimiento de la base— pero no el de una caída del proyecto entero. Menos
-   probable, y asumido.
+   exactamente lo que temía el `02` §5.3. Blobs cubre el caso frecuente —pool agotado,
+   migración larga, mantenimiento de la base— pero no el de una caída del proyecto entero.
+   Menos probable, y asumido.
 5. **El cron de reconciliación vive dentro de la base que puede caerse.** El `02` §5.2 lo
    puso fuera a propósito. Contraargumento honesto: durante una caída no podría hacer su
    trabajo de todos modos, porque necesita leer los tokens; lo que importa es que cure al
@@ -136,9 +153,10 @@ el primer despliegue y se prueba apagando Supabase.
 
 ### Presupuesto
 
-Plan de pago de Supabase, que ya existe. Desaparece la necesidad del plan de pago de
-Cloudflare Workers. R2 se factura por almacenamiento y operaciones, y como amortiguador solo
-se usa durante incidentes, su coste es residual. `GRAPH_API_VERSION` y el
+Plan de pago de Supabase y cuenta Pro de Netlify, ambos ya existentes. Desaparece cualquier
+gasto en Cloudflare. Lo que hay que vigilar es el **egreso de Supabase Storage**, que es lo
+que la nota del `00` §5 quería evitar: se mide desde el principio para saber cuándo deja de
+compensar. `GRAPH_API_VERSION` y el
 App Secret viven en más de un sitio y pueden desincronizarse.
 
 ---

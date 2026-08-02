@@ -36,13 +36,24 @@ Se decidió en dos pasos el mismo día: primero pasar la ingesta a Netlify, y de
 consolidarla en Supabase junto al resto del backend. Queda la segunda.
 
 El riesgo aceptado es el que el `02` §5.3 describía: el receptor depende de Postgres para
-responder 200, y Meta desuscribe cada Página tras una hora de fallos. Mitigado con
-**Cloudflare R2** como amortiguador: si la escritura a Postgres falla, el receptor vuelca el
-cuerpo crudo a R2 y devuelve 200 igual; un cron lo drena al recuperarse.
+responder 200, y Meta desuscribe cada Página tras una hora de fallos. Mitigado con **Netlify
+Blobs** como amortiguador: si la escritura a Postgres falla, el receptor vuelca el cuerpo
+crudo a Blobs y devuelve 200 igual; un cron lo drena al recuperarse. `@netlify/blobs`
+funciona fuera del runtime de Netlify pasándole `siteID` y un token, así que una Edge Function
+de Supabase puede escribir ahí.
 
 **No puede ser Supabase Storage:** sus metadatos viven en `storage.buckets` y
-`storage.objects`, dentro del propio Postgres, así que cae con la base. R2 ya estaba en la
-arquitectura para media saliente y es de verdad independiente.
+`storage.objects`, dentro del propio Postgres, así que cae con la base. El amortiguador tiene
+que estar en otro proveedor por definición.
+
+**Precisión sobre cuándo sirve:** solo en caídas de más de una hora. Por debajo, los
+reintentos de Meta hacen de colchón y el evento acaba entrando. Se mantiene porque la promesa
+del producto es que nada se pierda, no porque sea el caso frecuente.
+
+**Cloudflare sale por completo de la arquitectura.** La media saliente pasa a Supabase
+Storage, lo que enmienda la nota del `00` §5 —*"no guardar archivos en Supabase"*—, que
+buscaba evitar el coste de egreso. Es un problema de escala y no de v1; queda como decisión a
+revisar con el egreso medido. La media entrante sigue sin almacenarse nunca, solo su URL.
 
 Límites verificados de Supabase Edge Functions: 400 s de duración en plan de pago, **2 s de
 CPU por petición**, 256 MB de memoria. Los 400 s son de reloj, no de cómputo: para el receptor

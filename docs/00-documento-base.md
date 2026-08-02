@@ -179,11 +179,25 @@ Llamadas de voz. Email. Telegram. Facturación. Firma electrónica. Reportería 
 | Base de datos | Supabase / Postgres | RLS activo desde el día uno |
 | Realtime | Supabase Realtime | Para la bandeja en vivo |
 | Auth | Supabase Auth | Multi-tenant por organización |
-| Webhooks | Cloudflare Workers o Supabase Edge Functions | Deben responder rápido y siempre 200 |
-| Cola | Tabla de jobs en Postgres, o servicio dedicado si el volumen lo exige | Empezar simple |
-| Media | Cloudflare R2 | **No guardar archivos en Supabase** |
+| Webhooks | **Supabase Edge Functions** | Deben responder rápido y siempre 200 |
+| Cola | **Tabla en Postgres**, con Netlify Blobs de amortiguador | Empezar simple |
+| Media | ~~Cloudflare R2~~ → **Supabase Storage** | Ver enmienda abajo |
 | IA | Claude API | Clasificación, redacción, decisión de escalamiento |
-| Deploy | Netlify o Cloudflare | Según necesidad de edge |
+| Deploy | **Netlify** | Web pública y aplicación |
+
+> **Enmienda del 2 de agosto de 2026.** El stack se cierra en **dos proveedores: Supabase
+> para todo el backend y Netlify para todo el frontend.** Cloudflare sale por completo.
+>
+> Eso contradice la nota original de esta tabla, *"no guardar archivos en Supabase"*, que
+> buscaba evitar el coste de egreso. Es un problema de escala, no de v1: la media saliente
+> son los adjuntos que manda un agente humano, un goteo durante el dogfooding. Queda como
+> decisión a revisar, con el egreso medido desde el principio para saber cuándo deja de
+> compensar.
+>
+> Sin cambio: **la media entrante de Meta no se almacena nunca, solo su URL.** Es invariante
+> del `03` y almacenarla es causa documentada de rechazo del App Review.
+>
+> El detalle y el riesgo aceptado están en `06-arquitectura-plataforma.md` §1.1.
 
 ### Componentes
 
