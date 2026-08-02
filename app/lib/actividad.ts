@@ -14,6 +14,7 @@
  */
 
 import { ESTADOS, etiquetaCanal } from './ventana'
+import { fechaHora } from './fechas'
 
 /**
  * Los estados se guardan como `en_curso` y se leen como «En curso».
@@ -53,7 +54,12 @@ function nombreRol(rol: string): string {
     : rol === 'agente' ? 'agente' : rol
 }
 
-export function describirActividad(x: EntradaActividad): string {
+/**
+ * El `huso` es obligatorio porque hay fechas dentro de algunos detalles, y una
+ * fecha formateada con el huso del entorno sale distinta en el servidor y en el
+ * navegador. Ver `lib/fechas.ts`.
+ */
+export function describirActividad(x: EntradaActividad, huso: string): string {
   const d = x.detalle
   switch (x.tipo) {
     // --- Lo que hace el contacto o Meta ---
@@ -129,7 +135,7 @@ export function describirActividad(x: EntradaActividad): string {
     // --- Tareas ---
     case 'tarea.creada':
       return `creó la tarea "${d.titulo}"${
-        d.vence_en ? ` para el ${new Date(String(d.vence_en)).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''
+        d.vence_en ? ` para el ${fechaHora(String(d.vence_en), huso)}` : ''
       }`
     case 'tarea.completada': return `completó la tarea "${d.titulo}"`
     case 'tarea.reabierta': return `reabrió la tarea "${d.titulo}"`

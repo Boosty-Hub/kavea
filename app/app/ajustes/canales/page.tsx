@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { conexionesDe } from '@/lib/conexiones'
+import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Canales } from './panel'
 
 export const dynamic = 'force-dynamic'
@@ -33,7 +34,7 @@ export default async function PaginaCanales() {
         esta pantalla existe para decir cuál de las siete comprobaciones falla, no si falla.
       </p>
 
-      <Canales conexiones={conexiones} />
+      <Canales conexiones={conexiones} huso={org.zona_horaria ?? HUSO_POR_DEFECTO} />
     </main>
   )
 }

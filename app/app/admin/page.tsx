@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
+import { fecha } from '@/lib/fechas'
 import { esStaff, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
 
@@ -52,8 +53,12 @@ export default async function PanelInterno() {
               <tr key={o.id}>
                 <td style={celda}>{o.nombre}</td>
                 <td style={celda}><code>{o.slug}</code></td>
-                <td style={{ ...celda, color: 'var(--k-text-2)' }}>
-                  {new Date(o.created_at).toLocaleDateString('es')}
+                {/* En UTC, y dicho. Esta pantalla es de Boosty y lista
+                    organizaciones de husos distintos: no hay un huso «de la
+                    organización» que aplicar, así que se elige uno y se nombra
+                    en vez de dejar que lo decida el entorno. */}
+                <td style={{ ...celda, color: 'var(--k-text-2)' }} title="En UTC">
+                  {fecha(o.created_at, 'UTC')}
                 </td>
               </tr>
             ))}

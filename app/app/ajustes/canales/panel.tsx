@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Conexion, Verificacion } from '@/lib/conexiones'
+import { fechaHora } from '@/lib/fechas'
 
 /**
  * El panel de canales.
@@ -25,7 +26,7 @@ const CARA = {
   sin_probar:     { icono: '·', texto: 'Sin probar todavía',  color: 'var(--k-esperando-fg)', fondo: 'var(--k-esperando-bg)' },
 } as const
 
-export function Canales({ conexiones }: { conexiones: Conexion[] }) {
+export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: string }) {
   const router = useRouter()
   const [comprobando, setComprobando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -83,7 +84,7 @@ export function Canales({ conexiones }: { conexiones: Conexion[] }) {
                 ? 'Funciona, pero hay un aviso.'
                 : 'Todo lo que se puede comprobar está en orden.'}
             {c.ultima_pasada ? (
-              <> · comprobado el {new Date(c.ultima_pasada).toLocaleString('es')}</>
+              <> · comprobado el {fechaHora(c.ultima_pasada, huso)}</>
             ) : ' · sin comprobar todavía'}
           </p>
 

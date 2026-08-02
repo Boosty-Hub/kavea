@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
+import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { contactosDe, duplicadosDe } from '@/lib/registro'
 import { etiquetaCanal, colorCanal, haceCuanto, formatoValor } from '@/lib/ventana'
 import { Duplicados } from './duplicados'
@@ -17,6 +18,9 @@ export default async function Contactos({
 
   const org = await organizacionActual()
   if (!org) notFound()
+
+  // El huso de la organización. Ver `lib/fechas.ts`.
+  const huso = org.zona_horaria ?? HUSO_POR_DEFECTO
 
   const sp = await searchParams
   const pagina = Number(sp.p ?? 0)
@@ -83,7 +87,7 @@ export default async function Contactos({
                     ))}
                     <span className="ficha__ayuda">
                       {c.tarjetas} {c.tarjetas === 1 ? 'asunto' : 'asuntos'}
-                      {c.ultimo_mensaje ? ` · ${haceCuanto(c.ultimo_mensaje)}` : ''}
+                      {c.ultimo_mensaje ? ` · ${haceCuanto(c.ultimo_mensaje, huso)}` : ''}
                     </span>
                   </div>
                 </div>

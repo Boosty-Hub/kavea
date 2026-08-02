@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { Invitacion, Miembro } from '@/lib/equipo'
 import { ROLES, NOMBRE_ROL } from '@/lib/roles'
+import { fecha, fechaHora } from '@/lib/fechas'
 
 export function Equipo({
-  organizacionId, miembros, invitaciones, reparto, puedeGestionar, esDuenio,
+  organizacionId, miembros, invitaciones, reparto, puedeGestionar, esDuenio, huso,
 }: {
   organizacionId: string
+  /** El de la organización. Ver `lib/fechas.ts`. */
+  huso: string
   miembros: Miembro[]
   invitaciones: Invitacion[]
   reparto: boolean
@@ -121,7 +124,7 @@ export function Equipo({
                   <label
                     style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, flex: 'none' }}
                     title={m.ultima_asignacion
-                      ? `Última asignación: ${new Date(m.ultima_asignacion).toLocaleString('es')}`
+                      ? `Última asignación: ${fechaHora(m.ultima_asignacion, huso)}`
                       : 'Todavía no ha recibido ninguna: es quien pasa primero'}
                   >
                     <input
@@ -196,7 +199,7 @@ export function Equipo({
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14 }}>{i.correo}</div>
                       <div style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-                        {NOMBRE_ROL[i.rol]} · caduca el {new Date(i.expira_en).toLocaleDateString('es')}
+                        {NOMBRE_ROL[i.rol]} · caduca el {fecha(i.expira_en, huso)}
                       </div>
                     </div>
                     <button

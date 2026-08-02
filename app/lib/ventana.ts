@@ -10,6 +10,8 @@
  * no haya compositor.
  */
 
+import { fechaCorta } from './fechas'
+
 export type EstadoVentana = {
   /** `abierta` permite responder libremente; `humana` solo intervención humana real. */
   clase: 'abierta' | 'humana' | 'cerrada' | 'sin_contacto'
@@ -193,13 +195,19 @@ export function formatoValor(valor: number, moneda: string): string {
   }
 }
 
-/** Fecha relativa corta para la lista. */
-export function haceCuanto(iso: string | null): string {
+/**
+ * Fecha relativa corta para la lista.
+ *
+ * El `huso` es obligatorio, sin valor por defecto, y es a propósito: con uno
+ * puesto el compilador se calla y las pantallas que no lo pasen siguen pintando
+ * la hora del entorno. Sin él, `tsc` enumera cada sitio que falta por conectar.
+ */
+export function haceCuanto(iso: string | null, huso: string): string {
   if (!iso) return ''
   const s = (Date.now() - new Date(iso).getTime()) / 1000
   if (s < 60) return 'ahora'
   if (s < 3600) return `${Math.floor(s / 60)} min`
   if (s < 86400) return `${Math.floor(s / 3600)} h`
   if (s < 604800) return `${Math.floor(s / 86400)} d`
-  return new Date(iso).toLocaleDateString('es', { day: 'numeric', month: 'short' })
+  return fechaCorta(iso, huso)
 }

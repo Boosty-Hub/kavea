@@ -22,11 +22,13 @@ import { haceCuanto } from '@/lib/ventana'
  * notifica nada.
  */
 export function Notificaciones({
-  iniciales, sinLeerInicial, organizacionId,
+  iniciales, sinLeerInicial, organizacionId, huso,
 }: {
   iniciales: Notificacion[]
   sinLeerInicial: number
   organizacionId: string
+  /** El de la organización, no el del navegador. Ver `lib/fechas.ts`. */
+  huso: string
 }) {
   const router = useRouter()
   const [abierto, setAbierto] = useState(false)
@@ -114,7 +116,7 @@ export function Notificaciones({
                         {n.titulo}
                       </div>
                       {n.cuerpo ? <div className="ficha__ayuda">{n.cuerpo}</div> : null}
-                      <div className="ficha__ayuda">{haceCuanto(n.created_at)}</div>
+                      <div className="ficha__ayuda">{haceCuanto(n.created_at, huso)}</div>
                     </>
                   )
                   return n.enlace ? (

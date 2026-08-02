@@ -25,7 +25,7 @@ type Resultado = {
  * TARJETAS, no mensajes: quien escribe «presupuesto» quiere el asunto donde se
  * habló de eso, no catorce líneas sueltas de cuatro conversaciones.
  */
-export function Buscador() {
+export function Buscador({ huso }: { huso: string }) {
   const [texto, setTexto] = useState('')
   const [resultados, setResultados] = useState<Resultado[] | null>(null)
   const [buscando, setBuscando] = useState(false)
@@ -85,7 +85,7 @@ export function Buscador() {
                   <Link key={r.tarjeta_id} href={`/bandeja/${r.tarjeta_id}`} className="resultado">
                     <div className="fila__alto">
                       <span className="fila__nombre">{r.titulo ?? r.contacto}</span>
-                      <span className="fila__cuando">{haceCuanto(r.last_message_at)}</span>
+                      <span className="fila__cuando">{haceCuanto(r.last_message_at, huso)}</span>
                     </div>
                     <p className="resultado__frag">
                       <Resaltado texto={r.fragmento} />

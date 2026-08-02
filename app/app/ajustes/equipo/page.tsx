@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { equipoDe, invitacionesDe, puedeHacer, repartoDe } from '@/lib/equipo'
+import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Equipo } from './editor'
 
 export const dynamic = 'force-dynamic'
@@ -42,6 +43,7 @@ export default async function PaginaEquipo() {
         miembros={miembros}
         invitaciones={invitaciones}
         reparto={reparto}
+        huso={org.zona_horaria ?? HUSO_POR_DEFECTO}
         puedeGestionar={puedeGestionar}
         esDuenio={esDuenio}
       />

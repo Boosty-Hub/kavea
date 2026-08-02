@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
+import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { registroDe } from '@/lib/registro'
 import { miembrosDe } from '@/lib/bandeja'
 import { describirActividad } from '@/lib/actividad'
@@ -32,6 +33,9 @@ export default async function Actividad({
 
   const org = await organizacionActual()
   if (!org) notFound()
+
+  // El huso de la organizacion. Ver `lib/fechas.ts`.
+  const huso = org.zona_horaria ?? HUSO_POR_DEFECTO
 
   const sp = await searchParams
   const [movimientos, miembros] = await Promise.all([
@@ -101,7 +105,7 @@ export default async function Actividad({
                     <strong style={{ fontWeight: 500 }}>
                       {m.actor_nombre ?? (m.actor_tipo === 'sistema' ? 'Kavea' : 'Alguien')}
                     </strong>{' '}
-                    <span style={{ color: 'var(--k-text-2)' }}>{describirActividad(m)}</span>
+                    <span style={{ color: 'var(--k-text-2)' }}>{describirActividad(m, huso)}</span>
                   </span>
                   {m.tarjeta_id ? (
                     <div style={{ fontSize: 12, marginTop: 2 }}>
@@ -117,7 +121,7 @@ export default async function Actividad({
                   title={new Date(m.created_at).toISOString()}
                   style={{ flex: 'none' }}
                 >
-                  {haceCuanto(m.created_at)}
+                  {haceCuanto(m.created_at, huso)}
                 </time>
               </div>
             ))

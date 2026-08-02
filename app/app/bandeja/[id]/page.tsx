@@ -23,6 +23,7 @@ import { plantillasUsables } from '@/lib/plantillas'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
+import { hora as enHuso, HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Refrescador } from '../refrescador'
 import { Adjuntos } from './adjunto'
 import { Ficha } from './ficha'
@@ -45,6 +46,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   // RLS ya filtró: si no es de esta organización, es null y respondemos 404 en
   // vez de un 403 que confirmaría que existe.
   if (!tarjeta) notFound()
+
+  // El huso de la organización, que baja a todo lo que pinte una hora en esta
+  // pantalla. Ver `lib/fechas.ts`.
+  const huso = org.zona_horaria ?? HUSO_POR_DEFECTO
 
   const contactoId = tarjeta.contacts?.id ?? null
   const convIds = tarjeta.conversations.map((c) => c.id)
@@ -115,7 +120,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
                   <span className="fila__nombre">
                     {c.titulo ?? c.contacts?.nombre ?? c.contacts?.username ?? 'Contacto sin nombre'}
                   </span>
-                  <span className="fila__cuando">{haceCuanto(c.last_message_at)}</span>
+                  <span className="fila__cuando">{haceCuanto(c.last_message_at, huso)}</span>
                 </div>
                 <p className="fila__preview">{c.preview_texto ?? 'Sin mensajes'}</p>
                 <div className="fila__pie">
@@ -185,6 +190,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
                 adjuntos={porMensaje.get(x.ref) ?? []}
                 multicanal={multicanal}
                 corte={corte}
+                huso={huso}
               />
             ))}
 
@@ -258,14 +264,18 @@ function Ventana({ c }: { c: ConversacionDeTarjeta }) {
 }
 
 function Entrada({
-  x, adjuntos, multicanal, corte,
+  x, adjuntos, multicanal, corte, huso,
 }: {
   x: EntradaHilo
   adjuntos: Adjunto[]
   multicanal: boolean
   corte: boolean
+  huso: string
 }) {
-  const hora = new Date(x.momento).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+  // En el huso de la organización, no en el del servidor. Antes salía en UTC:
+  // para quien atiende desde Caracas, cada mensaje del hilo aparecía cuatro
+  // horas en el futuro. Ver `lib/fechas.ts`.
+  const hora = enHuso(x.momento, huso)
 
   const separador = corte ? (
     <p className="corte-canal">
@@ -281,7 +291,7 @@ function Entrada({
         {separador}
         <p className="traza">
           {x.actor_nombre ? <span className="traza__actor">{x.actor_nombre}</span> : null}{' '}
-          {describirActividad(x)} · {hora}
+          {describirActividad(x, huso)} · {hora}
         </p>
       </>
     )

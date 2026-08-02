@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
+import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
@@ -29,6 +30,11 @@ export default async function Bandeja({
   const org = await organizacionActual()
   if (!org) notFound()
 
+  // El huso es el de la ORGANIZACIÓN, y baja por props a todo lo que pinte una
+  // hora. Ni el del servidor —que en Netlify es UTC— ni el del navegador: eran
+  // dos relojes distintos en la misma pantalla. Ver `lib/fechas.ts`.
+  const huso = org.zona_horaria ?? HUSO_POR_DEFECTO
+
   const sp = await searchParams
   const estado = sp.estado ?? 'todas'
 
@@ -51,12 +57,12 @@ export default async function Bandeja({
               <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
               <Link href="/agenda" style={{ color: 'var(--k-text-2)' }}>Agenda</Link>
               <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
-              <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} />
+              <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} huso={huso} />
             </span>
           </div>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
 
-          <Buscador />
+          <Buscador huso={huso} />
 
           <nav className="filtros" aria-label="Filtrar por estado">
             {FILTROS.map((f) => (
@@ -77,7 +83,7 @@ export default async function Bandeja({
           {tarjetas.length === 0 ? (
             <EstadoVacio estado={estado} />
           ) : (
-            tarjetas.map((t) => <Fila key={t.id} t={t} />)
+            tarjetas.map((t) => <Fila key={t.id} t={t} huso={huso} />)
           )}
         </div>
       </section>
@@ -92,7 +98,7 @@ export default async function Bandeja({
   )
 }
 
-function Fila({ t }: { t: FilaBandeja }) {
+function Fila({ t, huso }: { t: FilaBandeja; huso: string }) {
   const e = ESTADOS[t.estado as Estado] ?? ESTADOS.nueva
   const nombre = t.titulo ?? t.contacts?.nombre ?? t.contacts?.username ?? 'Contacto sin nombre'
   const canales = t.conversations ?? []
@@ -108,7 +114,7 @@ function Fila({ t }: { t: FilaBandeja }) {
     <Link href={`/bandeja/${t.id}`} className="fila">
       <div className="fila__alto">
         <span className="fila__nombre">{nombre}</span>
-        <span className="fila__cuando">{haceCuanto(t.last_message_at)}</span>
+        <span className="fila__cuando">{haceCuanto(t.last_message_at, huso)}</span>
       </div>
 
       <p className="fila__preview">
