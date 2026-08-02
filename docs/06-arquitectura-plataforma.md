@@ -25,16 +25,33 @@ Si este documento y el 02 discrepan en algo de la columna del 02, gana el 02. Lo
 queda aquí es lo que el 02 no cubre: dónde vive cada superficie, cómo se resuelve el
 tenant por subdominio, y qué puede ver Boosty sobre los datos de sus clientes.
 
-### Erratas corregidas respecto a la primera versión
+### Erratas del modelo de datos, corregidas contra el `02`
+
+Siguen vigentes. La primera versión de este documento se escribió sin leer el `02` y erraba
+en estos tres puntos:
 
 | Error | Corrección | Fuente |
 |---|---|---|
-| Receptor en Supabase Edge Functions | **Cloudflare Worker** | `02` §5.3 |
-| Cola en tabla de Postgres `webhook_events` | **Cloudflare Queues** | `02` §5.2 |
-| Cron de reconciliación en Supabase | **Cron Trigger de Cloudflare** | `02` §5.2 |
 | `channels.credenciales jsonb` | **`private.meta_credentials`**, AES-256-GCM con `kid` | `02` §7.8 |
 | Enrutado por índices únicos parciales en `channels` | **`meta_asset_routes`** con `asset_id` como clave primaria | `02` §7.2 |
 | "La frontera de seguridad es RLS" | RLS protege **la lectura**. La escritura de ingesta la protege la clave primaria de `meta_asset_routes` | `02` §7.7 |
+
+### Plataforma de ingesta: el `02` queda anulado por decisión
+
+Aquí la historia es al revés y conviene no confundirla con lo anterior. La primera versión de
+este documento ponía la ingesta en Supabase, el `02` §5.2 y §5.3 lo corrigieron hacia
+Cloudflare con un argumento sólido, y el 2 de agosto Gabriel decidió volver a Supabase
+asumiendo el riesgo de forma explícita.
+
+| Pieza | `02` decía | Decisión vigente |
+|---|---|---|
+| Receptor | Cloudflare Worker | **Supabase Edge Function** |
+| Cola | Cloudflare Queues | **Postgres `webhook_events`** |
+| Crones | Cron Trigger de Cloudflare | **`pg_cron` + `pg_net`** |
+| Amortiguador | — | **Netlify Blobs** |
+
+El argumento del `02` no se refutó: se aceptó su riesgo a cambio de consolidar en dos
+proveedores. Está desarrollado en §1.1, con lo que se pierde y lo que lo mitiga.
 
 ---
 
@@ -136,8 +153,10 @@ promesa del producto es que nada se pierda, no porque sea el caso frecuente.
 
 ### Lo que se pierde, y hay que saberlo
 
-1. **R2 no es una cola.** No hay entrega garantizada, ni reintentos, ni cola de fallidos. El
-   drenaje, el orden y la limpieza se implementan a mano, con disciplina de nombres de clave.
+1. **Blobs no es una cola.** No hay entrega garantizada, ni reintentos, ni cola de fallidos,
+   ni reglas de ciclo de vida. El drenaje, el orden, la deduplicación y la caducidad se
+   implementan a mano, con disciplina de nombres de clave. El orden de `list()` tampoco está
+   garantizado: lo ordena el drenaje.
 2. **No hay Durable Objects.** Los límites de envío son por `page_id`, y sin esa primitiva el
    token bucket se implementa con `pg_advisory_xact_lock`. Aceptable en el envío, que ya
    necesita la base para leer el token; no lo era en la ingesta.
@@ -243,8 +262,9 @@ pero Netlify desaconseja por escrito poner su CDN detrás de otro. Además el Un
 de Cloudflare solo cubre el primer nivel de subdominio, lo que habría matado cualquier
 esquema del tipo `cliente1.app.kavea.ai`.
 
-Lo que se paga: los Workers de Cloudflare solo admiten dominio propio si la zona está en
-Cloudflare. El receptor vive en `*.workers.dev`, que a Meta le sirve igual.
+Sin coste asociado: al no haber nada de Cloudflare en la arquitectura, la elección de DNS ya
+no condiciona ninguna otra pieza. El receptor vive en la URL del proyecto de Supabase, que a
+Meta le sirve igual.
 
 Estado al 2 de agosto de 2026: zona `kavea.ai` creada en Netlify DNS
 (`6a6ee626cbdd2038473198ed`) con los siete registros replicados y **verificados
@@ -416,7 +436,7 @@ relajada, de modo que pasa por DKIM.
 | # | Bloque | Termina cuando |
 |---|---|---|
 | 0 | Cimientos: esquema del `02` §7, RLS, auth, middleware de subdominio | `boosty.kavea.ai` abre sesión y no ve datos de otra organización |
-| 1 | Ingesta: Worker, Queues, cron de reconciliación | Meta entrega un evento, se valida la firma y se encola con 200 en menos de 5 s |
+| 1 | Ingesta: Edge Function, cola, amortiguador y cron de reconciliación | Meta entrega un evento, se valida la firma y se encola con 200 en menos de 5 s |
 | 2 | Normalizador e idempotencia | El mismo evento entregado tres veces produce una sola fila |
 | 3 | Bandeja de solo lectura | Se ven conversaciones reales llegando en vivo |
 | 4 | Envío y ventana de 24 h | Se responde desde la bandeja y el compositor se bloquea fuera de ventana |

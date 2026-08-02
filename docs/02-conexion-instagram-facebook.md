@@ -1073,6 +1073,18 @@ create index message_events_conv_idx
 
 Media. La separación entre media entrante de Meta y media saliente propia la impone un `CHECK`, no la disciplina del equipo:
 
+> **Enmienda del 2 de agosto de 2026.** El almacén saliente pasa de Cloudflare R2 a
+> **Supabase Storage**, porque el stack se cerró en dos proveedores. Cambian solo los nombres:
+> `origen = 'kavea_r2'` → `'kavea_storage'`, `r2_bucket` → `storage_bucket`, `r2_key` →
+> `storage_path`, y el `CHECK` en consecuencia.
+>
+> **Lo que no cambia y es lo que importa de esta tabla:** la media entrante de Meta se
+> persiste como URL y nada más, nunca el binario. Es invariante del `03` y almacenarla es
+> causa documentada de rechazo del App Review. El `CHECK` que separa ambos orígenes sigue
+> siendo la garantía, no la disciplina del equipo.
+>
+> La migración con los nombres nuevos la escribe la fase 0. Ver `06` §1.1.
+
 ```sql
 create table public.media (
   id               uuid primary key default gen_random_uuid(),

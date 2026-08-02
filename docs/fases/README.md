@@ -65,25 +65,33 @@ Mensajes reales entrando en días, no en semanas.
 
 ## 3. Decisiones que atraviesan todas las fases
 
+**El stack se cierra en dos proveedores: Supabase y Netlify.** Cloudflare quedó fuera por
+completo el 2 de agosto de 2026.
+
 | Decisión | Elección |
 |---|---|
 | Sitio público | Netlify, desde `web/` |
 | App y panel interno | Netlify, desde `app/`. Dos sitios, un repositorio |
 | Base de datos | Supabase `sdazqohyjzzylwbkvovx` |
-| Ingesta, cola, crones | Cloudflare Workers, Queues y Cron Triggers |
-| Media saliente | Cloudflare R2 |
+| Receptor y normalizador | **Supabase Edge Functions**, con `verify_jwt = false` |
+| Cola | **Postgres `webhook_events`**, con `for update skip locked` |
+| Amortiguador de emergencia | **Netlify Blobs**, escrito por API con `siteID` y token |
+| Crones | **`pg_cron` + `pg_net`** |
+| Media saliente | **Supabase Storage** |
+| Media entrante | **No se almacena nunca**, solo su URL. Invariante del `03` |
 | Correo | Resend. `support@kavea.ai` verificado y operativo |
-| DNS | Netlify DNS. Zona creada, pendiente de cambiar nameservers en GoDaddy |
+| DNS | **Netlify DNS, delegado y verificado** |
 | Aislamiento | Una base, RLS, más `meta_asset_routes` para la ingesta |
 | Panel interno | Solo metadatos, break-glass auditado |
 
-### Requisitos derivados que cuestan dinero
+### Los dos límites que más condicionan el diseño
 
-- **Plan de pago de Workers.** No es una mejora: la retención de Cloudflare Queues es de 24
-  horas fijas en el plan gratuito y hasta 14 días configurables en el de pago. Todo el
-  argumento de separar dominios de fallo se apoya en que la cola aguante una caída larga.
-- **Netlify DNS.** Sin la zona delegada no hay certificado comodín, y sin comodín no hay
-  `cliente1.kavea.ai`.
+- **2 segundos de CPU por petición** en las Edge Functions de Supabase. Los 400 s que anuncia
+  son de reloj, no de cómputo, y esperar no ayuda: hay que trocear. Es el eje del diseño de la
+  fase 2.
+- **El amortiguador solo actúa en caídas de más de una hora.** Por debajo, los reintentos de
+  Meta hacen de colchón. Se mantiene por la promesa de que nada se pierda, no porque sea el
+  caso frecuente.
 
 ---
 
@@ -91,10 +99,12 @@ Mensajes reales entrando en días, no en semanas.
 
 Salieron repetidas en varias fases. Si algo se va a olvidar, que no sea esto.
 
-1. **El receptor no puede depender de Postgres.** Meta desuscribe la Página tras una hora de
-   entregas fallidas, en silencio y por cliente. Por eso la ingesta vive en Cloudflare y no
-   comparte nada con Supabase. La prueba que lo demuestra —apagar Supabase, mandar tres
-   mensajes, comprobar tres 200 y drenaje sin pérdidas— está en la definición de terminado
+1. **El receptor tiene que devolver 200 aunque Postgres no esté.** Meta desuscribe la Página
+   tras una hora de entregas fallidas, en silencio y por cliente. Como la cola vive en
+   Postgres, eso se sostiene con el amortiguador de Netlify Blobs: si el insert falla, el
+   cuerpo crudo va a Blobs y el 200 sale igual. La prueba que lo demuestra —apagar Supabase,
+   mandar tres mensajes, comprobar tres 200 y drenaje sin pérdidas— está en la definición de
+   terminado
    de la fase 1 como ejecutable, no como supuesto.
 
 2. **La firma se calcula sobre el cuerpo crudo.** Cualquier `JSON.parse` seguido de
@@ -172,17 +182,25 @@ aquí van juntas, en orden de a qué bloquean.
 
 Los planes las señalan en vez de arrastrarlas. Van aquí para que se corrijan en origen.
 
-**En el `06`, ya corregidas:** receptor y cola en Supabase; cron en Supabase; tokens en
-`channels.credenciales jsonb`; enrutado por índices parciales; "la frontera de seguridad es
-RLS"; `messages_hilo_idx` ordenando por `created_at` en vez de `meta_timestamp`; break-glass
-con `exists` correlacionado; política `for all` sobre membresías que permitía a un agente
-ascenderse a propietario.
+**En el `06`, ya corregidas:** tokens en `channels.credenciales jsonb`; enrutado por índices
+parciales; "la frontera de seguridad es RLS"; `messages_hilo_idx` ordenando por `created_at`
+en vez de `meta_timestamp`; break-glass con `exists` correlacionado; política `for all` sobre
+membresías que permitía a un agente ascenderse a propietario.
 
-**En el `02`, pendientes de decisión:** el índice único parcial de §7.4 usa
-`where status='open'`, y con cuatro estados una conversación en `esperando` queda
-desprotegida; las claves foráneas de §7 son simples y permiten coser filas entre tenants;
-`webhook_events` conserva forma de cola —`procesado_en`, `intentos`— que ya no significa nada
-ahora que la cola es Cloudflare Queues.
+**En el `02`, pendientes de corregir en la fase 0 o la 2:**
+
+- El índice único parcial de §7.4 usa `where status='open'`, y con cuatro estados una
+  conversación en `esperando` queda desprotegida. El predicado correcto es
+  `where estado <> 'cerrada'`. La migración la hace la fase 2, que es el primer escritor.
+- Las claves foráneas de §7 son simples y permiten coser filas entre tenants. Van compuestas
+  sobre `(organization_id, id)`.
+- La tabla `media` de §7.5 nombra el almacén saliente como R2: `origen = 'kavea_r2'`,
+  `r2_bucket`, `r2_key`. Ahora es Supabase Storage. Solo cambian los nombres; la separación
+  entre media entrante —solo URL— y saliente sigue igual y es lo que importa.
+
+**Sobre la plataforma de ingesta:** el `02` §5.2 y §5.3 argumentan a favor de Cloudflare. No
+es una errata suya: es una decisión de Gabriel que los anula, con el riesgo aceptado y
+documentado en `06` §1.1.
 
 **En el `01`, pendiente de decisión:** dos de los cuatro colores semánticos no alcanzan el
 contraste que el propio documento exige. En positivo: terracota 500 sobre arena da 4,52 y
