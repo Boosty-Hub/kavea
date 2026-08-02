@@ -812,6 +812,39 @@ más fuerte que confiar en que cada ruta se acuerde.
 
 ---
 
+### 2026-08-02 · Buscar, y un índice que llevaba un mes sin servir a nadie
+
+`messages_busqueda_idx` existe desde la fase 3. **Nada lo usaba.** Un GIN que se
+paga en cada mensaje que entra y no servía ni una consulta. Con treinta
+conversaciones no se nota; con trescientas, no encontrar una es no poder
+trabajar.
+
+Busca en el contenido, en el nombre de la persona y en el título, y devuelve
+**tarjetas, no mensajes**: quien escribe «presupuesto» quiere el asunto donde se
+habló de eso, no catorce líneas sueltas de cuatro conversaciones.
+
+`websearch_to_tsquery` en vez de `plainto`: entiende comillas para la frase
+exacta y el guion para excluir, que es lo que la gente ya escribe sin que nadie
+se lo explique. Y trigramas para la mitad `ilike`, porque un nombre propio no se
+lematiza y buscar «Gonzá» tiene que encontrar «González».
+
+**El resaltado no puede ser HTML, y esto es lo importante de la entrada.**
+`ts_headline` devuelve `<b>palabra</b>` por defecto. Ese texto lo escribió un
+tercero: pintarlo con `dangerouslySetInnerHTML` para ver la negrita sería XSS
+almacenado servido desde la bandeja del cliente. Un contacto escribe
+`<img onerror=…>` y ejecuta en el navegador del operador que busque esa palabra.
+Se delimita con `chr(1)` y `chr(2)` y se pinta con React, que escapa todo.
+
+La función es `security invoker` a propósito: el filtro por organización lo pone
+RLS sobre las tablas base. Una búsqueda `security definer` sería la forma más
+fácil de que un tenant encontrara texto de otro.
+
+**Comprobado en vivo:** «recibido» encuentra «Recibe» —lematizado español—, con
+la coincidencia resaltada; un término inexistente da un vacío que explica dónde
+se buscó.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -839,6 +872,29 @@ rehacer los planes de las fases 1 y 2, que no bloquean el bloque 0.
 El App Review propiamente dicho **no se puede enviar todavía**: exige al menos una llamada
 exitosa por permiso en los 30 días previos, un screencast por permiso y un tenant demo
 funcionando. Se envía al cerrar la fase 4.
+
+### Bloquea la fase 6
+
+| Qué | Quién |
+|---|---|
+| **Clave de la API de Anthropic** en los secretos de Supabase. No hay ninguna, y sin ella el trabajador del agente no se puede escribir ni probar | Gabriel |
+| Decidir si el carril de acuse sub-30 s se enciende. Auto-responde a **todo** entrante y es una decisión de producto, no técnica. Solo hace falta cuando el agente esté activo | Gabriel |
+
+Lo que sí se puede hacer sin la clave: el modelo de datos de `agent_runs`, el
+catálogo de intenciones y el motor de escalamiento determinista, que es
+justamente la mitad que mantiene al modelo fuera de la ruta crítica.
+
+### Comentarios: cerrado con hallazgo
+
+Los comentarios siguen fuera de v1. Comprobado en vivo el 2 de agosto:
+
+- **Instagram está bloqueado por permiso.** `comments` NO es un campo válido de
+  `subscribed_apps` de una Página: Meta rechaza el POST entero. Exige
+  `instagram_manage_comments` en Advanced Access, o sea otra ronda de App Review.
+- **Facebook debería llegar.** `feed` está suscrito en los dos niveles y el
+  transporte está probado con el webhook de prueba de Meta. Los comentarios
+  reales de la prueba no llegaron; lo más probable es que se hicieran desde la
+  propia Página o desde una cuenta administradora, para las que Meta no emite.
 
 ### Visto de paso, sin tocar
 
