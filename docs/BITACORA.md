@@ -710,6 +710,62 @@ compilar, mirar, y solo entonces publicar; lo tenía y lo salté.
 
 ---
 
+### 2026-08-02 · Fase 4: el compositor, la cola de salida y el despachador
+
+Kavea ya puede emitir. La bandeja deja de ser de solo lectura.
+
+**Una sola ruta habla con el Send API:** la Edge Function `despachar`. Si
+apareciera un segundo camino, la ventana de 24 h y los límites se aplicarían en
+uno y no en el otro, y el que falta es el que rompe la mensajería de la Página
+del cliente.
+
+**La ventana vive en un solo sitio.** `ventana_de()` en Postgres, y la usan
+tres: el compositor para pintar, el RPC para encolar y el despachador para
+despachar. Tenerla escrita dos veces es tenerla mal una vez. **Se reevalúa en el
+despacho**, y con ella el tag: una conversación que cruzó las 24 h mientras
+esperaba en cola necesita `HUMAN_AGENT`, y mandarla sin él devuelve 100.
+
+**El contador de bytes no es decoración.** Instagram admite 1000 **bytes**, no
+caracteres. Medido en vivo: `Buenos días, ¿cómo está? 🙂` son 27 caracteres y
+**33 bytes**. En Venezuela, República Dominicana y México eso es todos los
+mensajes. `octet_length` en la base, `TextEncoder` en el navegador.
+
+**Lo enviado se ve desde el primer segundo.** No está confirmado que Instagram
+entregue echoes por la vía Facebook Login —dos páginas oficiales se
+contradicen—, así que la cola de salida entra en la línea de tiempo con su
+estado y se retira sola cuando el echo trae el mismo `mid`. Si el hilo esperara
+al echo, el operador escribiría, no vería nada y volvería a escribir.
+
+**Probado contra Meta de verdad, sin escribirle a ninguna persona.** Se encoló
+un envío con un destinatario inventado:
+
+| Paso | Resultado |
+|---|---|
+| Reclamar de la cola | 1 fila, `estado = enviando` |
+| Resolver y descifrar el token | Correcto, AES-256-GCM con `kid` |
+| Llamada a Graph | `POST /v26.0/me/messages`, form-data |
+| Respuesta de Meta | `(#100) Parameter error: You cannot send messages to this id` |
+| Política aplicada | `fallido`, **cero reintentos**, que es lo correcto para un 100 |
+| Uso anotado | `tipo=app`, `http_status=400`, `error_codigo=100` |
+
+**Lo que falta y no puedo hacer yo:** el envío real a una persona. La
+conversación viva de Boosty es con alguien de carne y hueso, y mandarle un
+mensaje de prueba es una acción hacia fuera que decide Gabriel, no yo. Todo lo
+demás está verificado.
+
+**Dos errores míos en esta fase**, los dos por escribir SQL sin ejecutarlo:
+
+1. `private.reclamar_envios` en el esquema privado, que PostgREST no expone. El
+   despachador devolvía `PGRST202` y la fila se quedaba quieta. El patrón del
+   envoltorio en `public` ya existía desde 0020 y no lo apliqué.
+2. `distinct on (...) ... for update skip locked` es SQL inválido: Postgres
+   responde «FOR UPDATE is not allowed with DISTINCT clause». Al arreglarlo salió
+   además que una fila por partición y tanda era demasiado prudente: tres
+   mensajes seguidos habrían tardado tres despachos. Ahora son hasta tres por
+   partición, que es fluidez sin permitir que un cliente monopolice la cola.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -821,3 +877,9 @@ que Meta no publica.
 - **Un componente definido dentro del render se remonta en cada pasada.** Convertir la ficha en
   pestañas tentaba a sacar cada una a su propia función anidada; eso habría borrado lo que el
   operador estuviera escribiendo cada vez que llegara un mensaje.
+- **El SQL se ejecuta antes de darlo por escrito.** Dos fallos seguidos en la misma migración:
+  una función en `private` que PostgREST no puede llamar, y un `for update skip locked` junto a
+  `distinct on`, que Postgres rechaza. Los dos se habrían visto con una ejecución.
+- **Una variable de entorno nueva se comprueba contra las que ya hay.** El código pedía
+  `KAVEA_SUPABASE_SECRET` y en Netlify la clave se llama `SUPABASE_SECRET_KEY`. Dos nombres para
+  el mismo secreto significan que el día de la rotación se cambia uno y no el otro.
