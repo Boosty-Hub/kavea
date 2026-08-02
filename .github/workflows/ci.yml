@@ -165,6 +165,27 @@ jobs:
           fi
           echo "El cliente de servicio esta acotado al servidor."
 
+      - name: Nada usa las claves legacy de Supabase
+        run: |
+          # El proyecto tiene deshabilitadas las claves anon y service_role
+          # basadas en JWT. Reintroducirlas rompe en produccion, no en local,
+          # porque en local el CLI sigue emitiendolas.
+          if grep -rEn 'SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY|service_role' \
+               --include='*.ts' --include='*.tsx' --include='*.yml' --include='*.toml' \
+               app supabase scripts .github 2>/dev/null; then
+            echo "Hay una referencia a las claves legacy de Supabase."
+            echo "Se usan sb_publishable_* y sb_secret_*."
+            exit 1
+          fi
+          # Y ninguna clave con forma de JWT en el arbol.
+          if grep -rEn 'eyJhbGciOiJIUzI1NiIs' . \
+               --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next \
+               --exclude-dir=dist 2>/dev/null; then
+            echo "Hay algo con forma de JWT legacy en el arbol."
+            exit 1
+          fi
+          echo "Sin claves legacy."
+
       - name: Los tags muertos de Meta no aparecen
         run: |
           # CONFIRMED_EVENT_UPDATE, ACCOUNT_UPDATE y POST_PURCHASE_UPDATE
