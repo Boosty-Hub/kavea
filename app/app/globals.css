@@ -568,6 +568,26 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 }
 .tarjeta-vieja:hover { background: var(--k-surface-2); }
 
+/* ---------- Compositor ---------- */
+
+.compositor {
+  border-top: 1px solid var(--k-border);
+  padding: 12px 24px 16px;
+  background: var(--k-surface);
+  display: grid;
+  gap: 8px;
+}
+.compositor__canales { display: flex; gap: 6px; flex-wrap: wrap; }
+.compositor__aviso {
+  margin: 0;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: var(--r-control);
+}
+.compositor__caja { display: grid; gap: 8px; }
+.compositor__caja textarea { resize: vertical; min-height: 54px; font-family: inherit; }
+.compositor__pie { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
 /* ---------- Embudo ----------
    El tablero es una superficie grande. El color va en un filete de cabecera y
    en ningún fondo: ocho columnas teñidas cansan a la tercera hora, y el libro

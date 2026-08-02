@@ -262,6 +262,24 @@ export const fichaDeContacto = cache(async (contactoId: string) => {
   return (data ?? []) as unknown as CampoDeFicha[]
 })
 
+export type Ventana = { clase: 'abierta' | 'humana' | 'cerrada'; motivo: string | null }
+
+/**
+ * La ventana de servicio, calculada en Postgres.
+ *
+ * No se recalcula en el cliente. La misma función `ventana_de()` la usan el
+ * compositor, el RPC que encola y el despachador que llama a Meta: tres sitios,
+ * una sola regla. Tenerla escrita dos veces es tenerla mal una vez.
+ */
+export const ventanaDe = cache(async (conversacionId: string, emisor = 'humano') => {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .rpc('ventana_de', { p_conversacion: conversacionId, p_emisor: emisor })
+  if (error) throw new Error(error.message)
+  const f = (data as unknown as Ventana[])?.[0]
+  return f ?? { clase: 'cerrada' as const, motivo: 'No se pudo calcular la ventana.' }
+})
+
 export const listarCampos = cache(async () => {
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase

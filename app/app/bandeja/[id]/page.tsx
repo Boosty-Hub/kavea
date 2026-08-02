@@ -11,6 +11,7 @@ import {
   otrasTarjetasDe,
   fichaDeTarjeta,
   fichaDeContacto,
+  ventanaDe,
   type EntradaHilo,
   type Adjunto,
   type ConversacionDeTarjeta,
@@ -24,6 +25,7 @@ import { Refrescador } from '../refrescador'
 import { Adjuntos } from './adjunto'
 import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
+import { Compositor } from './compositor'
 
 export const dynamic = 'force-dynamic'
 
@@ -76,6 +78,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   // vencida y la de Messenger abierta.
   const vivas = tarjeta.conversations.filter((c) => !c.cerrada_en)
   const multicanal = new Set(entradas.map((x) => x.canal)).size > 1
+
+  // La ventana la decide Postgres, con la misma función que usan el encolado y
+  // el despachador. Aquí solo se pinta.
+  const ventanas = await Promise.all(vivas.map((c) => ventanaDe(c.id)))
 
   return (
     <div className="bandeja bandeja--hilo">
@@ -190,17 +196,15 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           />
         </div>
 
-        <footer
-          style={{
-            borderTop: '1px solid var(--k-border)',
-            padding: '14px 24px',
-            fontSize: 13,
-            color: 'var(--k-text-2)',
-          }}
-        >
-          Responder llega en el bloque 4. Cada canal tiene su propia ventana y se responde por
-          uno concreto: el token y el hilo en Meta son de ese canal.
-        </footer>
+        {/* Una conversación por canal, y cada una con SU ventana: el token, el
+            endpoint y la propiedad del hilo en Meta son de ese canal. */}
+        <Compositor
+          conversaciones={vivas.map((c, i) => ({
+            id: c.id,
+            canal: c.canal,
+            ventana: ventanas[i]!,
+          }))}
+        />
       </section>
     </div>
   )
@@ -302,9 +306,36 @@ function Entrada({
               en cualquier equipo, y es la misma regla que rige los estados. */}
           {multicanal ? ` · ${etiquetaCanal(x.canal)}` : ''} · {hora}
           {x.detalle.editado ? ' · editado' : ''}
+          <EstadoEnvio x={x} />
         </div>
       </div>
     </>
+  )
+}
+
+/**
+ * En qué punto está un mensaje que Kavea mandó.
+ *
+ * Solo aparece mientras la fila de la cola de salida sigue en la línea de
+ * tiempo, es decir, hasta que llega su echo. Cuando el echo lo sustituye, la
+ * burbuja pasa a ser un mensaje normal y este indicador desaparece: eso ES la
+ * confirmación de que Meta lo entregó de vuelta.
+ */
+function EstadoEnvio({ x }: { x: EntradaHilo }) {
+  const estado = x.detalle.envio_estado as string | undefined
+  if (!estado || estado === 'enviado') return null
+
+  if (estado === 'fallido') {
+    return (
+      <span style={{ color: 'var(--k-escalada-fg)' }}>
+        {' '}· no se envió{x.detalle.envio_error ? `: ${x.detalle.envio_error}` : ''}
+      </span>
+    )
+  }
+  return (
+    <span style={{ color: 'var(--k-text-2)' }}>
+      {' '}· {estado === 'bloqueado' ? 'esperando a Meta' : 'enviando'}
+    </span>
   )
 }
 
