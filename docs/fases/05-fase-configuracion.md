@@ -299,11 +299,15 @@ callback: un token revocado, una desuscripción automática y un cliente que apa
 acceso a mensajes" producen los tres el mismo síntoma —dejan de llegar eventos— y ninguno
 emite un error.
 
-`02` §5.2 lo coloca en un Cron Trigger de Cloudflare por dominio de fallo separado, y esa
-es la implementación. La versión anterior de este plan proponía un cron del proveedor de la
-aplicación porque el `06` había eliminado Cloudflare del stack; ese error del `06` está
-corregido y Cloudflare vuelve a ser parte de la arquitectura. El cron vive junto al receptor,
-no junto a la interfaz.
+La implementación es **`pg_cron` con `pg_net`** para la llamada HTTPS saliente. El `02` §5.2
+lo ponía en un Cron Trigger de Cloudflare para separar el dominio de fallo, pero Cloudflare
+salió de la arquitectura: ver `06` §1.1.
+
+Lo que se pierde con ese cambio, dicho sin adornos: el cron vive dentro de la base que puede
+caerse. El contraargumento es que durante una caída no podría hacer su trabajo de todos modos,
+porque necesita leer los tokens de esa misma base; lo que importa es que cure al recuperarse,
+y para eso `pg_cron` sirve. Lo que sí queda sin cubrir es una caída del proyecto de Supabase
+entero, y de eso avisa el vigilante externo en Netlify que define la fase 1.
 
 *Aceptación:* desuscribir la app a mano desde el dashboard de una Página de prueba produce
 re-suscripción automática y una alerta interna en menos de 20 minutos.
@@ -1096,9 +1100,11 @@ de ese documento y ya está corregido: el `06` ahora cede ante el `02` en materi
 de datos y lleva tabla de erratas.
 
 **Q3. ¿Dónde corre el reconciliador de 15 minutos?** — **Cerrada el 2-ago-2026.**
-Cron Trigger de Cloudflare, como fija `02` §5.2: existe precisamente para recuperarse de una
-caída, así que no puede compartir dominio de fallo con lo que se cae. La duda venía de que el
-`06` había eliminado Cloudflare del stack, que era el error corregido.
+`pg_cron` con `pg_net`. El `02` §5.2 lo quería fuera del dominio de fallo de la base, pero
+Cloudflare salió de la arquitectura al consolidar en dos proveedores. Se asume que el cron
+vive dentro de lo que puede caerse, con el matiz de que durante una caída no podría hacer su
+trabajo igualmente porque necesita leer los tokens. La caída del proyecto entero la cubre el
+vigilante externo en Netlify de la fase 1.
 
 **Q4. ¿Se cambia el `slug` o no se cambia?**
 T24 pide elegir: redirección del subdominio anterior durante 30 días, o bloqueo del

@@ -221,9 +221,9 @@ kavea/
 │  └─ netlify.toml
 ├─ web/                 Astro → sitio de Netlify con base = "web" (ya existe)
 │  └─ netlify.toml
-├─ workers/             Cloudflare Workers → wrangler (esqueleto en esta fase)
 ├─ supabase/
-│  ├─ config.toml
+│  ├─ config.toml       incluye verify_jwt = false del receptor
+│  ├─ functions/        Edge Functions: receptor y normalizador (esqueleto en esta fase)
 │  ├─ migrations/       0001…0013
 │  ├─ tests/            pgTAP
 │  └─ seed.sql          solo local
@@ -1175,8 +1175,13 @@ con `cdn_url` no nulo falla. `tipo='sticker_de_2027'` entra.
 
 ### T15 — Migración 0011: `webhook_events`
 
-Bitácora, no cola. La cola es Cloudflare Queues (`02` §5.2); esta tabla es el registro crudo
-que permite trazar qué llegó y a qué tenant se enrutó.
+**Cola y bitácora a la vez.** Esta tabla es las dos cosas: el receptor inserta aquí, el
+normalizador reclama con `for update skip locked`, y la fila se conserva después como registro
+crudo de qué llegó y a qué tenant se enrutó. La forma definitiva la fija la fase 2, que es su
+consumidor; aquí solo se crea con RLS activo y cero políticas.
+
+El `02` §5.2 la definía como bitácora pura porque la cola era Cloudflare Queues. Esa decisión
+está anulada: ver `06` §1.1.
 
 ```sql
 -- 0011_bitacora_webhooks.sql
@@ -1715,8 +1720,8 @@ test('el registrador recorta access_token de cualquier cadena', () => {
 })
 ```
 
-6. **Vigilancia de caducidad del certificado.** Un Cron Trigger de Cloudflare que comprueba
-   semanalmente el certificado de `boosty.kavea.ai` y alerta si le quedan menos de 21 días. Es
+6. **Vigilancia de caducidad del certificado.** Un `pg_cron` semanal que, con `pg_net`,
+   comprueba el certificado de `boosty.kavea.ai` y alerta si le quedan menos de 21 días. Es
    la mitigación operativa de R1: el modo de fallo de un comodín mal aprovisionado no es que no
    funcione hoy, es que deje de renovarse a los tres meses, en silencio y para todos los
    tenants a la vez.
