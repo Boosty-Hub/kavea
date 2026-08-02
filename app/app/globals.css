@@ -690,6 +690,16 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 
 /* ---------- Centro de notificaciones ---------- */
 
+.movimiento, .contacto {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--k-border);
+}
+.movimiento:last-child, .contacto:last-child { border-bottom: 0; }
+.movimiento:hover, .contacto:hover { background: var(--k-surface-2); }
+
 /* ---------- Equipo ---------- */
 
 .miembro {

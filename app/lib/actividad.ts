@@ -74,6 +74,19 @@ export function describirActividad(x: EntradaActividad): string {
     case 'contacto.fusionado':
       return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
     case 'contacto.separado': return 'deshizo la unión de contactos'
+    // El detalle trae [antes, después] por cada campo tocado. Se dice de qué a
+    // qué: «cambió algo» no sirve para auditar nada.
+    case 'contacto.editado': {
+      const partes = Object.entries(d)
+        .filter(([, v]) => Array.isArray(v))
+        .map(([campo, v]) => {
+          const [antes, ahora] = v as [unknown, unknown]
+          return antes
+            ? `${campo} de "${textoValor(antes)}" a "${textoValor(ahora)}"`
+            : `${campo} a "${textoValor(ahora)}"`
+        })
+      return partes.length ? `cambió el ${partes.join(' y el ')} del contacto` : 'editó el contacto'
+    }
 
     // --- El embudo ---
     case 'tarjeta.etapa': {
