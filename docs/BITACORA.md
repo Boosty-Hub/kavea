@@ -766,6 +766,52 @@ demás está verificado.
 
 ---
 
+### 2026-08-02 · Un mensaje real, y cuatro incertidumbres cerradas de golpe
+
+Gabriel autorizó el envío. Se mandó desde la interfaz, por el camino completo que
+usa un operador: compositor → `encolar_envio` → cola → despachador → Graph.
+
+**Llegó.** `HTTP 200`, `message_id` real, y el echo de vuelta en menos de 15
+segundos.
+
+Lo interesante es lo que ese único mensaje resolvió. Cuatro cosas que llevaban
+semanas marcadas como «bloquean construcción» porque **dos páginas oficiales de
+Meta se contradicen** y no se pueden resolver leyendo:
+
+| # | Duda | Respuesta empírica |
+|---|---|---|
+| 4 | ¿`messaging_type` es obligatorio en Instagram? | **No.** Se envió sin él y devolvió 200 |
+| 5 | ¿El `message_id` del Send API coincide con el `mid` del echo? | **Sí.** El join casó a la primera |
+| 6 | ¿Instagram entrega echoes por la vía Facebook Login? | **Sí**, en menos de 15 s |
+| 7 (fase 4) | ¿En qué cubo de `X-Business-Use-Case-Usage` cae un envío por `/me/messages`? | **`messenger`**, no `instagram` |
+
+La número 6 era la que más pesaba: el hilo muestra la cola de salida hasta que
+llega el echo precisamente porque no se sabía si llegaría. Ahora se sabe que sí,
+y la desduplicación funcionó: la línea de tiempo enseña **una** burbuja, no dos.
+
+### 2026-08-02 · Operar la tarjeta: cerrar, asignar y anotar
+
+Un hueco que solo se ve intentando usar el producto una jornada entera: la
+bandeja **filtraba** por estado y no dejaba **cambiarlo**. Se podía recibir,
+leer, clasificar en el embudo y responder, pero no cerrar una conversación ni
+pasársela a un compañero.
+
+**Cerrar una tarjeta cierra sus conversaciones**, y eso no es un detalle. Sin
+ello: la tarjeta se cierra, la conversación sigue viva, y el siguiente mensaje
+del contacto lo engancha `resolver_conversacion` a esa conversación… cuya tarjeta
+está cerrada. El mensaje entra en la base, no sale en la bandeja de lo abierto y
+**nadie lo ve**. Es exactamente el fallo que Kavea existe para evitar.
+
+Reabrir comprueba que la persona no tenga ya otro asunto abierto, y lo explica en
+vez de dejar que reviente el índice único con un error de constraint.
+
+El estado y la asignación se escriben con un PATCH directo sobre columnas, no por
+RPC. No es una excepción a «todo pasa por RPC para que quede actividad»: son
+columnas, y el trigger las ve cambiar pase lo que pase. Que lo vigile la base es
+más fuerte que confiar en que cada ruta se acuerde.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0

@@ -262,6 +262,14 @@ export const fichaDeContacto = cache(async (contactoId: string) => {
   return (data ?? []) as unknown as CampoDeFicha[]
 })
 
+/** El equipo de la organización, para el selector de responsable. */
+export const miembrosDe = cache(async (organizacionId: string) => {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase.rpc('miembros_de', { p_org: organizacionId })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Array<{ user_id: string; nombre: string; rol: string }>
+})
+
 export type Ventana = { clase: 'abierta' | 'humana' | 'cerrada'; motivo: string | null }
 
 /**

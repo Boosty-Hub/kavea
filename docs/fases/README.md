@@ -153,10 +153,10 @@ aquí van juntas, en orden de a qué bloquean.
 | 1 | Forma real del payload de WhatsApp. El adaptador se entrega como interfaz con una prueba que falla a propósito | 2 |
 | 2 | Enrutado de WhatsApp: `entry[].id` es la WABA y no identifica canal; se enruta por `phone_number_id` | 1, 2 |
 | 3 | Literales de `messaging_type`. Solo corroborados en SDKs de terceros, nunca en fuente oficial | 4 |
-| 4 | Si `messaging_type` es obligatorio en Instagram. Los ejemplos oficiales no lo incluyen | 4 |
-| 5 | Si el `message_id` que devuelve el Send API coincide con el `mid` del echo | 4 |
-| 6 | Si Instagram entrega echoes en la vía Facebook Login. Dos páginas oficiales se contradicen | 2, 4 |
-| 7 | Si el navegador puede renderizar URLs de `lookaside.fbsbx.com` sin proxy | 3 |
+| 4 | ~~Si `messaging_type` es obligatorio en Instagram~~ — **CERRADA el 2-ago-2026.** No lo es: un envío sin `messaging_type` devolvió 200 | ✅ |
+| 5 | ~~Si el `message_id` que devuelve el Send API coincide con el `mid` del echo~~ — **CERRADA. Sí coinciden**, comprobado con un envío real | ✅ |
+| 6 | ~~Si Instagram entrega echoes en la vía Facebook Login~~ — **CERRADA. Sí los entrega**, y en menos de 15 segundos | ✅ |
+| 7 | ~~Si el navegador puede renderizar URLs de `lookaside.fbsbx.com` sin proxy~~ — **CERRADA. Sí puede**: 200 sin token y `Cross-Origin-Resource-Policy: cross-origin` | ✅ |
 
 ### Bloquean promesas comerciales
 

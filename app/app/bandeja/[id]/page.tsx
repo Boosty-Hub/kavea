@@ -9,6 +9,7 @@ import {
   adjuntosDe,
   canalesDe,
   otrasTarjetasDe,
+  miembrosDe,
   fichaDeTarjeta,
   fichaDeContacto,
   ventanaDe,
@@ -26,6 +27,7 @@ import { Adjuntos } from './adjunto'
 import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
 import { Compositor } from './compositor'
+import { Operar } from './operar'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,7 +48,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const convIds = tarjeta.conversations.map((c) => c.id)
 
   const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas,
-         archivos, documentos, resumen] =
+         miembros, archivos, documentos, resumen] =
     await Promise.all([
       obtenerHilo(id),
       adjuntosDe(convIds),
@@ -57,6 +59,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       fichaDeTarjeta(id),
       contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
       todasLasEtapas(),
+      miembrosDe(org.id),
       archivosDe(id, contactoId),
       contactoId ? documentosDe(contactoId) : Promise.resolve([]),
       contactoId ? resumenDe(contactoId) : Promise.resolve([]),
@@ -69,7 +72,8 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
     porMensaje.set(a.message_id, l)
   }
 
-  const e = ESTADOS[tarjeta.estado as Estado] ?? ESTADOS.nueva
+  // La píldora de estado de la cabecera la sustituyó el selector de `Operar`:
+  // enseñar el estado y no dejar cambiarlo era justo el hueco que se cierra aquí.
   const nombre =
     tarjeta.titulo ?? tarjeta.contacts?.nombre ?? tarjeta.contacts?.username ?? 'Contacto sin nombre'
 
@@ -143,10 +147,12 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span className="pildora" style={{ background: e.bg, color: e.fg }}>
-              <span className="pildora__punto" style={{ background: e.punto }} aria-hidden="true" />
-              {e.etiqueta}
-            </span>
+            <Operar
+              tarjetaId={id}
+              estado={tarjeta.estado}
+              asignadoA={tarjeta.asignado_a}
+              miembros={miembros}
+            />
             {vivas.some((c) => c.en_standby) ? (
               <span
                 className="pildora"

@@ -568,6 +568,21 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 }
 .tarjeta-vieja:hover { background: var(--k-surface-2); }
 
+/* ---------- Operar la tarjeta ---------- */
+
+.operar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.operar__control {
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  background: var(--k-surface);
+  color: var(--k-text);
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 8px;
+}
+.operar__control:hover { border-color: var(--k-ceniza); }
+.operar__nota { flex-basis: 100%; display: grid; gap: 8px; margin-top: 6px; max-width: 460px; }
+
 /* ---------- Compositor ---------- */
 
 .compositor {
