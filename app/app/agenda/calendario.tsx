@@ -36,6 +36,17 @@ export function Calendario({
   const [ocupado, setOcupado] = useState(false)
   const [nueva, setNueva] = useState<string | null>(null)
 
+  /**
+   * La casilla se marca al pulsar, no cuando contesta el servidor.
+   *
+   * Con la casilla atada solo al dato del servidor, React la devolvía a su sitio
+   * hasta que terminaba la ida y vuelta. En una conexión lenta eso se siente
+   * roto e invita a pulsar otra vez, que es como se acaba completando y
+   * reabriendo la misma tarea. Si la llamada falla, se deshace.
+   */
+  const [cambiadas, setCambiadas] = useState<Record<string, boolean>>({})
+  const hecha = (t: Tarea) => cambiadas[t.id] ?? t.completada_en !== null
+
   const primero = new Date(Date.UTC(anio, mes - 1, 1))
   const dias = new Date(Date.UTC(anio, mes, 0)).getUTCDate()
   // getUTCDay: 0 es domingo. La semana empieza en lunes, que es como se lee un
@@ -55,11 +66,22 @@ export function Calendario({
   }
 
   async function completar(t: Tarea) {
-    setOcupado(true); setError(null)
+    const destino = !hecha(t)
+    setCambiadas((c) => ({ ...c, [t.id]: destino }))
+    setError(null)
+
     const { error } = await crearClienteNavegador()
-      .rpc('completar_tarea', { p_tarea: t.id, p_completada: t.completada_en === null })
-    setOcupado(false)
-    if (error) { setError(error.message); return }
+      .rpc('completar_tarea', { p_tarea: t.id, p_completada: destino })
+
+    if (error) {
+      setCambiadas((c) => {
+        const n = { ...c }
+        delete n[t.id]
+        return n
+      })
+      setError(error.message)
+      return
+    }
     router.refresh()
   }
 
@@ -115,17 +137,17 @@ export function Calendario({
               </div>
 
               {suyas.map((t) => {
-                const vencida = !t.completada_en && new Date(t.vence_en) < new Date()
+                const listo = hecha(t)
+                const vencida = !listo && new Date(t.vence_en) < new Date()
                 const hora = new Date(t.vence_en).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
                 return (
                   <div
                     key={t.id}
-                    className={`tarea${t.completada_en ? ' tarea--hecha' : ''}${vencida ? ' tarea--vencida' : ''}`}
+                    className={`tarea${listo ? ' tarea--hecha' : ''}${vencida ? ' tarea--vencida' : ''}`}
                   >
                     <input
                       type="checkbox"
-                      checked={!!t.completada_en}
-                      disabled={ocupado}
+                      checked={listo}
                       onChange={() => completar(t)}
                       aria-label={`Completar ${t.titulo}`}
                     />
