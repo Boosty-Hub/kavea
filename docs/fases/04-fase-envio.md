@@ -430,8 +430,12 @@ real con imagen llega al destinatario por cada canal. Búsqueda en el repositori
 en el bucket desde el procesamiento de webhooks de media entrante.
 
 **Hecho.** Migración 0049, `encolar_archivo`, firma en `functions/despachar`, botón en la pestaña de
-archivos. Siete comprobaciones en la suite de aislamiento: 61 en total, 61 en verde. Queda pendiente
-el envío real con imagen por cada canal, que exige un contacto de verdad.
+archivos. Siete comprobaciones en la suite de aislamiento: 61 en total, 61 en verde.
+
+**Envío real, 2 de agosto de 2026, Instagram.** Un PNG de 232 KB a un contacto de verdad. Meta
+devolvió `message_id`, el echo llegó a los **6 segundos** con su fila de `media`, la burbuja de la
+cola («📎 og.png · enviando») se retiró sola al llegar, y el contacto contestó «Recibido la imagen
+perfecto». Falta el mismo recorrido por Messenger: no hay contacto vivo por esa vía todavía.
 
 ### T12 — Compositor de la bandeja
 
