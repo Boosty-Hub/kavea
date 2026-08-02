@@ -2,20 +2,25 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import {
-  listarConversaciones,
+  listarTarjetas,
   contarPorEstado,
-  obtenerConversacion,
+  obtenerTarjeta,
   obtenerHilo,
   adjuntosDe,
   canalesDe,
-  otrasConversacionesDe,
+  otrasTarjetasDe,
+  fichaDeTarjeta,
+  fichaDeContacto,
   type EntradaHilo,
   type Adjunto,
+  type ConversacionDeTarjeta,
 } from '@/lib/bandeja'
-import { ESTADOS, etiquetaCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado } from '@/lib/ventana'
+import {
+  ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
+} from '@/lib/ventana'
 import { Refrescador } from '../refrescador'
 import { Adjuntos } from './adjunto'
-import { Persona } from './persona'
+import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
 
 export const dynamic = 'force-dynamic'
@@ -28,20 +33,23 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   if (!org) notFound()
 
   const { id } = await params
-  const conv = await obtenerConversacion(id)
-  // RLS ya filtró: si no es de esta organización, `conv` es null y respondemos
-  // 404 en vez de un 403 que confirmaría que existe.
-  if (!conv) notFound()
+  const tarjeta = await obtenerTarjeta(id)
+  // RLS ya filtró: si no es de esta organización, es null y respondemos 404 en
+  // vez de un 403 que confirmaría que existe.
+  if (!tarjeta) notFound()
 
-  const contactoId = conv.contacts?.id ?? null
+  const contactoId = tarjeta.contacts?.id ?? null
+  const convIds = tarjeta.conversations.map((c) => c.id)
 
-  const [entradas, adjuntos, lista, conteos, canales, otras] = await Promise.all([
+  const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC] = await Promise.all([
     obtenerHilo(id),
-    adjuntosDe(id),
-    listarConversaciones({}),
+    adjuntosDe(convIds),
+    listarTarjetas({}),
     contarPorEstado(),
     contactoId ? canalesDe(contactoId) : Promise.resolve([]),
-    contactoId ? otrasConversacionesDe(contactoId, id) : Promise.resolve([]),
+    contactoId ? otrasTarjetasDe(contactoId, id) : Promise.resolve([]),
+    fichaDeTarjeta(id),
+    contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
   ])
 
   const porMensaje = new Map<string, Adjunto[]>()
@@ -51,10 +59,15 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
     porMensaje.set(a.message_id, l)
   }
 
-  const e = ESTADOS[conv.estado as Estado] ?? ESTADOS.nueva
-  const v = calcularVentana(conv.last_incoming_at)
-  const cv = COLOR_VENTANA[v.clase]
-  const nombre = conv.contacts?.nombre ?? conv.contacts?.username ?? 'Contacto sin nombre'
+  const e = ESTADOS[tarjeta.estado as Estado] ?? ESTADOS.nueva
+  const nombre =
+    tarjeta.titulo ?? tarjeta.contacts?.nombre ?? tarjeta.contacts?.username ?? 'Contacto sin nombre'
+
+  // Una tarjeta con varios canales tiene una ventana POR CANAL. Enseñar una
+  // sola sería mentir sobre si se puede responder: la de Instagram puede estar
+  // vencida y la de Messenger abierta.
+  const vivas = tarjeta.conversations.filter((c) => !c.cerrada_en)
+  const multicanal = new Set(entradas.map((x) => x.canal)).size > 1
 
   return (
     <div className="bandeja bandeja--hilo">
@@ -72,15 +85,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           {lista.map((c) => {
             const ec = ESTADOS[c.estado as Estado] ?? ESTADOS.nueva
             return (
-              <Link
-                key={c.id}
-                href={`/bandeja/${c.id}`}
-                className="fila"
-                aria-current={c.id === id}
-              >
+              <Link key={c.id} href={`/bandeja/${c.id}`} className="fila" aria-current={c.id === id}>
                 <div className="fila__alto">
                   <span className="fila__nombre">
-                    {c.contacts?.nombre ?? c.contacts?.username ?? 'Contacto sin nombre'}
+                    {c.titulo ?? c.contacts?.nombre ?? c.contacts?.username ?? 'Contacto sin nombre'}
                   </span>
                   <span className="fila__cuando">{haceCuanto(c.last_message_at)}</span>
                 </div>
@@ -90,6 +98,14 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
                     <span className="pildora__punto" style={{ background: ec.punto }} aria-hidden="true" />
                     {ec.etiqueta}
                   </span>
+                  {(c.conversations ?? []).map((cv) => (
+                    <span
+                      key={cv.canal}
+                      className="pildora__punto"
+                      style={{ background: colorCanal(cv.canal) }}
+                      title={etiquetaCanal(cv.canal)}
+                    />
+                  ))}
                   {c.no_leidos > 0 ? <span className="sinleer">{c.no_leidos}</span> : null}
                 </div>
               </Link>
@@ -105,19 +121,11 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
               ← Bandeja
             </Link>
             <h2 style={{ marginTop: 4 }}>{nombre}</h2>
-            {contactoId ? (
-              <Persona
-                contactoId={contactoId}
-                canales={canales}
-                otras={otras}
-                conversacionActual={id}
-                canalActual={conv.canal}
-              />
-            ) : (
-              <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '4px 0 0' }}>
-                {etiquetaCanal(conv.canal)}
-              </p>
-            )}
+            <div className="canales">
+              {vivas.map((c) => (
+                <Ventana key={c.id} c={c} />
+              ))}
+            </div>
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -125,13 +133,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
               <span className="pildora__punto" style={{ background: e.punto }} aria-hidden="true" />
               {e.etiqueta}
             </span>
-            {/* El indicador de ventana se muestra aunque todavía no haya
-                compositor: un operador que no sabe que la ventana venció
-                escribe una respuesta que no se podrá enviar. */}
-            <span className="pildora" style={{ background: cv.bg, color: cv.fg }} title={v.detalle}>
-              {v.clase === 'abierta' ? `Ventana abierta · ${v.etiqueta}` : v.etiqueta}
-            </span>
-            {conv.en_standby ? (
+            {vivas.some((c) => c.en_standby) ? (
               <span
                 className="pildora"
                 style={{ background: 'var(--k-esperando-bg)', color: 'var(--k-esperando-fg)' }}
@@ -143,18 +145,35 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           </div>
         </header>
 
-        <div className="hilo__cuerpo">
-          <p className="traza" style={{ marginBottom: 8 }}>
-            El historial anterior a la conexión no está disponible: Meta no lo entrega.
-          </p>
+        <div className="hilo-con-ficha">
+          <div className="hilo__cuerpo">
+            <p className="traza" style={{ marginBottom: 8 }}>
+              El historial anterior a la conexión no está disponible: Meta no lo entrega.
+            </p>
 
-          {entradas.map((x) => (
-            <Entrada key={`${x.clase}-${x.ref}`} x={x} adjuntos={porMensaje.get(x.ref) ?? []} />
-          ))}
+            {entradas.map((x, i) => (
+              <Entrada
+                key={`${x.clase}-${x.ref}`}
+                x={x}
+                adjuntos={porMensaje.get(x.ref) ?? []}
+                multicanal={multicanal}
+                // El separador solo se pinta cuando el canal cambia. En un hilo
+                // de un canal no aparece nunca.
+                corte={multicanal && x.canal !== entradas[i - 1]?.canal}
+              />
+            ))}
 
-          {/* La marca cambia cuando cambia la última entrada, que es justo
-              cuando hay que volver a mirar si toca bajar. */}
-          <AlFinal marca={`${id}:${entradas.at(-1)?.ref ?? ''}`} />
+            <AlFinal marca={`${id}:${entradas.at(-1)?.ref ?? ''}`} />
+          </div>
+
+          <Ficha
+            tarjetaId={id}
+            contactoId={contactoId}
+            canales={canales}
+            otras={otras}
+            camposTarjeta={campoT}
+            camposContacto={campoC}
+          />
         </div>
 
         <footer
@@ -165,55 +184,93 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             color: 'var(--k-text-2)',
           }}
         >
-          Responder llega en el bloque 4. La ventana de servicio y el estado del hilo ya se
-          calculan aquí para que la respuesta salga con la regla correcta.
+          Responder llega en el bloque 4. Cada canal tiene su propia ventana y se responde por
+          uno concreto: el token y el hilo en Meta son de ese canal.
         </footer>
       </section>
     </div>
   )
 }
 
-function Entrada({ x, adjuntos }: { x: EntradaHilo; adjuntos: Adjunto[] }) {
+/** La ventana de servicio de una conversación, con su canal delante. */
+function Ventana({ c }: { c: ConversacionDeTarjeta }) {
+  const v = calcularVentana(c.last_incoming_at)
+  const cv = COLOR_VENTANA[v.clase]
+  return (
+    <span className="canal-chip" title={v.detalle}>
+      <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+      {etiquetaCanal(c.canal)}
+      <span style={{ color: cv.fg }}>
+        {v.clase === 'abierta' ? v.etiqueta : v.etiqueta.toLowerCase()}
+      </span>
+    </span>
+  )
+}
+
+function Entrada({
+  x, adjuntos, multicanal, corte,
+}: {
+  x: EntradaHilo
+  adjuntos: Adjunto[]
+  multicanal: boolean
+  corte: boolean
+}) {
   const hora = new Date(x.momento).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+
+  const separador = corte ? (
+    <p className="corte-canal">
+      <span className="corte-canal__punto" style={{ background: colorCanal(x.canal) }} aria-hidden="true" />
+      {etiquetaCanal(x.canal)}
+    </p>
+  ) : null
 
   // Actividad del equipo y eventos de Meta no son burbujas: son contexto.
   if (x.clase !== 'mensaje') {
     return (
-      <p className="traza">
-        {x.actor_nombre ? <span className="traza__actor">{x.actor_nombre}</span> : null}{' '}
-        {describir(x)} · {hora}
-      </p>
+      <>
+        {separador}
+        <p className="traza">
+          {x.actor_nombre ? <span className="traza__actor">{x.actor_nombre}</span> : null}{' '}
+          {describir(x)} · {hora}
+        </p>
+      </>
     )
   }
 
   const saliente = x.detalle.direccion === 'outbound'
   const borrado = Boolean(x.detalle.borrado)
   const texto = x.detalle.texto as string | null
-
-  // Un borrado se lleva sus adjuntos por delante: si el contacto hizo unsend de
-  // una foto, seguir mostrándola sería servir contenido que ya retiró.
   const visibles = borrado ? [] : adjuntos
 
   return (
-    <div className={`burbuja${saliente ? ' burbuja--saliente' : ''}`}>
-      <div className="burbuja__caja">
-        {borrado ? (
-          <span className="burbuja__borrado">Mensaje eliminado</span>
-        ) : (
-          <>
-            {texto ? <div style={{ marginBottom: visibles.length ? 8 : 0 }}>{texto}</div> : null}
-            {visibles.length ? <Adjuntos lista={visibles} /> : null}
-            {!texto && !visibles.length ? (
-              <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
-            ) : null}
-          </>
-        )}
+    <>
+      {separador}
+      <div className={`burbuja${saliente ? ' burbuja--saliente' : ''}${multicanal ? ' burbuja--multicanal' : ''}`}>
+        <div
+          className="burbuja__caja"
+          style={multicanal ? { borderInlineStartColor: colorCanal(x.canal) } : undefined}
+        >
+          {borrado ? (
+            <span className="burbuja__borrado">Mensaje eliminado</span>
+          ) : (
+            <>
+              {texto ? <div style={{ marginBottom: visibles.length ? 8 : 0 }}>{texto}</div> : null}
+              {visibles.length ? <Adjuntos lista={visibles} /> : null}
+              {!texto && !visibles.length ? (
+                <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
+              ) : null}
+            </>
+          )}
+        </div>
+        <div className="burbuja__meta">
+          {saliente ? (x.actor_tipo === 'agente' ? 'Agente' : 'Equipo') : 'Contacto'}
+          {/* El canal también en texto. Nunca solo color: hay gente daltónica
+              en cualquier equipo, y es la misma regla que rige los estados. */}
+          {multicanal ? ` · ${etiquetaCanal(x.canal)}` : ''} · {hora}
+          {x.detalle.editado ? ' · editado' : ''}
+        </div>
       </div>
-      <div className="burbuja__meta">
-        {saliente ? (x.actor_tipo === 'agente' ? 'Agente' : 'Equipo') : 'Contacto'} · {hora}
-        {x.detalle.editado ? ' · editado' : ''}
-      </div>
-    </div>
+    </>
   )
 }
 
@@ -224,19 +281,36 @@ function describir(x: EntradaHilo): string {
     case 'evento.reaction': return `reaccionó ${d.emoji ?? ''}`.trim()
     case 'evento.delivery': return 'recibió el mensaje'
     case 'evento.postback': return 'pulsó un botón'
-    case 'conversacion.asignada': return `asignó la conversación a ${d.a_nombre ?? 'alguien'}`
-    case 'conversacion.desasignada': return 'quitó la asignación'
-    case 'conversacion.estado': return `cambió el estado de ${d.de} a ${d.a}`
-    case 'conversacion.cerrada': return 'cerró la conversación'
+    case 'conversacion.asignada':
+    case 'tarjeta.asignada': return `asignó la conversación a ${d.a_nombre ?? 'alguien'}`
+    case 'conversacion.desasignada':
+    case 'tarjeta.desasignada': return 'quitó la asignación'
+    case 'conversacion.estado':
+    case 'tarjeta.estado': return `cambió el estado de ${d.de} a ${d.a}`
+    case 'conversacion.cerrada':
+    case 'tarjeta.cerrada': return 'cerró la conversación'
+    case 'tarjeta.titulo': return `cambió el título a "${d.a ?? ''}"`
     case 'nota.añadida': return `añadió una nota: ${d.texto ?? ''}`
     case 'breakglass.abierto': return 'abrió un acceso temporal al contenido'
     case 'identidad.vinculada':
       return `vinculó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) a esta persona`
     case 'identidad.desvinculada':
       return `quitó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) de esta persona`
+    case 'tarjetas.unidas':
+      return `unió otra tarjeta con esta · ${d.motivo ?? ''}`
+    case 'tarjetas.separadas': return 'deshizo la unión de tarjetas'
+    case 'campo.valor':
+      return `cambió ${d.etiqueta ?? 'un campo'}${d.de != null ? ` de "${textoValor(d.de)}"` : ''} a "${textoValor(d.a)}"`
     case 'contacto.fusionado':
       return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
     case 'contacto.separado': return 'deshizo la unión de contactos'
     default: return x.tipo.replace(/[._]/g, ' ')
   }
+}
+
+function textoValor(v: unknown): string {
+  if (v === null || v === undefined) return 'vacío'
+  if (typeof v === 'boolean') return v ? 'sí' : 'no'
+  if (Array.isArray(v)) return v.join(', ')
+  return String(v)
 }

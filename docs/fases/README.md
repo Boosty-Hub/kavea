@@ -36,6 +36,7 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 | 1 | [Ingesta](01-fase-ingesta.md) | 1077 | Meta entrega, se valida la firma y se encola con 200 en menos de 5 s |
 | 2 | [Normalización](02-fase-normalizacion.md) | 1043 | El mismo evento entregado tres veces produce una sola fila |
 | 3 | [Bandeja](03-fase-bandeja.md) | 1204 | Se ven conversaciones reales llegando en vivo |
+| 3b | [Tarjetas](03b-fase-tarjetas.md) | 250 | Una persona con dos canales se lee en un solo hilo |
 | 4 | [Envío](04-fase-envio.md) | 511 | Se responde y el compositor se bloquea fuera de ventana |
 | 5 | [Configuración](05-fase-configuracion.md) | 975 | Un canal se conecta desde la interfaz, sin tocar la base |
 | 6 | [Agentes](06-fase-agentes.md) | 730 | El agente propone, una persona aprueba, queda en `agent_runs` |
@@ -44,13 +45,18 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 ### Dependencias
 
 ```
-0 ──► 1 ──► 2 ──► 3 ──► 4 ──► 6
-                  │      │
-                  └──► 5 ┘
-                         └──► 7  (+ Tech Provider + App Review)
+0 ──► 1 ──► 2 ──► 3 ──► 3b ──► 4 ──► 6
+                  │             │
+                  └──► 5 ───────┘
+                                └──► 7  (+ Tech Provider + App Review)
 ```
 
 - **1 y 2 antes que 3, sin excepción.** No hay bandeja sin ingesta.
+- **3b antes que 4, y esto no es negociable.** La 4 construye el compositor, y si la unidad de
+  trabajo es la tarjeta el compositor tiene que preguntar por qué canal se responde y mirar la
+  ventana de ese canal. Escribirlo contra la conversación y rehacerlo después cuesta más que
+  decidirlo antes. La 3b se añadió el 2 de agosto de 2026: era un hueco del plan, no un
+  aplazamiento.
 - **5 puede solaparse con 3 y 4.** Durante el dogfooding la conexión de Boosty se siembra a
   mano; la fase 5 construye la interfaz que generaliza eso.
 - **6 exige 4**, porque un agente que propone sin poder enviar no cierra el ciclo.

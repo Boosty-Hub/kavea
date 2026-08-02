@@ -41,6 +41,14 @@
   --k-accent: var(--k-terra-500);
   --k-filtro-activo: var(--k-terra-100);
 
+  /* Canales. Fuera de la paleta semántica de estados a propósito: si el canal
+     usara los mismos colores que 'en curso' o 'escalada', un hilo de dos
+     canales parecería un hilo con dos alertas. Apagados porque son etiquetas,
+     no avisos. */
+  --k-canal-instagram: #a8447a;
+  --k-canal-messenger: #2f6fb5;
+  --k-canal-whatsapp:  #3f7a4e;
+
   --r-control: 6px;
   --r-card: 12px;
 
@@ -57,6 +65,10 @@
     --k-text-2: #a8a39a;
     --k-accent: var(--k-terra-400);
     --k-filtro-activo: #3a2a22;
+
+    --k-canal-instagram: #d17aa8;
+    --k-canal-messenger: #6fa3dd;
+    --k-canal-whatsapp:  #6fb083;
 
     --k-curso: #5b9bd5;      --k-curso-fg: #8fbee8;      --k-curso-bg: #16283a;
     --k-esperando: #d9a93f;  --k-esperando-fg: #e8c776;  --k-esperando-bg: #33280f;
@@ -405,6 +417,76 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 .canal-chip[aria-current='true'] { border-color: var(--k-accent); color: var(--k-text); }
 .canal-chip:hover { background: var(--k-surface-2); }
 
+/* ---------- Hilo de varios canales ----------
+   El riesgo es convertir el hilo en un semáforo. Ninguna superficie se tiñe:
+   el canal se marca con un filete en el borde de inicio y con su nombre en el
+   pie. Nunca solo color, que es la misma regla que ya rige los estados. */
+
+.burbuja__caja { border-inline-start-width: 1px; }
+.burbuja--multicanal .burbuja__caja { border-inline-start-width: 2px; }
+
+/* Separador que aparece SOLO cuando el canal cambia respecto al mensaje
+   anterior. En un hilo de un canal no se pinta ni una vez, así que el caso
+   normal no paga nada por esto. */
+.corte-canal {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--k-text-2);
+  margin: 4px 0;
+}
+.corte-canal::before, .corte-canal::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--k-border);
+}
+.corte-canal__punto { width: 7px; height: 7px; border-radius: 999px; flex: none; }
+
+/* ---------- Ficha ---------- */
+
+.hilo-con-ficha { display: grid; grid-template-columns: 1fr minmax(280px, 320px); min-height: 0; }
+.ficha {
+  border-inline-start: 1px solid var(--k-border);
+  background: var(--k-surface);
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 0;
+}
+.ficha__bloque { display: grid; gap: 8px; }
+.ficha__titulo {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--k-text-2);
+  margin: 0;
+}
+.ficha__campo { display: grid; gap: 4px; }
+.ficha__etiqueta { font-size: 13px; color: var(--k-text-2); }
+.ficha__ayuda { font-size: 11px; color: var(--k-text-2); }
+.ficha .campo { font-size: 14px; padding: 7px 10px; }
+.ficha__vacia { font-size: 13px; color: var(--k-text-2); margin: 0; }
+
+.tarjeta-vieja {
+  display: block;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  padding: 8px 10px;
+  font-size: 13px;
+  text-decoration: none;
+  color: inherit;
+}
+.tarjeta-vieja:hover { background: var(--k-surface-2); }
+
 /* ---------- Responsive ----------
    Va AL FINAL a propósito. Estaba antes de `.bandeja__hilo { display: flex }`
    y perdía por orden de cascada con la misma especificidad: la media query
@@ -419,4 +501,16 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
   .bandeja--hilo .bandeja__hilo { display: flex; }
   .hilo__cuerpo { padding: 16px; }
   .burbuja { max-width: 88%; }
+}
+
+/* La ficha se apila bajo el hilo antes que la bandeja colapse: a 1100 px el
+   panel lateral deja al hilo por debajo de los 400 px y las burbujas se
+   estrechan hasta partir palabras. */
+@media (max-width: 1180px) {
+  .hilo-con-ficha { grid-template-columns: 1fr; }
+  .ficha {
+    border-inline-start: 0;
+    border-top: 1px solid var(--k-border);
+    max-height: 45vh;
+  }
 }

@@ -101,6 +101,19 @@ export function etiquetaCanal(canal: string): string {
 }
 
 /**
+ * Color del canal.
+ *
+ * Devuelve el token, no un literal. Un canal desconocido cae al color de texto
+ * secundario en vez de a `undefined`, que en CSS se traduce en heredar el color
+ * del padre y hacer que el punto desaparezca.
+ */
+export function colorCanal(canal: string): string {
+  return canal === 'instagram' || canal === 'messenger' || canal === 'whatsapp'
+    ? `var(--k-canal-${canal})`
+    : 'var(--k-text-2)'
+}
+
+/**
  * Sanea un término antes de meterlo en un filtro `or=(...)` de PostgREST.
  *
  * En esa sintaxis la coma separa condiciones y el paréntesis las agrupa, así

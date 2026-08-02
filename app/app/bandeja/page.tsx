@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
-import { listarConversaciones, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
-import { ESTADOS, CANALES, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
+import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
+import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
 
 export const dynamic = 'force-dynamic'
@@ -29,8 +29,8 @@ export default async function Bandeja({
   const sp = await searchParams
   const estado = sp.estado ?? 'todas'
 
-  const [conversaciones, conteos] = await Promise.all([
-    listarConversaciones({ estado, canal: sp.canal }),
+  const [tarjetas, conteos] = await Promise.all([
+    listarTarjetas({ estado, canal: sp.canal }),
     contarPorEstado(),
   ])
 
@@ -40,7 +40,12 @@ export default async function Bandeja({
 
       <section className="bandeja__lista" aria-label="Conversaciones">
         <header className="bandeja__cabecera">
-          <p className="label">{org.nombre}</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <p className="label">{org.nombre}</p>
+            <Link href="/ajustes/campos" style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Ajustes
+            </Link>
+          </div>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
 
           <nav className="filtros" aria-label="Filtrar por estado">
@@ -59,10 +64,10 @@ export default async function Bandeja({
         </header>
 
         <div className="lista">
-          {conversaciones.length === 0 ? (
+          {tarjetas.length === 0 ? (
             <EstadoVacio estado={estado} />
           ) : (
-            conversaciones.map((c) => <Fila key={c.id} c={c} />)
+            tarjetas.map((t) => <Fila key={t.id} t={t} />)
           )}
         </div>
       </section>
@@ -77,25 +82,32 @@ export default async function Bandeja({
   )
 }
 
-function Fila({ c }: { c: FilaBandeja }) {
-  const e = ESTADOS[c.estado as Estado] ?? ESTADOS.nueva
-  const v = calcularVentana(c.last_incoming_at)
-  const nombre = c.contacts?.nombre ?? c.contacts?.username ?? 'Contacto sin nombre'
+function Fila({ t }: { t: FilaBandeja }) {
+  const e = ESTADOS[t.estado as Estado] ?? ESTADOS.nueva
+  const nombre = t.titulo ?? t.contacts?.nombre ?? t.contacts?.username ?? 'Contacto sin nombre'
+  const canales = t.conversations ?? []
+
+  // La ventana de la tarjeta es la MÁS HOLGADA de sus canales: si por alguno se
+  // puede responder, el asunto no está bloqueado. Avisar de "fuera de ventana"
+  // teniendo Messenger abierto haría que el operador no lo intentara.
+  const ventanas = canales.map((c) => calcularVentana(c.last_incoming_at))
+  const alguna = ventanas.find((v) => v.clase === 'abierta')
+  const peor = ventanas.find((v) => v.clase === 'cerrada')
 
   return (
-    <Link href={`/bandeja/${c.id}`} className="fila">
+    <Link href={`/bandeja/${t.id}`} className="fila">
       <div className="fila__alto">
         <span className="fila__nombre">{nombre}</span>
-        <span className="fila__cuando">{haceCuanto(c.last_message_at)}</span>
+        <span className="fila__cuando">{haceCuanto(t.last_message_at)}</span>
       </div>
 
       <p className="fila__preview">
-        {c.preview_emisor && c.preview_emisor !== 'contacto' ? (
-          <span style={{ color: 'var(--k-text-3)' }}>
-            {c.preview_emisor === 'agente' ? 'Agente: ' : 'Tú: '}
+        {t.preview_emisor && t.preview_emisor !== 'contacto' ? (
+          <span style={{ color: 'var(--k-text-2)' }}>
+            {t.preview_emisor === 'agente' ? 'Agente: ' : 'Tú: '}
           </span>
         ) : null}
-        {c.preview_texto ?? 'Sin mensajes'}
+        {t.preview_texto ?? 'Sin mensajes'}
       </p>
 
       <div className="fila__pie">
@@ -106,23 +118,30 @@ function Fila({ c }: { c: FilaBandeja }) {
           {e.etiqueta}
         </span>
 
-        <span className="pildora" style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}>
-          {CANALES[c.canal] ?? c.canal}
-        </span>
+        {canales.map((c) => (
+          <span
+            key={c.canal}
+            className="pildora"
+            style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}
+          >
+            <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+            {etiquetaCanal(c.canal)}
+          </span>
+        ))}
 
-        {v.clase !== 'abierta' && v.clase !== 'sin_contacto' ? (
+        {!alguna && peor ? (
           <span
             className="pildora"
             style={{ background: 'var(--k-escalada-bg)', color: 'var(--k-escalada-fg)' }}
-            title={v.detalle}
+            title={peor.detalle}
           >
-            {v.etiqueta}
+            {peor.etiqueta}
           </span>
         ) : null}
 
-        {c.no_leidos > 0 ? (
-          <span className="sinleer" aria-label={`${c.no_leidos} sin leer`}>
-            {c.no_leidos}
+        {t.no_leidos > 0 ? (
+          <span className="sinleer" aria-label={`${t.no_leidos} sin leer`}>
+            {t.no_leidos}
           </span>
         ) : null}
       </div>
