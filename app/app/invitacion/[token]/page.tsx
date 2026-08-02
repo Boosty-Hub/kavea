@@ -27,7 +27,30 @@ export default async function Invitacion({
   const { token } = await params
 
   const admin = crearClienteServicio()
-  const { data } = await admin.schema('private').rpc('invitacion_por_token', { p_token: token })
+  const { data, error } = await admin.rpc('invitacion_por_token', { p_token: token })
+
+  /**
+   * «No la encuentro» y «no puedo consultar» NO son lo mismo.
+   *
+   * Al principio esta página trataba las dos igual, y una llamada que fallaba
+   * porque el esquema `private` no está expuesto por PostgREST se mostraba como
+   * «esta invitación ya no vale». Un fallo de infraestructura disfrazado de
+   * invitación caducada: quien lo recibiera pediría otro enlace, que también
+   * fallaría, y nadie miraría el sitio correcto.
+   */
+  if (error) {
+    return (
+      <main className="pagina" style={{ maxWidth: 460 }}>
+        <p className="label">Kavea</p>
+        <h1 style={{ marginBlock: '12px 16px' }}>Ahora mismo no podemos comprobarlo</h1>
+        <p style={{ color: 'var(--k-text-2)' }}>
+          Tu invitación puede estar perfectamente. Es un fallo nuestro. Vuelve a intentarlo en
+          un minuto y, si sigue igual, escribe a support@kavea.ai.
+        </p>
+      </main>
+    )
+  }
+
   const inv = (data as Array<{ correo: string; rol: string; organizacion: string }> | null)?.[0]
 
   if (!inv) {

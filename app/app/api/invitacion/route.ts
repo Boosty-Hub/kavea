@@ -34,9 +34,7 @@ export async function POST(req: Request) {
 
   const admin = crearClienteServicio()
 
-  const { data: filas, error: errInv } = await admin
-    .schema('private')
-    .rpc('invitacion_por_token', { p_token: token })
+  const { data: filas, error: errInv } = await admin.rpc('invitacion_por_token', { p_token: token })
 
   if (errInv) return NextResponse.json({ error: errInv.message }, { status: 500 })
 
@@ -90,7 +88,7 @@ export async function POST(req: Request) {
 async function unir(
   admin: ReturnType<typeof crearClienteServicio>, token: string, usuario: string,
 ) {
-  const { error } = await admin.schema('private').rpc('aceptar_invitacion', {
+  const { error } = await admin.rpc('aceptar_invitacion', {
     p_token: token, p_usuario: usuario,
   })
   return error ? { error: error.message } : {}
