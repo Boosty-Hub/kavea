@@ -45,22 +45,79 @@ tenant por subdominio, y qué puede ver Boosty sobre los datos de sus clientes.
 | Sitio público | Netlify, desde `web/` | ya desplegado |
 | App multi-tenant y panel interno | **Netlify** | decisión de Gabriel, 2-ago |
 | Base de datos | **Supabase** — `sdazqohyjzzylwbkvovx` | `00` §5 |
-| Ingesta, cola y crones de Meta | **Cloudflare** Workers, Queues y Cron Triggers | `02` §5.3 |
+| Ingesta, cola y crones de Meta | **Netlify** Functions, Postgres y Scheduled Functions | decisión de Gabriel, 2-ago — **anula `02` §5.3** |
+| Amortiguador de emergencia de la ingesta | **Netlify Blobs** | mitigación, ver §1.1 |
 | Media saliente | **Cloudflare R2** | `00` §5 |
 | Aislamiento | Una sola base, RLS desde el día uno | `02` §7.7 |
 | Enrutado de tenant | **Subdominio, desde el día uno** | decisión de Gabriel, 2-ago |
 | Acceso del panel interno | **Solo metadatos, con break-glass auditado** | decisión de Gabriel, 2-ago |
 | Correo | **Resend**, entrante y saliente. Verificado y operativo | 2-ago |
 
-### El coste de esta arquitectura, dicho sin adornos
+## 1.1 La ingesta en Netlify: decisión con riesgo aceptado
 
-Son tres proveedores: Netlify, Supabase y Cloudflare. Es exactamente la cuenta que el
-documento 02 ya asumía: *"dos proveedores, dos almacenes de secretos, dos pipelines de
-despliegue y observabilidad partida"*, más Netlify que ya estaba.
+**Esto anula el `02` §5.3, que argumentaba a favor de Cloudflare Workers.** Se documenta
+aquí en lugar de contradecirlo en silencio, que es el error que ya costó una ronda de
+correcciones.
 
-Se acepta porque la razón del 02 no es de comodidad sino de supervivencia: el camino de
-ingesta no puede compartir dominio de fallo con Postgres. Pero hay que mitigarlo con un
-test que compare los secretos entre entornos, no con disciplina. `GRAPH_API_VERSION` y el
+### Lo que decía el 02 y sigue siendo cierto
+
+> *"Si la cola es una tabla de staging en Postgres y el handler es una Edge Function del
+> mismo proyecto, entonces la capacidad de devolver 200 depende de que la base de datos esté
+> disponible. Una migración larga, un pool agotado o una ventana de mantenimiento se
+> convierten en una desuscripción masiva de todos los tenants a la vez."*
+
+El argumento no se ha refutado. Meta desuscribe la Página tras una hora de entregas
+fallidas, en silencio y por cliente, con resuscripción manual.
+
+### Por qué se decide igual
+
+Gabriel eligió reducir de cuatro proveedores a dos —Netlify y Supabase, más Cloudflare R2
+solo como almacén— a cambio de asumir ese riesgo. Menos superficie operativa, un solo
+pipeline de despliegue, un solo almacén de secretos.
+
+### La mitigación que hace viable la decisión
+
+**Netlify Blobs**, que Netlify describe como almacén de alta disponibilidad, escribible
+desde Functions, con consistencia fuerte opcional y sin depender de Postgres. El receptor
+queda así:
+
+```
+POST del webhook
+  │
+  ├─ 1. valida HMAC          ← solo necesita el App Secret, que está en variable de entorno
+  │
+  ├─ 2. intenta insertar en webhook_events (Postgres)
+  │       └─ si funciona → 200
+  │
+  └─ 3. si Postgres falla → escribe el cuerpo crudo en Netlify Blobs → 200
+          └─ una Scheduled Function drena Blobs hacia Postgres al recuperarse
+```
+
+Con eso, una caída de Supabase deja de producir desuscripción: Meta sigue recibiendo 200 y
+los eventos se acumulan en Blobs en vez de perderse. Es el mismo patrón de la cola externa,
+con otra pieza.
+
+**El camino de Blobs no es un extra opcional: es lo que sustituye a Cloudflare Queues.** Va
+desde el primer despliegue y se prueba apagando Supabase, igual que en el diseño anterior.
+
+### Lo que sigue perdiéndose, y hay que saberlo
+
+1. **Blobs no es una cola.** No hay entrega garantizada, ni reintentos, ni DLQ. Hay que
+   implementar el drenaje, el orden y la limpieza a mano, con disciplina de nombres de clave.
+2. **Consistencia eventual por defecto.** Hay que pedir consistencia fuerte de forma
+   explícita en las escrituras del receptor.
+3. **No hay Durable Objects.** Los límites de envío son por `page_id`, y sin esa primitiva el
+   token bucket se implementa con `pg_advisory_xact_lock` en Postgres, que mete la base en el
+   camino caliente del envío. Aceptable porque el envío ya requiere la base para leer el
+   token; no lo era para la ingesta.
+4. **Función sincrónica limitada a 10 segundos.** Suficiente para el presupuesto de 5 s de
+   Meta, pero sin margen para hacer nada más que validar y encolar.
+
+### Presupuesto
+
+Ya no hace falta el plan de pago de Workers. Sigue haciendo falta el plan de pago de Netlify
+—que ya existe, la cuenta es Pro— y vigilar el consumo de invocaciones de Functions, que con
+un webhook por mensaje escala con el tráfico de los clientes. `GRAPH_API_VERSION` y el
 App Secret viven en más de un sitio y pueden desincronizarse.
 
 ---
@@ -72,11 +129,17 @@ App Secret viven en más de un sitio y pueden desincronizarse.
 | Sitio público | `kavea.ai` | Netlify, desde `web/` | Cualquiera |
 | App de cliente | `*.kavea.ai` | Netlify, desde `app/` | Equipo del cliente |
 | Panel interno | `admin.kavea.ai` | Netlify, misma base de código | Solo Boosty |
-| Ingesta | Worker de Cloudflare | Cloudflare | Meta y Resend |
+| Ingesta | `hooks.kavea.ai` | Netlify Function, sitio propio | Meta y Resend |
 
-Son dos sitios de Netlify sobre el mismo repositorio, con `base` distinta: `web/` para el
-público y `app/` para la aplicación. No es un despliegue por cliente; es un despliegue por
-superficie.
+Son **tres** sitios de Netlify sobre el mismo repositorio, con `base` distinta: `web/` para
+el público, `app/` para la aplicación y `hooks/` para la ingesta. No es un despliegue por
+cliente; es un despliegue por superficie.
+
+La ingesta va en un sitio aparte y no como una ruta más de `app/`, y esto no es cosmético:
+es lo único que queda del principio de separar dominios de fallo. Un despliegue roto de la
+interfaz no puede tumbar la recepción de webhooks, porque son dos despliegues distintos con
+dos ciclos distintos. Con la zona ya en Netlify DNS, además recupera dominio propio:
+`hooks.kavea.ai` en vez de una URL de proveedor.
 
 El OAuth de alta —inicio y callback— **no** va en el Worker. Va en route handlers de
 Next.js, porque el callback es un redirect con `code` y `state`, necesita la sesión del

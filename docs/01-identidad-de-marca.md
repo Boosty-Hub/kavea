@@ -103,14 +103,44 @@ La base es cálida, no gris azulada. Es lo que hace que el conjunto se sienta a 
 
 El color significa estado. No decora. Cada estado de conversación tiene un color y solo uno.
 
-| Estado | Sólido | Fondo | Significado |
-|---|---|---|---|
-| En curso | `#2D6CA8` | `#E6EEF6` | Conversación activa con humano o agente |
-| Esperando | `#B8862B` | `#F7EFDD` | Sin respuesta del contacto, ventana abierta |
-| Escalada | `#A83232` | `#F6E4E4` | Requiere humano ya, o ventana por vencer |
-| Resuelta | `#3F7A4E` | `#E7EFE8` | Cerrada |
+| Estado | Sólido | Texto | Fondo | Significado |
+|---|---|---|---|---|
+| En curso | `#2D6CA8` | `#1F4C77` | `#E6EEF6` | Conversación activa con humano o agente |
+| Esperando | `#B8862B` | `#7A5A18` | `#F7EFDD` | Sin respuesta del contacto, ventana abierta |
+| Escalada | `#A83232` | `#8A2626` | `#F6E4E4` | Requiere humano ya, o ventana por vencer |
+| Resuelta | `#3F7A4E` | `#2C5637` | `#E7EFE8` | Cerrada |
 
 Nota: el ámbar de "esperando" es tostado, no amarillo. Un amarillo saturado en una bandeja que se mira ocho horas al día cansa la vista y devalúa la urgencia real.
+
+### Por qué hay dos columnas de color
+
+**Añadido el 2 de agosto de 2026, tras medir.** El sólido es el color de marca y va en el punto de la píldora, en el borde y en cualquier superficie pequeña. El de texto es el mismo tono oscurecido y va en las letras.
+
+La razón es que dos de los cuatro sólidos no alcanzan el 4,5:1 que exige la regla 5 de este mismo capítulo, medidos sobre su propio fondo:
+
+| Estado | Sólido sobre fondo | Texto sobre fondo |
+|---|---|---|
+| En curso | 4,71 ✅ | 7,15 ✅ |
+| Esperando | **2,83 ❌** | 5,24 ✅ |
+| Escalada | 4,83 ✅ | 6,42 ✅ |
+| Resuelta | **4,36 ❌** | 6,88 ✅ |
+
+Oscurecer los sólidos habría cambiado la paleta; separar el token de texto la conserva intacta y cumple. La píldora se dibuja con el sólido, la etiqueta con el de texto.
+
+### Modo oscuro
+
+Este capítulo no cubría los semánticos en modo oscuro. Sobre `#1C1A18`:
+
+| Estado | Sólido | Texto | Fondo |
+|---|---|---|---|
+| En curso | `#5B9BD5` | `#8FBEE8` | `#16283A` |
+| Esperando | `#D9A93F` | `#E8C776` | `#33280F` |
+| Escalada | `#D45A5A` | `#E89191` | `#3A1A1A` |
+| Resuelta | `#5FA372` | `#8FC69F` | `#1A2E20` |
+
+### Pendiente cerrado
+
+Terracota 500 sobre arena da **4,52** y pasa. Queda resuelto el primer punto de la sección 9.
 
 ### Modo oscuro
 
@@ -145,10 +175,11 @@ El fondo oscuro nunca es negro puro. `#000` sobre pantallas OLED produce bordes 
   --k-terra-200: #E8C3B4;
   --k-terra-100: #F3E2DA;
 
-  --k-curso:     #2D6CA8;  --k-curso-bg:     #E6EEF6;
-  --k-esperando: #B8862B;  --k-esperando-bg: #F7EFDD;
-  --k-escalada:  #A83232;  --k-escalada-bg:  #F6E4E4;
-  --k-resuelta:  #3F7A4E;  --k-resuelta-bg:  #E7EFE8;
+  /* Semánticos: sólido para el punto y el borde, -fg para el texto, -bg para el fondo */
+  --k-curso:     #2D6CA8;  --k-curso-fg:     #1F4C77;  --k-curso-bg:     #E6EEF6;
+  --k-esperando: #B8862B;  --k-esperando-fg: #7A5A18;  --k-esperando-bg: #F7EFDD;
+  --k-escalada:  #A83232;  --k-escalada-fg:  #8A2626;  --k-escalada-bg:  #F6E4E4;
+  --k-resuelta:  #3F7A4E;  --k-resuelta-fg:  #2C5637;  --k-resuelta-bg:  #E7EFE8;
 
   --k-bg:        var(--k-papel);
   --k-surface:   #FFFFFF;
@@ -167,6 +198,11 @@ El fondo oscuro nunca es negro puro. `#000` sobre pantallas OLED produce bordes 
   --k-text:      #EDEAE3;
   --k-text-2:    #A8A39A;
   --k-accent:    var(--k-terra-400);
+
+  --k-curso:     #5B9BD5;  --k-curso-fg:     #8FBEE8;  --k-curso-bg:     #16283A;
+  --k-esperando: #D9A93F;  --k-esperando-fg: #E8C776;  --k-esperando-bg: #33280F;
+  --k-escalada:  #D45A5A;  --k-escalada-fg:  #E89191;  --k-escalada-bg:  #3A1A1A;
+  --k-resuelta:  #5FA372;  --k-resuelta-fg:  #8FC69F;  --k-resuelta-bg:  #1A2E20;
 }
 ```
 
@@ -309,7 +345,7 @@ Todos los SVG tienen el texto convertido a trazos, así que se abren igual en cu
 
 ## 9. Pendientes
 
-- [ ] Verificar contraste de terracota 500 sobre arena en texto de 13 px
+- [x] Verificar contraste de terracota 500 sobre arena en texto de 13 px — **4,52, pasa.** Medido el 2-ago-2026
 - [ ] Definir el set de iconos (recomendación: una sola familia de trazo, 1.5 px, sin rellenos)
 - [ ] Diseñar la píldora de estado con su micro-copy definitivo
 - [ ] Probar el favicon a 16 px en pestaña real de Chrome y Safari
