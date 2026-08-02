@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { Invitacion, Miembro } from '@/lib/equipo'
@@ -20,6 +20,23 @@ export function Equipo({
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+
+  /**
+   * Las casillas se mueven al pulsarlas, no cuando contesta el servidor.
+   *
+   * Estos interruptores están gobernados por lo que viene del servidor, así que
+   * al pulsarlos se quedaban quietos hasta que volvía el `router.refresh()`:
+   * casi un segundo con la casilla en el sitio de antes. Eso no se lee como
+   * «cargando», se lee como «no funciona», y lleva a pulsar otra vez.
+   *
+   * Se guarda el valor pulsado y manda sobre el del servidor hasta que llega la
+   * respuesta. Si el RPC falla, se descarta y la casilla vuelve sola a la
+   * verdad; si sale bien, el nuevo dato del servidor la sustituye.
+   */
+  const [optReparto, setOptReparto] = useState<boolean | null>(null)
+  const [optTurno, setOptTurno] = useState<Record<string, boolean>>({})
+  useEffect(() => { setOptReparto(null); setOptTurno({}) }, [reparto, miembros])
+  const encendido = optReparto ?? reparto
 
   async function rpc(fn: string, args: Record<string, unknown>) {
     setOcupado(true); setError(null); setAviso(null)
@@ -48,11 +65,14 @@ export function Equipo({
           <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: puedeGestionar ? 'pointer' : 'default' }}>
             <input
               type="checkbox"
-              checked={reparto}
+              checked={encendido}
               disabled={!puedeGestionar || ocupado}
-              onChange={(e) => rpc('configurar_reparto', {
-                p_org: organizacionId, p_activo: e.target.checked,
-              })}
+              onChange={async (e) => {
+                const v = e.target.checked
+                setOptReparto(v)
+                const ok = await rpc('configurar_reparto', { p_org: organizacionId, p_activo: v })
+                if (!ok) setOptReparto(null)
+              }}
               style={{ marginTop: 3 }}
             />
             <span>
@@ -64,7 +84,7 @@ export function Equipo({
                 entre los que estén en el turno. Las asignaciones a mano también cuentan, para
                 que el reparto no reparta por igual sobre una carga que ya está torcida.
               </div>
-              {!reparto ? (
+              {!encendido ? (
                 <div style={{ fontSize: 13, color: 'var(--k-text-2)', marginTop: 6 }}>
                   Ahora mismo está apagado: las conversaciones nuevas entran <strong>del
                   sistema</strong> hasta que alguien las tome desde el hilo.
@@ -95,26 +115,34 @@ export function Equipo({
               {/* El turno, solo cuando el reparto está encendido: un interruptor
                   que no hace nada porque el reparto está apagado es ruido que
                   hace dudar de si está activo. */}
-              {reparto ? (
-                <label
-                  style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, flex: 'none' }}
-                  title={m.ultima_asignacion
-                    ? `Última asignación: ${new Date(m.ultima_asignacion).toLocaleString('es')}`
-                    : 'Todavía no ha recibido ninguna: es quien pasa primero'}
-                >
-                  <input
-                    type="checkbox"
-                    checked={m.en_rotacion}
-                    disabled={!puedeGestionar || ocupado}
-                    onChange={(e) => rpc('rotacion_de', {
-                      p_org: organizacionId, p_usuario: m.user_id, p_dentro: e.target.checked,
-                    })}
-                  />
-                  <span style={{ color: m.en_rotacion ? 'inherit' : 'var(--k-text-2)' }}>
-                    En el turno
-                  </span>
-                </label>
-              ) : null}
+              {encendido ? (() => {
+                const dentro = optTurno[m.user_id] ?? m.en_rotacion
+                return (
+                  <label
+                    style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, flex: 'none' }}
+                    title={m.ultima_asignacion
+                      ? `Última asignación: ${new Date(m.ultima_asignacion).toLocaleString('es')}`
+                      : 'Todavía no ha recibido ninguna: es quien pasa primero'}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={dentro}
+                      disabled={!puedeGestionar || ocupado}
+                      onChange={async (e) => {
+                        const v = e.target.checked
+                        setOptTurno((o) => ({ ...o, [m.user_id]: v }))
+                        const ok = await rpc('rotacion_de', {
+                          p_org: organizacionId, p_usuario: m.user_id, p_dentro: v,
+                        })
+                        if (!ok) setOptTurno((o) => { const n = { ...o }; delete n[m.user_id]; return n })
+                      }}
+                    />
+                    <span style={{ color: dentro ? 'inherit' : 'var(--k-text-2)' }}>
+                      En el turno
+                    </span>
+                  </label>
+                )
+              })() : null}
 
               {puedeGestionar && !m.soy_yo ? (
                 <select
