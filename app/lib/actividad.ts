@@ -13,7 +13,19 @@
  * nueva llegó a producción mostrando su identificador técnico.
  */
 
-import { etiquetaCanal } from './ventana'
+import { ESTADOS, etiquetaCanal } from './ventana'
+
+/**
+ * Los estados se guardan como `en_curso` y se leen como «En curso».
+ *
+ * La actividad decía «cambió el estado de en_curso a esperando»: el
+ * identificador de la base saliendo tal cual a una pantalla. Es el mismo fallo
+ * que persigue `comprobar-actividades.mjs`, una capa más adentro.
+ */
+function nombreEstado(v: unknown): string {
+  const k = String(v ?? '')
+  return (ESTADOS as Record<string, { etiqueta: string }>)[k]?.etiqueta.toLowerCase() ?? k
+}
 
 /**
  * El detalle es `jsonb`: puede traer cualquier cosa.
@@ -56,7 +68,7 @@ export function describirActividad(x: EntradaActividad): string {
     case 'conversacion.desasignada':
     case 'tarjeta.desasignada': return 'quitó la asignación'
     case 'conversacion.estado':
-    case 'tarjeta.estado': return `cambió el estado de ${d.de} a ${d.a}`
+    case 'tarjeta.estado': return `cambió el estado de ${nombreEstado(d.de)} a ${nombreEstado(d.a)}`
     case 'conversacion.cerrada':
     case 'tarjeta.cerrada': return 'cerró la conversación'
     case 'tarjeta.titulo': return `cambió el título a "${d.a ?? ''}"`
