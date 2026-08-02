@@ -19,12 +19,67 @@ verificado, no se escribe como hecho.
 | App de Meta | ✅ Creada, en modo desarrollo | `compliant`, sin violaciones |
 | Plan de construcción | ✅ 8 fases, 8.000 líneas | `docs/fases/` |
 | Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Certificado comodín | ⬜ Desbloqueado, pendiente del sitio de la app | Se pide en la fase 0 |
-| Aplicación | ⬜ No empezada | Fase 0 |
+| Esquema de base de datos | ✅ 13 migraciones aplicadas | 15 tablas, 20 políticas, verificado en `pg_catalog` |
+| Aislamiento entre tenants | ✅ 16 de 16 comprobaciones | Validado rompiendo una política a propósito |
+| Aplicación Next.js | ✅ Desplegada | `admin.kavea.ai` sirviendo con certificado |
+| Comodín `*.kavea.ai` | ⛔ **Bloqueado por Netlify** | Requiere ticket de soporte, no es autoservicio |
 
 ---
 
 ## 2. Entradas
+
+### 2026-08-02 · Fase 0 — aplicación desplegada, comodín bloqueado por Netlify
+
+Sitio `kavea-app` creado sobre el mismo repositorio con `base = "app"`, desplegado y sirviendo
+en `admin.kavea.ai` con certificado válido.
+
+**Verificado en producción, no en local:**
+
+- Petición sin subdominio de organización → 404. No revela nada.
+- `/entrar` sirve el formulario.
+- **Cabecera `x-kavea-org-slug` falsificada → 404.** El middleware la borra antes de leer nada.
+  Es la comprobación de seguridad que justifica el diseño del middleware.
+- `admin.kavea.ai` → 200 con certificado emitido por Netlify.
+- El sitio público sigue intacto.
+
+**Variables de entorno con separación por contexto:** `SUPABASE_SECRET_KEY` existe únicamente
+en el contexto `production`. Un Deploy Preview lo puede abrir cualquiera con acceso al
+repositorio, y con esa clave se lee cualquier fila de cualquier tenant sin pasar por RLS.
+
+#### El comodín `*.kavea.ai` está bloqueado, y no por un error de configuración
+
+La API de Netlify rechaza el comodín tanto en `custom_domain` como en `domain_aliases`, con
+"has invalid characters". No es un fallo: **los dominios comodín no son autoservicio en
+Netlify.** La respuesta oficial de su equipo termina con *"si eso te funciona, déjanos saber y
+lo habilitaremos en tu sitio"*.
+
+Requisitos, y cómo estamos:
+
+| Requisito | Estado |
+|---|---|
+| Plan Pro o superior | ✅ la cuenta es Pro |
+| DNS gestionado por Netlify | ✅ zona delegada y verificada |
+| Registro comodín en la zona | ✅ `NETLIFY *.kavea.ai → kavea-app.netlify.app` |
+| Sitio sin alias de dominio | ✅ ninguno |
+| Habilitación por soporte de Netlify | ⬜ **pendiente, requiere ticket de Gabriel** |
+
+Síntoma mientras tanto: un subdominio cualquiera resuelve por DNS y llega a Netlify, pero
+Netlify devuelve **su propio 404** —`Server: Netlify`, texto plano con Request ID— porque no
+sabe a qué sitio pertenece ese hostname. No es un 404 de la aplicación.
+
+Salidas si el ticket no prospera, en orden de preferencia:
+
+1. `app.kavea.ai/<slug>` por ruta en vez de subdominio. Funciona hoy, sin comodín. El
+   middleware ya lee el slug de una variable, así que el cambio es contenido.
+2. Un alias explícito por cliente. Funciona, pero dar de alta deja de ser insertar una fila.
+3. Mover la aplicación a un proveedor con comodín autoservicio, manteniendo el sitio público
+   donde está.
+
+**Nota de método:** la conclusión salió de mirar las cabeceras del 404, no de suponer. Un
+`Server: Netlify` con cuerpo en texto plano dice que la petición nunca llegó a la aplicación,
+y eso descarta de golpe middleware, build y variables de entorno.
+
+---
 
 ### 2026-08-02 · Cuatro decisiones de Gabriel
 
