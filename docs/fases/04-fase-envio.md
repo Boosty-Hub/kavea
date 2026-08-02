@@ -437,6 +437,22 @@ devolvió `message_id`, el echo llegó a los **6 segundos** con su fila de `medi
 cola («📎 og.png · enviando») se retiró sola al llegar, y el contacto contestó «Recibido la imagen
 perfecto». Falta el mismo recorrido por Messenger: no hay contacto vivo por esa vía todavía.
 
+**GIF y sticker, mismo día.** Los dos aceptados por Meta (migración 0054):
+
+- **GIF** (240×160, 213 KB): se manda como `image`, que es lo que dice la referencia. Kavea lo
+  bloqueaba con una restricción propia disfrazada de restricción de Meta. Pendiente: el asset del
+  echo es un JPEG fijo, así que **en el hilo se ve quieto**; queda por comprobar en el aparato del
+  destinatario si a él le llega animado.
+- **Sticker**: el único que la API manda es el corazón, `type: "like_heart"`, sin payload. No es un
+  archivo, así que es un botón y no una biblioteca. El echo vuelve como **texto** con `❤`.
+
+**Y un fallo en la dirección contraria, encontrado al probar esto.** El contacto había mandado dos
+GIF desde el selector de Instagram y la bandeja decía «Sin contenido»: llegan desde
+`media4.giphy.com`, la allowlist solo conocía hosts de Meta, el CHECK de `media` rechazaba la fila
+sin URL y el `exception when others` se la tragaba. Tres decisiones razonables encadenadas y una
+pérdida invisible de datos. Corregido en 0055, con `origen = 'sin_servir'` para que un adjunto que
+no sabemos pintar **exista igual** en vez de desaparecer.
+
 ### T12 — Compositor de la bandeja
 
 Tres estados visibles, derivados del módulo de ventana y de nada más:
