@@ -36,6 +36,22 @@ for (const f of readdirSync(dirMigraciones).filter((n) => n.endsWith('.sql'))) {
   for (const t of sql.matchAll(/then\s+'((?:tarjeta|conversacion|contacto|documento|archivo|campo|identidad|mensaje|nota|embudo|etapa|breakglass|tarjetas)\.[a-záéíóúñ_]+)'/gi)) {
     escritos.add(t[1])
   }
+
+  /**
+   * Y los que se escriben por la puerta de atrás.
+   *
+   * Este bloque se añadió DESPUÉS de que pasara: 0050 registraba
+   * `conexion.verificacion` con un `insert into public.actividades` directo, y
+   * el guardián no vio nada. El resultado era correcto y aun así estaba mal,
+   * porque salía del único camino vigilado — que es justo la clase de atajo
+   * contra la que este archivo existe.
+   *
+   * Se busca el literal en el `values` que sigue a un insert sobre
+   * `actividades`. Detectarlo aquí no bendice el atajo: lo hace ruidoso.
+   */
+  for (const m of sql.matchAll(/insert\s+into\s+public\.actividades\b[\s\S]{0,600}?values\s*\(([\s\S]{0,400}?)\)/gi)) {
+    for (const t of m[1].matchAll(/'([a-záéíóúñ_]+\.[a-záéíóúñ_]+)'/gi)) escritos.add(t[1])
+  }
 }
 
 /**

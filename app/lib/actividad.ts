@@ -161,6 +161,18 @@ export function describirActividad(x: EntradaActividad): string {
     case 'reparto.dentro': return `metió a ${d.persona} en el turno`
     case 'reparto.fuera': return `sacó a ${d.persona} del turno`
 
+    // --- Los canales ---
+    // Solo se escribe cuando el resultado CAMBIA: una pasada del cron que
+    // confirma lo de siempre no es un acontecimiento, y siete filas diarias por
+    // conexión enterrarían el único evento que alguien quiere ver.
+    case 'conexion.verificacion': {
+      const nombre = { ok: 'funciona', fallo: 'no funciona', no_verificable: 'no se pudo comprobar', sin_probar: 'sin probar' }
+      const a = nombre[String(d.a) as keyof typeof nombre] ?? String(d.a)
+      return d.de
+        ? `${d.titulo}: pasó de ${nombre[String(d.de) as keyof typeof nombre] ?? d.de} a ${a}`
+        : `${d.titulo}: ${a}`
+    }
+
     // --- Configuración de la organización ---
     case 'campo.definido':
       return `creó el campo ${d.etiqueta} (${d.tipo}) en ${d.ambito === 'contacto' ? 'la persona' : 'el asunto'}`

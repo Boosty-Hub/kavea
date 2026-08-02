@@ -333,6 +333,20 @@ de la causa.
 *Aceptación:* el resultado de las siete comprobaciones se persiste con marca de tiempo y
 se puede volver a ejecutar desde la interfaz sin rehacer el OAuth.
 
+**Hecho.** Migraciones 0050 a 0053, `functions/diagnosticar`, `/ajustes/canales`, cron diario.
+Primera pasada real sobre la Página de Boosty el 2 de agosto de 2026: **5 en verde, 0 en rojo,
+2 sin saber** (V2 y V6). De esa pasada salieron cuatro invariantes nuevos en `03`, entre ellos
+el cierre de C3.
+
+Dos correcciones que salieron de correrlo, no de leerlo:
+
+- `tasks` no existe en el nodo de la Página. Pedirlo tumbaba la respuesta ENTERA, y con ella V1,
+  V3 y V6. Ahora se guarda al conectar en `meta_connections.tasks`, y V2 lee de ahí. Para las
+  conexiones sembradas a mano es `no_verificable`, que es la verdad.
+- El diagnosticador buscaba `KAVEA_APP_ID` y `KAVEA_APP_SECRET`, que no existen: el receptor de
+  webhooks ya usa `META_APP_ID` y `META_APP_SECRET` para verificar la firma. Dos variables con el
+  mismo secreto dentro es una de ellas sin rotar el día que toque.
+
 **T13. Requisito no negociable de v1: Página vinculada.**
 
 Si `instagram_business_account` viene vacío y el cliente pide Instagram, el asistente
