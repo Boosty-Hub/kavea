@@ -151,15 +151,13 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
               El historial anterior a la conexión no está disponible: Meta no lo entrega.
             </p>
 
-            {entradas.map((x, i) => (
+            {marcarCortes(entradas, multicanal).map(({ x, corte }) => (
               <Entrada
                 key={`${x.clase}-${x.ref}`}
                 x={x}
                 adjuntos={porMensaje.get(x.ref) ?? []}
                 multicanal={multicanal}
-                // El separador solo se pinta cuando el canal cambia. En un hilo
-                // de un canal no aparece nunca.
-                corte={multicanal && x.canal !== entradas[i - 1]?.canal}
+                corte={corte}
               />
             ))}
 
@@ -190,6 +188,26 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       </section>
     </div>
   )
+}
+
+/**
+ * Dónde va el separador de canal.
+ *
+ * Solo lo disparan los MENSAJES, y solo comparándose con el mensaje anterior.
+ * La actividad del equipo y los eventos de Meta cuelgan técnicamente de una
+ * conversación, así que traen canal, pero son contexto de la tarjeta y no
+ * conversación: si contaran, un "cambió el estado" entre dos mensajes de
+ * Messenger metería un separador "Instagram" seguido de ningún mensaje de
+ * Instagram. Se vio así en la primera prueba de una tarjeta con dos canales.
+ */
+function marcarCortes(entradas: EntradaHilo[], multicanal: boolean) {
+  let ultimoCanal: string | null = null
+  return entradas.map((x) => {
+    if (!multicanal || x.clase !== 'mensaje') return { x, corte: false }
+    const corte = x.canal !== ultimoCanal
+    ultimoCanal = x.canal
+    return { x, corte }
+  })
 }
 
 /** La ventana de servicio de una conversación, con su canal delante. */

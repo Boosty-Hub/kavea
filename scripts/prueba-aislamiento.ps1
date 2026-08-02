@@ -102,9 +102,16 @@ insert into public.channels (id, organization_id, meta_connection_id, canal, nom
   ('00000000-0000-4000-8000-00000000bb04','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb03','instagram','IG de B')
 on conflict do nothing;
 
-insert into public.conversations (id, organization_id, channel_id, canal, contact_id) values
-  ('00000000-0000-4000-8000-00000000aa05','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa04','instagram','00000000-0000-4000-8000-00000000aa02'),
-  ('00000000-0000-4000-8000-00000000bb05','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb04','instagram','00000000-0000-4000-8000-00000000bb02')
+-- La tarjeta es la unidad de trabajo desde 0027 y la conversacion no puede
+-- existir sin ella.
+insert into public.tarjetas (id, organization_id, contact_id, estado) values
+  ('00000000-0000-4000-8000-00000000aa08','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa02','en_curso'),
+  ('00000000-0000-4000-8000-00000000bb08','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb02','en_curso')
+on conflict do nothing;
+
+insert into public.conversations (id, organization_id, channel_id, canal, contact_id, tarjeta_id) values
+  ('00000000-0000-4000-8000-00000000aa05','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa04','instagram','00000000-0000-4000-8000-00000000aa02','00000000-0000-4000-8000-00000000aa08'),
+  ('00000000-0000-4000-8000-00000000bb05','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb04','instagram','00000000-0000-4000-8000-00000000bb02','00000000-0000-4000-8000-00000000bb08')
 on conflict do nothing;
 
 insert into public.messages (id, organization_id, conversation_id, canal, mid, direccion, texto, meta_timestamp_ms, raw) values
@@ -291,6 +298,76 @@ try {
   if ($r.Count -eq 0) { $rechazado = $true }
 } catch { $rechazado = $true }
 Comprobar "fusionado_en no se puede tocar con un PATCH directo" $rechazado
+
+Write-Host "`n=== Tarjetas y campos ===" -ForegroundColor Cyan
+
+$tA = ComoUsuario "a" "tarjetas?select=id,estado"
+Comprobar "A ve su tarjeta y solo la suya" ($tA.Count -eq 1) "vio $($tA.Count)"
+
+# Unir mueve conversaciones entre tarjetas. Si aceptara tarjetas de dos
+# organizaciones seria una forma de arrastrar los hilos de otro cliente a la
+# bandeja propia: el peor fallo posible bajo RLS.
+$tB = (Sql "select id from public.tarjetas where organization_id = '00000000-0000-4000-8000-00000000bb01'").id
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/unir_tarjetas" -Method Post -Headers $h -Body (@{
+    p_superviviente = $tA[0].id; p_absorbida = $tB
+    p_motivo = 'intento de union cruzada entre organizaciones'
+  } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "no se pueden unir tarjetas de organizaciones distintas" $rechazado
+
+$sigueB = (Sql "select count(*)::int as n from public.conversations where organization_id='00000000-0000-4000-8000-00000000bb01' and tarjeta_id = '$tB'").n
+Comprobar "el intento de union no movio los hilos de B" ($sigueB -eq 1) "B tiene $sigueB"
+
+# Definir un campo cambia el formulario de toda la organizacion: no es una
+# accion de quien atiende un hilo. B es 'agente', no owner.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['b'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/definir_campo" -Method Post -Headers $h -Body (@{
+    p_org = '00000000-0000-4000-8000-00000000bb01'; p_clave = 'colado'
+    p_etiqueta = 'Colado'; p_tipo = 'texto'
+  } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "un agente no puede definir campos" $rechazado
+
+# El tipo lo impone la definicion en la frontera, no la interfaz.
+Sql @"
+insert into public.campos (id, organization_id, clave, etiqueta, tipo, ambito)
+values ('00000000-0000-4000-8000-00000000aa07','00000000-0000-4000-8000-00000000aa01','importe','Importe','numero','tarjeta');
+"@ | Out-Null
+
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/guardar_campo" -Method Post -Headers $h -Body (@{
+    p_campo = '00000000-0000-4000-8000-00000000aa07'; p_destino = $tA[0].id; p_valor = 'no soy un numero'
+  } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "un texto en un campo numerico se rechaza" $rechazado
+
+# Y A no puede escribir un valor en una tarjeta de B aunque invente el id.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/guardar_campo" -Method Post -Headers $h -Body (@{
+    p_campo = '00000000-0000-4000-8000-00000000aa07'; p_destino = $tB; p_valor = 42
+  } | ConvertTo-Json) | Out-Null
+  $cruzado = (Sql "select count(*)::int as n from public.campo_valores where tarjeta_id = '$tB'").n
+  if ($cruzado -eq 0) { $rechazado = $true }
+} catch { $rechazado = $true }
+Comprobar "A no puede escribir un campo en una tarjeta de B" $rechazado
+
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['b'])"; "Content-Type" = "application/json"; Prefer = "return=representation" }
+  $r = Invoke-RestMethod -Uri "$base/rest/v1/campo_valores" -Method Post -Headers $h `
+        -Body (@{ organization_id = '00000000-0000-4000-8000-00000000bb01'; campo_id = '00000000-0000-4000-8000-00000000aa07'; tarjeta_id = $tB; valor = 1 } | ConvertTo-Json)
+  if ($r.Count -eq 0) { $rechazado = $true }
+} catch { $rechazado = $true }
+Comprobar "nadie escribe valores saltandose el RPC" $rechazado
 
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"
