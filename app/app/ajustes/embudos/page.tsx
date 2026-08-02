@@ -24,6 +24,8 @@ export default async function Embudos() {
         <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
         <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
         <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Campos</Link>
+        <Link href="/ajustes/plantillas" style={{ color: 'var(--k-text-2)' }}>Plantillas</Link>
+        <Link href="/ajustes/equipo" style={{ color: 'var(--k-text-2)' }}>Equipo</Link>
       </div>
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>

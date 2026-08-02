@@ -28,15 +28,18 @@ import { etiquetaCanal, colorCanal } from '@/lib/ventana'
 type Ventana = { clase: 'abierta' | 'humana' | 'cerrada'; motivo: string | null }
 
 export function Compositor({
-  conversaciones,
+  conversaciones, tarjetaId, plantillas,
 }: {
   conversaciones: Array<{
     id: string
     canal: string
     ventana: Ventana
   }>
+  tarjetaId: string
+  plantillas: Array<{ id: string; nombre: string; atajo: string | null }>
 }) {
   const router = useRouter()
+  const [faltan, setFaltan] = useState<string[]>([])
   const [activa, setActiva] = useState(
     // Se arranca en el canal por el que SÍ se puede responder. Aterrizar en uno
     // cerrado teniendo otro abierto hace pensar que no se puede contestar.
@@ -66,6 +69,7 @@ export function Compositor({
     if (error) { setError(error.message); return }
 
     setTexto('')
+    setFaltan([])
     router.refresh()
 
     // Se despierta al despachador en vez de esperar al cron: un minuto de
@@ -113,6 +117,20 @@ export function Compositor({
         </p>
       ) : null}
 
+      {/* Las variables sin resolver se avisan ANTES de enviar, no se maquillan.
+          Un "Hola , ¿cómo estás?" que sale al cliente es peor que no mandar
+          nada, y el hueco vacío no se ve al releer. */}
+      {faltan.length > 0 ? (
+        <p
+          className="compositor__aviso"
+          style={{ background: 'var(--k-esperando-bg)', color: 'var(--k-esperando-fg)' }}
+        >
+          La plantilla tiene {faltan.length === 1 ? 'un hueco' : 'huecos'} que no se
+          {faltan.length === 1 ? ' pudo' : ' pudieron'} rellenar: {faltan.join(', ')}. Complétalo
+          a mano antes de enviar.
+        </p>
+      ) : null}
+
       {error ? <p className="error" role="alert" style={{ marginBottom: 8 }}>{error}</p> : null}
 
       <form onSubmit={enviar} className="compositor__caja">
@@ -138,6 +156,37 @@ export function Compositor({
           }}
         />
         <div className="compositor__pie">
+          {plantillas.length > 0 ? (
+            <select
+              className="operar__control"
+              value=""
+              disabled={cerrada || enviando}
+              aria-label="Insertar una plantilla"
+              onChange={async (e) => {
+                const id = e.target.value
+                if (!id) return
+                e.target.value = ''
+                // Se resuelve en la base, con la misma función que usará
+                // cualquier automatización futura. Resolver aquí sería una
+                // segunda implementación de las variables.
+                const { data, error } = await crearClienteNavegador()
+                  .rpc('renderizar_plantilla', { p_plantilla: id, p_tarjeta: tarjetaId })
+                if (error) { setError(error.message); return }
+                const r = (data as Array<{ texto: string; faltan: string[] }>)?.[0]
+                if (!r) return
+                setTexto((t) => (t ? `${t}\n${r.texto}` : r.texto))
+                setFaltan(r.faltan ?? [])
+              }}
+            >
+              <option value="">Plantilla…</option>
+              {plantillas.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre}{p.atajo ? ` · /${p.atajo}` : ''}
+                </option>
+              ))}
+            </select>
+          ) : null}
+
           <span
             style={{
               fontSize: 12,

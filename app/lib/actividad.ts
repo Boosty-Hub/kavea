@@ -129,6 +129,16 @@ export function describirActividad(x: EntradaActividad): string {
     case 'embudo.definido': return `creó el embudo ${d.nombre}`
     case 'etapa.definida': return `creó la etapa ${d.nombre}`
     case 'etapa.archivada': return `archivó la etapa ${d.nombre}`
+    case 'plantilla.creada':
+      return `creó la plantilla ${d.nombre}${d.tipo === 'whatsapp' ? ' de WhatsApp' : ''}`
+    case 'plantilla.editada': return `editó la plantilla ${d.nombre}`
+    case 'plantilla.archivada': return `archivó la plantilla ${d.nombre}`
+    case 'plantilla.estado':
+      return `marcó la plantilla ${d.nombre} como ${d.a} en Meta`
+    // Cambiar el texto de una plantilla aprobada la invalida allí, y eso hay
+    // que poder rastrearlo: Meta revisó un texto y el que se enviaría es otro.
+    case 'plantilla.invalidada':
+      return `cambió el texto de ${d.nombre}, que estaba aprobada: vuelve a borrador`
 
     default: return x.tipo.replace(/[._]/g, ' ')
   }

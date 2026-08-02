@@ -21,6 +21,8 @@ export default async function Campos() {
         <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
         <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
         <Link href="/ajustes/embudos" style={{ color: 'var(--k-text-2)' }}>Embudos</Link>
+        <Link href="/ajustes/plantillas" style={{ color: 'var(--k-text-2)' }}>Plantillas</Link>
+        <Link href="/ajustes/equipo" style={{ color: 'var(--k-text-2)' }}>Equipo</Link>
       </div>
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Campos</h1>

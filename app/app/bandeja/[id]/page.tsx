@@ -19,6 +19,7 @@ import {
 } from '@/lib/bandeja'
 import { todasLasEtapas } from '@/lib/embudo'
 import { archivosDe, documentosDe, resumenDe } from '@/lib/comercial'
+import { plantillasUsables } from '@/lib/plantillas'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
@@ -49,7 +50,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const convIds = tarjeta.conversations.map((c) => c.id)
 
   const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas,
-         miembros, archivos, documentos, resumen] =
+         miembros, plantillas, archivos, documentos, resumen] =
     await Promise.all([
       obtenerHilo(id),
       adjuntosDe(convIds),
@@ -61,6 +62,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
       todasLasEtapas(),
       miembrosDe(org.id),
+      plantillasUsables(),
       archivosDe(id, contactoId),
       contactoId ? documentosDe(contactoId) : Promise.resolve([]),
       contactoId ? resumenDe(contactoId) : Promise.resolve([]),
@@ -206,6 +208,8 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
         {/* Una conversación por canal, y cada una con SU ventana: el token, el
             endpoint y la propiedad del hilo en Meta son de ese canal. */}
         <Compositor
+          tarjetaId={id}
+          plantillas={plantillas}
           conversaciones={vivas.map((c, i) => ({
             id: c.id,
             canal: c.canal,
