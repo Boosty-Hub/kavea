@@ -43,8 +43,10 @@ export type EntradaHilo = {
   ref: string
   momento: string
   tipo: string
-  canal: Canal
-  conversation_id: string
+  // Nulo en la actividad del asunto, y eso es correcto: unir dos tarjetas o
+  // rellenar un campo no ocurre "por Instagram".
+  canal: Canal | null
+  conversation_id: string | null
   actor_tipo: string | null
   actor_nombre: string | null
   detalle: Record<string, unknown>

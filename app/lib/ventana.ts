@@ -96,7 +96,8 @@ export const CANALES = {
  * muestra tal cual, que es feo pero cierto; indexar el objeto directamente lo
  * pintaría como `undefined`.
  */
-export function etiquetaCanal(canal: string): string {
+export function etiquetaCanal(canal: string | null | undefined): string {
+  if (!canal) return ''
   return (CANALES as Record<string, string>)[canal] ?? canal
 }
 
@@ -107,7 +108,7 @@ export function etiquetaCanal(canal: string): string {
  * secundario en vez de a `undefined`, que en CSS se traduce en heredar el color
  * del padre y hacer que el punto desaparezca.
  */
-export function colorCanal(canal: string): string {
+export function colorCanal(canal: string | null | undefined): string {
   return canal === 'instagram' || canal === 'messenger' || canal === 'whatsapp'
     ? `var(--k-canal-${canal})`
     : 'var(--k-text-2)'
