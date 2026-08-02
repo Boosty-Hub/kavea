@@ -322,10 +322,14 @@ function Entrada({
                   cola sabe de él. Sin esto la burbuja sale vacía entre que se
                   pulsa Enviar y vuelve el echo, y el operador vuelve a pulsar. */}
               {enCola ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <span aria-hidden="true">📎</span>
-                  {enCola}
-                </span>
+                x.detalle.adjunto_tipo === 'like_heart' ? (
+                  <span style={{ fontSize: 30, lineHeight: 1 }} role="img" aria-label="Un corazón">❤️</span>
+                ) : (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span aria-hidden="true">📎</span>
+                    {enCola}
+                  </span>
+                )
               ) : null}
               {!texto && !visibles.length && !enCola ? (
                 <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>

@@ -197,6 +197,35 @@ export function Compositor({
           >
             {bytes} / {tope} bytes
           </span>
+          {/* El único sticker que la API de Instagram manda es el corazón:
+              `attachment: {type: "like_heart"}`, sin archivo y sin payload. Los
+              stickers propios y los de avatar no están soportados, así que no
+              hay biblioteca que ofrecer — hay un botón, que es lo que existe.
+
+              Solo en Instagram, y solo con la ventana abierta. */}
+          {conv.canal === 'instagram' ? (
+            <button
+              type="button"
+              className="operar__control"
+              title="Mandar un corazón. Es el único sticker que la API de Instagram permite enviar."
+              aria-label="Mandar un corazón"
+              disabled={cerrada || enviando}
+              style={{ cursor: 'pointer', padding: '4px 10px', fontSize: 15 }}
+              onClick={async () => {
+                setEnviando(true); setError(null)
+                const { error } = await crearClienteNavegador()
+                  .rpc('encolar_corazon', { p_conversacion: activa })
+                setEnviando(false)
+                if (error) { setError(error.message); return }
+                router.refresh()
+                fetch('/api/despachar', { method: 'POST' }).catch(() => {})
+                setTimeout(() => router.refresh(), 2500)
+              }}
+            >
+              ❤️
+            </button>
+          ) : null}
+
           <button
             className="btn"
             type="submit"

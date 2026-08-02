@@ -147,6 +147,7 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'mensaje.encolado': {
       const fuera = d.fuera_de_ventana
         ? ' fuera de la ventana de 24 horas, como intervención humana' : ''
+      if (d.corazon) return `mandó un corazón${fuera}`
       return d.archivo ? `envió el archivo ${d.archivo}${fuera}` : `respondió${fuera}`
     }
 

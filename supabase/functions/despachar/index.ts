@@ -35,8 +35,14 @@ type Envio = {
     destinatario: string
     /** Carril de texto. */
     texto?: string
-    /** Carril de media. `tipo` lo derivó la base; aquí no se vuelve a calcular. */
-    tipo?: 'image' | 'audio' | 'video' | 'file'
+    /**
+     * Carril de media. `tipo` lo derivó la base; aquí no se vuelve a calcular.
+     *
+     * `like_heart` es el único sticker que la API manda, y es el único tipo sin
+     * `payload`: no hay objeto que descargar, así que tampoco hay ruta que
+     * firmar.
+     */
+    tipo?: 'image' | 'audio' | 'video' | 'file' | 'like_heart'
     ruta?: string
     nombre?: string
   }
@@ -187,9 +193,14 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
   // `is_reusable: false` a propósito. El plan lo deja escrito: no se depende de
   // `attachment_id` ni de la reutilización, que no están confirmados para esta
   // vía, así que cada envío vuelve a exponer el objeto.
-  const mensaje: Record<string, unknown> = urlMedia
-    ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
-    : { text: e.cuerpo.texto }
+  //
+  // El corazón va SIN payload. Es la forma literal que documenta Meta, y
+  // mandarle un `payload: {}` vacío sería inventarse un campo.
+  const mensaje: Record<string, unknown> = e.cuerpo.tipo === 'like_heart'
+    ? { attachment: { type: 'like_heart' } }
+    : urlMedia
+      ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
+      : { text: e.cuerpo.texto }
 
   if (e.canal === 'instagram') {
     const form = new URLSearchParams()
@@ -295,7 +306,7 @@ Deno.serve(async (): Promise<Response> => {
 
         // La firma antes de la llamada, y dentro del try de la fila: si Storage
         // no responde, cae este envío y no el lote entero.
-        const urlMedia = e.carril === 'media' && e.cuerpo.ruta
+        const urlMedia = e.carril === 'media' && e.cuerpo.ruta && e.cuerpo.tipo !== 'like_heart'
           ? await firmar(e.cuerpo.ruta)
           : undefined
 
