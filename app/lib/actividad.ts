@@ -181,6 +181,17 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     }
 
     // --- Configuración de la organización ---
+    // El huso se dice con el antes y el después SIEMPRE: cambiarlo reinterpreta
+    // toda la historia —los mensajes de ayer pasan a leerse a otra hora— y sin
+    // esta línea, quien lo note después no tiene forma de saber qué pasó.
+    case 'organizacion.editada': {
+      const partes: string[] = []
+      const n = d.nombre as [string, string] | undefined
+      const h = d.huso as [string, string] | undefined
+      if (n) partes.push(`el nombre de "${n[0]}" a "${n[1]}"`)
+      if (h) partes.push(`la zona horaria de ${h[0] ?? 'ninguna'} a ${h[1]}`)
+      return partes.length ? `cambió ${partes.join(' y ')}` : 'editó la organización'
+    }
     case 'campo.definido':
       return `creó el campo ${d.etiqueta} (${d.tipo}) en ${d.ambito === 'contacto' ? 'la persona' : 'el asunto'}`
     case 'campo.archivado': return `archivó el campo ${d.clave}`

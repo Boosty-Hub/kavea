@@ -56,7 +56,10 @@ export default async function Bandeja({
             <span style={{ fontSize: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
               <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
               <Link href="/agenda" style={{ color: 'var(--k-text-2)' }}>Agenda</Link>
-              <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
+              {/* A la organización, no a Campos: es la primera de las seis y la
+                  que hace de portada. Entrar en Ajustes y aterrizar en un
+                  formulario de campos personalizados no dice dónde estás. */}
+              <Link href="/ajustes/organizacion" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
               <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} huso={huso} />
             </span>
           </div>

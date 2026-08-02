@@ -5,6 +5,8 @@ import { equipoDe, invitacionesDe, puedeHacer, repartoDe } from '@/lib/equipo'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Equipo } from './editor'
 
+import { NavAjustes } from '../nav'
+
 export const dynamic = 'force-dynamic'
 
 export default async function PaginaEquipo() {
@@ -24,11 +26,7 @@ export default async function PaginaEquipo() {
 
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
-      <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-        <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
-        <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Campos</Link>
-        <Link href="/ajustes/embudos" style={{ color: 'var(--k-text-2)' }}>Embudos</Link>
-      </div>
+      <NavAjustes actual="equipo" />
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Equipo</h1>

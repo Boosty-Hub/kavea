@@ -35,6 +35,19 @@ export type Conexion = {
   comprobaciones: Verificacion[]
 }
 
+/**
+ * Los husos, leídos de Postgres.
+ *
+ * De `pg_timezone_names`, que es la misma lista contra la que valida el trigger
+ * de `organizations`. Una lista escrita a mano en el cliente sería una segunda
+ * verdad, y la que se quede corta es la que rechaza al cliente que vive en ella.
+ */
+export const husosDisponibles = cache(async (): Promise<Array<{ nombre: string; desfase: string }>> => {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase.rpc('husos_disponibles')
+  return (data ?? []) as Array<{ nombre: string; desfase: string }>
+})
+
 export const conexionesDe = cache(async (organizacionId: string): Promise<Conexion[]> => {
   const supabase = await crearClienteServidor()
 

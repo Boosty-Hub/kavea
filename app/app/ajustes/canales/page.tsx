@@ -5,6 +5,8 @@ import { conexionesDe } from '@/lib/conexiones'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Canales } from './panel'
 
+import { NavAjustes } from '../nav'
+
 export const dynamic = 'force-dynamic'
 
 export default async function PaginaCanales() {
@@ -18,13 +20,7 @@ export default async function PaginaCanales() {
 
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
-      <div style={{ display: 'flex', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
-        <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
-        <Link href="/ajustes/equipo" style={{ color: 'var(--k-text-2)' }}>Equipo</Link>
-        <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Campos</Link>
-        <Link href="/ajustes/embudos" style={{ color: 'var(--k-text-2)' }}>Embudos</Link>
-        <Link href="/ajustes/plantillas" style={{ color: 'var(--k-text-2)' }}>Plantillas</Link>
-      </div>
+      <NavAjustes actual="canales" />
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Canales</h1>

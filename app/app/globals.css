@@ -181,6 +181,16 @@ a:focus-visible, button:focus-visible, input:focus-visible {
 input[type='checkbox'],
 input[type='radio'] { accent-color: var(--k-accent); }
 
+/* La navegación de ajustes. Se envuelve en varias líneas si hace falta: siete
+   enlaces no caben en un móvil, y un desbordamiento horizontal escondido es
+   exactamente cómo se pierde la mitad de un menú sin que nadie lo note. */
+.nav-ajustes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  font-size: 13px;
+}
+
 .campo {
   display: block;
   width: 100%;

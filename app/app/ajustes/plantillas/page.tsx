@@ -5,6 +5,8 @@ import { listarPlantillas, variablesDe } from '@/lib/plantillas'
 import { puedeHacer } from '@/lib/equipo'
 import { EditorPlantillas } from './editor'
 
+import { NavAjustes } from '../nav'
+
 export const dynamic = 'force-dynamic'
 
 export default async function PaginaPlantillas() {
@@ -22,12 +24,7 @@ export default async function PaginaPlantillas() {
 
   return (
     <main className="pagina" style={{ maxWidth: 820 }}>
-      <div style={{ display: 'flex', gap: 16, fontSize: 13, flexWrap: 'wrap' }}>
-        <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
-        <Link href="/ajustes/equipo" style={{ color: 'var(--k-text-2)' }}>Equipo</Link>
-        <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Campos</Link>
-        <Link href="/ajustes/embudos" style={{ color: 'var(--k-text-2)' }}>Embudos</Link>
-      </div>
+      <NavAjustes actual="plantillas" />
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Plantillas</h1>

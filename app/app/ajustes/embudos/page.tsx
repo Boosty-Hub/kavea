@@ -4,6 +4,8 @@ import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organ
 import { listarEmbudos, etapasDe } from '@/lib/embudo'
 import { EditorEmbudos } from './editor'
 
+import { NavAjustes } from '../nav'
+
 export const dynamic = 'force-dynamic'
 
 export default async function Embudos() {
@@ -20,13 +22,7 @@ export default async function Embudos() {
 
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
-      <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
-        <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
-        <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
-        <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Campos</Link>
-        <Link href="/ajustes/plantillas" style={{ color: 'var(--k-text-2)' }}>Plantillas</Link>
-        <Link href="/ajustes/equipo" style={{ color: 'var(--k-text-2)' }}>Equipo</Link>
-      </div>
+      <NavAjustes actual="embudos" />
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Embudos</h1>
