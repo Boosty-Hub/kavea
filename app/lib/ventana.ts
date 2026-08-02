@@ -157,6 +157,13 @@ export function diasEnEtapa(desde: string | null): string | null {
   return dias === 1 ? '1 día aquí' : `${dias} días aquí`
 }
 
+/** Tamaño de archivo legible. En KB y MB, que es como lo lee la gente. */
+export function pesoLegible(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
 /** Importe con separadores, sin decimales cuando son cero. */
 export function formatoValor(valor: number, moneda: string): string {
   try {

@@ -38,6 +38,7 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 | 3 | [Bandeja](03-fase-bandeja.md) | 1204 | Se ven conversaciones reales llegando en vivo |
 | 3b | [Tarjetas](03b-fase-tarjetas.md) | 250 | Una persona con dos canales se lee en un solo hilo |
 | 3c | [Embudos](03c-fase-embudos.md) | 200 | Las tarjetas se ven en columnas por etapa, con su suma |
+| 3d | [Ficha](03d-fase-ficha.md) | 170 | La ficha tiene pestañas, con archivos e historial de compras |
 | 4 | [Envío](04-fase-envio.md) | 511 | Se responde y el compositor se bloquea fuera de ventana |
 | 5 | [Configuración](05-fase-configuracion.md) | 975 | Un canal se conecta desde la interfaz, sin tocar la base |
 | 6 | [Agentes](06-fase-agentes.md) | 730 | El agente propone, una persona aprueba, queda en `agent_runs` |
@@ -46,10 +47,9 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 ### Dependencias
 
 ```
-0 ──► 1 ──► 2 ──► 3 ──► 3b ──► 3c ──► 4 ──► 6
-                  │                    │
-                  └──► 5 ──────────────┘
-                                       └──► 7  (+ Tech Provider + App Review)
+0 ──► 1 ──► 2 ──► 3 ──► 3b ──► 3c ──► 3d ──► 4 ──► 6
+                  │                           │
+                  └──► 5 ─────────────────────┴──► 7  (+ Tech Provider + App Review)
 ```
 
 - **1 y 2 antes que 3, sin excepción.** No hay bandeja sin ingesta.

@@ -497,6 +497,66 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 .ficha .campo { font-size: 14px; padding: 7px 10px; }
 .ficha__vacia { font-size: 13px; color: var(--k-text-2); margin: 0; }
 
+/* Pestañas de la ficha. La activa se marca con el filete inferior y con
+   aria-selected, no solo con color: la misma regla de siempre. */
+.pestanas {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--k-border);
+  margin: -4px -20px 4px;
+  padding: 0 20px;
+  position: sticky;
+  top: -20px;
+  background: var(--k-surface);
+  z-index: 1;
+}
+.pestana {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--k-text-2);
+  padding: 8px 10px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pestana[aria-selected='true'] { color: var(--k-text); border-bottom-color: var(--k-accent); }
+.pestana__n {
+  font-size: 11px;
+  background: var(--k-surface-2);
+  border-radius: 999px;
+  padding: 0 6px;
+  color: var(--k-text-2);
+}
+
+.archivo, .documento {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  padding: 8px 10px;
+}
+.documento { display: block; }
+
+/* Los tres números, arriba y grandes: es lo que hay que ver antes de escribir
+   la respuesta, no después de leer una tabla. */
+.resumen {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-card);
+  padding: 12px;
+}
+.resumen > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.resumen__n { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.resumen__e { font-size: 11px; color: var(--k-text-2); text-transform: uppercase; letter-spacing: 0.05em; }
+
 .tarjeta-vieja {
   display: block;
   border: 1px solid var(--k-border);

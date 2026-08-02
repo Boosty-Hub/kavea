@@ -2,10 +2,19 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { CampoDeFicha, CanalDePersona } from '@/lib/bandeja'
+import type { Archivo, Documento, ResumenComercial } from '@/lib/comercial'
 import { etiquetaCanal, terminoSeguro, colorCanal } from '@/lib/ventana'
+import { Archivos } from './archivos'
+import { Compras } from './compras'
+
+const PESTANAS = [
+  { clave: 'datos', etiqueta: 'Datos' },
+  { clave: 'archivos', etiqueta: 'Archivos' },
+  { clave: 'compras', etiqueta: 'Compras' },
+] as const
 
 /**
  * La ficha de la tarjeta.
@@ -20,9 +29,10 @@ import { etiquetaCanal, terminoSeguro, colorCanal } from '@/lib/ventana'
  * conversación salga todo lo que hace el usuario.
  */
 export function Ficha({
-  tarjetaId, contactoId, canales, otras, camposTarjeta, camposContacto,
-  etapas, etapaActual, valor, moneda,
+  organizacionId, tarjetaId, contactoId, canales, otras, camposTarjeta, camposContacto,
+  etapas, etapaActual, valor, moneda, archivos, documentos, resumen,
 }: {
+  organizacionId: string
   tarjetaId: string
   contactoId: string | null
   canales: CanalDePersona[]
@@ -33,10 +43,30 @@ export function Ficha({
   etapaActual: string | null
   valor: number | null
   moneda: string
+  archivos: Archivo[]
+  documentos: Documento[]
+  resumen: ResumenComercial[]
 }) {
   const router = useRouter()
+  const ruta = usePathname()
+  const parametros = useSearchParams()
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
+
+  /**
+   * La pestaña activa va en la URL, no en un useState.
+   *
+   * El refresco de tiempo real llega cuando entra un mensaje, en cualquier
+   * momento. Con la pestaña en estado local, ese refresco devolvería al
+   * operador a "Datos" mientras rellena un presupuesto en "Compras". Con la
+   * pestaña en la URL, el refresco la respeta.
+   */
+  const activa = (PESTANAS.find((p) => p.clave === parametros.get('f'))?.clave) ?? 'datos'
+  const irA = (clave: string) => {
+    const p = new URLSearchParams(parametros.toString())
+    if (clave === 'datos') p.delete('f'); else p.set('f', clave)
+    router.replace(`${ruta}${p.size ? `?${p}` : ''}`, { scroll: false })
+  }
 
   async function llamar(fn: string, args: Record<string, unknown>) {
     setOcupado(true); setError(null)
@@ -49,6 +79,47 @@ export function Ficha({
 
   return (
     <aside className="ficha" aria-label="Ficha de la conversación">
+      <div className="pestanas" role="tablist" aria-label="Secciones de la ficha">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.clave}
+            role="tab"
+            type="button"
+            aria-selected={activa === p.clave}
+            className="pestana"
+            onClick={() => irA(p.clave)}
+          >
+            {p.etiqueta}
+            {p.clave === 'archivos' && archivos.length > 0 ? (
+              <span className="pestana__n">{archivos.length}</span>
+            ) : null}
+            {p.clave === 'compras' && documentos.length > 0 ? (
+              <span className="pestana__n">{documentos.length}</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      {activa === 'archivos' ? (
+        <Archivos
+          organizacionId={organizacionId}
+          tarjetaId={tarjetaId}
+          contactoId={contactoId}
+          archivos={archivos}
+        />
+      ) : activa === 'compras' ? (
+        <Compras
+          contactoId={contactoId}
+          tarjetaId={tarjetaId}
+          documentos={documentos}
+          resumen={resumen}
+        />
+      ) : null}
+
+      {/* En línea y no como componente anidado: un componente definido dentro
+          del render se remonta en cada pasada y los formularios de dentro
+          perderían lo que el operador esté escribiendo. */}
+      <div hidden={activa !== 'datos'} style={{ display: activa === 'datos' ? 'grid' : undefined, gap: 20 }}>
       {error ? <p className="error" role="alert">{error}</p> : null}
 
       {etapas.length > 0 ? (
@@ -143,6 +214,7 @@ export function Ficha({
       ) : null}
 
       <Unir tarjetaId={tarjetaId} ocupado={ocupado} llamar={llamar} />
+      </div>
     </aside>
   )
 }

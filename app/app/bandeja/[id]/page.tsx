@@ -16,6 +16,7 @@ import {
   type ConversacionDeTarjeta,
 } from '@/lib/bandeja'
 import { todasLasEtapas } from '@/lib/embudo'
+import { archivosDe, documentosDe, resumenDe } from '@/lib/comercial'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
@@ -42,7 +43,8 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const contactoId = tarjeta.contacts?.id ?? null
   const convIds = tarjeta.conversations.map((c) => c.id)
 
-  const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas] =
+  const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas,
+         archivos, documentos, resumen] =
     await Promise.all([
       obtenerHilo(id),
       adjuntosDe(convIds),
@@ -53,6 +55,9 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       fichaDeTarjeta(id),
       contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
       todasLasEtapas(),
+      archivosDe(id, contactoId),
+      contactoId ? documentosDe(contactoId) : Promise.resolve([]),
+      contactoId ? resumenDe(contactoId) : Promise.resolve([]),
     ])
 
   const porMensaje = new Map<string, Adjunto[]>()
@@ -168,6 +173,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           </div>
 
           <Ficha
+            organizacionId={org.id}
             tarjetaId={id}
             contactoId={contactoId}
             canales={canales}
@@ -178,6 +184,9 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             etapaActual={tarjeta.etapa_id}
             valor={tarjeta.valor != null ? Number(tarjeta.valor) : null}
             moneda={tarjeta.moneda}
+            archivos={archivos}
+            documentos={documentos}
+            resumen={resumen}
           />
         </div>
 
