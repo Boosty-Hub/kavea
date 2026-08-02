@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { Archivo } from '@/lib/comercial'
-import { pesoLegible, etiquetaCanal } from '@/lib/ventana'
+import { pesoLegible, etiquetaCanal, tipoAdjunto } from '@/lib/ventana'
 
 type Conversacion = { id: string; canal: string; ventana: { clase: string; motivo: string | null } }
 
@@ -48,6 +48,22 @@ export function Archivos({
   const [porDonde, setPorDonde] = useState(
     abiertas.find((c) => c.ventana.clase === 'abierta')?.id ?? abiertas[0]?.id ?? '',
   )
+  const elegida = abiertas.find((c) => c.id === porDonde)
+
+  /**
+   * Instagram no acepta documentos: imagen, audio y vídeo, y nada más.
+   *
+   * Un PDF sube perfectamente —`enviable` solo mira el tamaño— así que sin esto
+   * saldría un botón que al pulsarlo devuelve un error. La regla la aplica el
+   * RPC; esto solo evita ofrecer lo que se va a rechazar, y dice por qué en vez
+   * de esconder el botón sin más.
+   */
+  function vetoDeCanal(a: Archivo): string | null {
+    if (elegida?.canal === 'instagram' && tipoAdjunto(a.content_type) === 'file') {
+      return 'Instagram solo acepta imágenes, audio y vídeo'
+    }
+    return null
+  }
 
   async function enviar(a: Archivo) {
     const conv = abiertas.find((c) => c.id === porDonde)
@@ -224,18 +240,27 @@ export function Archivos({
                 ) : null}
               </div>
               {a.enviable && abiertas.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => enviar(a)}
-                  disabled={enviando !== null}
-                  className="operar__control"
-                  style={{
-                    cursor: 'pointer', flex: 'none', fontSize: 12, padding: '3px 10px',
-                    borderColor: 'var(--k-accent)', color: 'var(--k-accent)',
-                  }}
-                >
-                  {enviando === a.id ? 'Enviando' : 'Enviar'}
-                </button>
+                vetoDeCanal(a) ? (
+                  <span
+                    className="ficha__ayuda"
+                    style={{ flex: 'none', maxWidth: 150, textAlign: 'right' }}
+                  >
+                    {vetoDeCanal(a)}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => enviar(a)}
+                    disabled={enviando !== null}
+                    className="operar__control"
+                    style={{
+                      cursor: 'pointer', flex: 'none', fontSize: 12, padding: '3px 10px',
+                      borderColor: 'var(--k-accent)', color: 'var(--k-accent)',
+                    }}
+                  >
+                    {enviando === a.id ? 'Enviando' : 'Enviar'}
+                  </button>
+                )
               ) : null}
               <button
                 type="button"

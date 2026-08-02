@@ -102,6 +102,22 @@ export function etiquetaCanal(canal: string | null | undefined): string {
 }
 
 /**
+ * Qué clase de adjunto es, para Meta.
+ *
+ * LA AUTORIDAD ES POSTGRES: `private.tipo_de_adjunto` decide de verdad, y su
+ * resultado viaja dentro del cuerpo encolado. Esta copia existe solo para no
+ * ofrecer un botón que va a fallar, y tiene que decir lo mismo. Si alguna vez
+ * divergen, la que manda es la de la base y esta está mal.
+ */
+export function tipoAdjunto(contentType: string | null | undefined): 'image' | 'audio' | 'video' | 'file' {
+  const t = contentType ?? ''
+  if (t.startsWith('image/')) return 'image'
+  if (t.startsWith('audio/')) return 'audio'
+  if (t.startsWith('video/')) return 'video'
+  return 'file'
+}
+
+/**
  * Color del canal.
  *
  * Devuelve el token, no un literal. Un canal desconocido cae al color de texto
