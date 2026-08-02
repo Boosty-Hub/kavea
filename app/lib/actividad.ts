@@ -143,6 +143,10 @@ export function describirActividad(x: EntradaActividad): string {
       return `cambió a ${d.persona} de ${nombreRol(String(d.de ?? ''))} a ${nombreRol(String(d.a ?? ''))}`
     case 'equipo.quitado':
       return `quitó a ${d.persona} del equipo`
+    case 'reparto.encendido': return 'encendió el reparto por turnos'
+    case 'reparto.apagado': return 'apagó el reparto por turnos'
+    case 'reparto.dentro': return `metió a ${d.persona} en el turno`
+    case 'reparto.fuera': return `sacó a ${d.persona} del turno`
 
     // --- Configuración de la organización ---
     case 'campo.definido':

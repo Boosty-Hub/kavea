@@ -69,6 +69,14 @@ export function Operar({
         ))}
       </select>
 
+      {/**
+        * «Vacío» no es un hueco por rellenar: es un estado con nombre.
+        *
+        * Sin responsable la conversación está en la bandeja, visible para
+        * todos, y LA TIENE EL SISTEMA hasta que alguien la reclame. Poner «Sin
+        * asignar» sugiere un error de datos; poner «El sistema» dice lo que
+        * pasa.
+        */}
       <select
         className="operar__control"
         value={asignadoA ?? ''}
@@ -76,11 +84,33 @@ export function Operar({
         aria-label="Responsable"
         onChange={(e) => cambiar({ asignado_a: e.target.value || null })}
       >
-        <option value="">Sin asignar</option>
+        <option value="">El sistema</option>
         {miembros.map((m) => (
           <option key={m.user_id} value={m.user_id}>{m.nombre}</option>
         ))}
       </select>
+
+      {/* Tomarla, de un clic. Buscarse a uno mismo en un desplegable de doce
+          nombres para reclamar una conversación es fricción que acaba en que
+          nadie reclama nada. */}
+      {asignadoA === null ? (
+        <button
+          type="button"
+          className="operar__control"
+          style={{ cursor: 'pointer', borderColor: 'var(--k-accent)', color: 'var(--k-accent)' }}
+          disabled={ocupado}
+          onClick={async () => {
+            setOcupado(true); setError(null)
+            const { error } = await crearClienteNavegador()
+              .rpc('reclamar_tarjeta', { p_tarjeta: tarjetaId })
+            setOcupado(false)
+            if (error) { setError(error.message); return }
+            router.refresh()
+          }}
+        >
+          Tomarla
+        </button>
+      ) : null}
 
       <button
         type="button"

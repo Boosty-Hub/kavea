@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
-import { equipoDe, invitacionesDe, puedeHacer } from '@/lib/equipo'
+import { equipoDe, invitacionesDe, puedeHacer, repartoDe } from '@/lib/equipo'
 import { Equipo } from './editor'
 
 export const dynamic = 'force-dynamic'
@@ -13,11 +13,12 @@ export default async function PaginaEquipo() {
   const org = await organizacionActual()
   if (!org) notFound()
 
-  const [miembros, invitaciones, puedeGestionar, esDuenio] = await Promise.all([
+  const [miembros, invitaciones, puedeGestionar, esDuenio, reparto] = await Promise.all([
     equipoDe(org.id),
     puedeHacer(org.id, 'equipo').then((p) => (p ? invitacionesDe(org.id) : [])),
     puedeHacer(org.id, 'equipo'),
     puedeHacer(org.id, 'conectar'),
+    repartoDe(org.id),
   ])
 
   return (
@@ -40,6 +41,7 @@ export default async function PaginaEquipo() {
         organizacionId={org.id}
         miembros={miembros}
         invitaciones={invitaciones}
+        reparto={reparto}
         puedeGestionar={puedeGestionar}
         esDuenio={esDuenio}
       />

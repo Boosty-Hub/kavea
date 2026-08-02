@@ -10,6 +10,9 @@ export type Miembro = {
   rol: 'owner' | 'admin' | 'agente'
   desde: string
   soy_yo: boolean
+  en_rotacion: boolean
+  ultima_asignacion: string | null
+  abiertas: number
 }
 
 export type Invitacion = {
@@ -52,4 +55,15 @@ export const puedeHacer = cache(async (organizacionId: string, accion: string) =
   const supabase = await crearClienteServidor()
   const { data } = await supabase.rpc('puede', { org: organizacionId, accion })
   return data === true
+})
+
+/** Si el reparto por turnos esta encendido en esta organizacion. */
+export const repartoDe = cache(async (organizacionId: string) => {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('organizations')
+    .select('reparto_automatico')
+    .eq('id', organizacionId)
+    .maybeSingle()
+  return (data as { reparto_automatico: boolean } | null)?.reparto_automatico ?? false
 })

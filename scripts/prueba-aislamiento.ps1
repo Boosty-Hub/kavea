@@ -497,6 +497,65 @@ try { Sql "insert into public.documentos (organization_id,contacto_id,tipo,conce
 catch { $rechazado = $true }
 Comprobar "un documento pagado exige fecha de pago" $rechazado
 
+Write-Host "`n=== Reparto por turnos ===" -ForegroundColor Cyan
+
+# Dos personas en la MISMA organizacion, que es la condicion del reparto.
+Sql @"
+insert into public.organization_members (organization_id, user_id, rol)
+values ('00000000-0000-4000-8000-00000000aa01','$($usuarios['b'])','agente')
+on conflict do nothing;
+update public.organizations set reparto_automatico = true
+ where id = '00000000-0000-4000-8000-00000000aa01';
+"@ | Out-Null
+
+# Tres contactos nuevos, tres tarjetas nuevas. Con dos personas en el turno
+# tienen que alternar.
+$reparto = @()
+foreach ($n in 1..3) {
+  Sql @"
+insert into public.contacts (id, organization_id, nombre)
+values ('00000000-0000-4000-8000-00000000cc0$n'::uuid, '00000000-0000-4000-8000-00000000aa01', 'Turno $n')
+on conflict do nothing;
+"@ | Out-Null
+  $r = Sql "select private.tarjeta_de_contacto('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000cc0$n') as t"
+  $a = (Sql "select coalesce(asignado_a::text,'(sistema)') as q from public.tarjetas where id = '$($r.t)'").q
+  $reparto += $a
+}
+$distintos = ($reparto | Select-Object -Unique).Count
+Comprobar "tres conversaciones se reparten entre las dos personas" ($distintos -eq 2) "fueron a $distintos persona(s)"
+Comprobar "ninguna nace sin responsable con el reparto encendido" (($reparto | Where-Object { $_ -eq '(sistema)' }).Count -eq 0)
+
+# Sacar a alguien del turno: deja de recibir.
+Sql "update public.organization_members set en_rotacion = false where organization_id='00000000-0000-4000-8000-00000000aa01' and user_id='$($usuarios['b'])';" | Out-Null
+Sql "insert into public.contacts (id, organization_id, nombre) values ('00000000-0000-4000-8000-00000000cc04','00000000-0000-4000-8000-00000000aa01','Turno 4') on conflict do nothing;" | Out-Null
+$t4 = (Sql "select private.tarjeta_de_contacto('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000cc04') as t").t
+$a4 = (Sql "select asignado_a::text as q from public.tarjetas where id = '$t4'").q
+Comprobar "quien esta fuera del turno no recibe" ($a4 -eq $usuarios['a']) "fue a $a4"
+
+# Apagado: nace del sistema, no se asigna a nadie por rellenar.
+Sql "update public.organizations set reparto_automatico = false where id = '00000000-0000-4000-8000-00000000aa01';" | Out-Null
+Sql "insert into public.contacts (id, organization_id, nombre) values ('00000000-0000-4000-8000-00000000cc05','00000000-0000-4000-8000-00000000aa01','Turno 5') on conflict do nothing;" | Out-Null
+$t5 = (Sql "select private.tarjeta_de_contacto('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000cc05') as t").t
+$a5 = (Sql "select coalesce(asignado_a::text,'(sistema)') as q from public.tarjetas where id = '$t5'").q
+Comprobar "con el reparto apagado la tarjeta nace del sistema" ($a5 -eq '(sistema)') "fue a $a5"
+
+# Reclamar: solo lo que esta del sistema, y solo dentro de la organizacion.
+$h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+Invoke-RestMethod -Uri "$base/rest/v1/rpc/reclamar_tarjeta" -Method Post -Headers $h `
+  -Body (@{ p_tarjeta = $t5 } | ConvertTo-Json) | Out-Null
+$tras = (Sql "select asignado_a::text as q from public.tarjetas where id = '$t5'").q
+Comprobar "reclamar una del sistema funciona" ($tras -eq $usuarios['a']) "quedo en $tras"
+
+# Una que ya tiene B: reclamarla NO es tomar lo que esta libre, es quitarsela a
+# alguien. Eso se hace con el selector, a la vista y con nombre.
+$deB = (Sql "select id from public.tarjetas where organization_id='00000000-0000-4000-8000-00000000aa01' and asignado_a='$($usuarios['b'])' limit 1").id
+$rechazado = $false
+try {
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/reclamar_tarjeta" -Method Post -Headers $h `
+    -Body (@{ p_tarjeta = $deB } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "no se reclama una tarjeta que ya tiene otra persona" $rechazado
+
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"
 

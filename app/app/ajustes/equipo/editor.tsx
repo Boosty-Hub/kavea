@@ -7,11 +7,12 @@ import type { Invitacion, Miembro } from '@/lib/equipo'
 import { ROLES, NOMBRE_ROL } from '@/lib/roles'
 
 export function Equipo({
-  organizacionId, miembros, invitaciones, puedeGestionar, esDuenio,
+  organizacionId, miembros, invitaciones, reparto, puedeGestionar, esDuenio,
 }: {
   organizacionId: string
   miembros: Miembro[]
   invitaciones: Invitacion[]
+  reparto: boolean
   puedeGestionar: boolean
   esDuenio: boolean
 }) {
@@ -38,6 +39,42 @@ export function Equipo({
         </p>
       ) : null}
 
+      {/* El reparto por turnos.
+          Va aquí y no en una pantalla aparte porque la pregunta «¿quién está en
+          el turno?» solo se responde viendo el equipo entero al lado. */}
+      <section>
+        <h2 style={{ fontSize: 16 }}>Reparto por turnos</h2>
+        <div className="tarjeta" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: puedeGestionar ? 'pointer' : 'default' }}>
+            <input
+              type="checkbox"
+              checked={reparto}
+              disabled={!puedeGestionar || ocupado}
+              onChange={(e) => rpc('configurar_reparto', {
+                p_org: organizacionId, p_activo: e.target.checked,
+              })}
+              style={{ marginTop: 3 }}
+            />
+            <span>
+              <strong style={{ fontWeight: 500 }}>
+                Repartir las conversaciones que entran
+              </strong>
+              <div style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
+                Cada conversación nueva se asigna a quien lleve más tiempo sin recibir una,
+                entre los que estén en el turno. Las asignaciones a mano también cuentan, para
+                que el reparto no reparta por igual sobre una carga que ya está torcida.
+              </div>
+              {!reparto ? (
+                <div style={{ fontSize: 13, color: 'var(--k-text-2)', marginTop: 6 }}>
+                  Ahora mismo está apagado: las conversaciones nuevas entran <strong>del
+                  sistema</strong> hasta que alguien las tome desde el hilo.
+                </div>
+              ) : null}
+            </span>
+          </label>
+        </div>
+      </section>
+
       <section>
         <h2 style={{ fontSize: 16 }}>En el equipo ({miembros.length})</h2>
         <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
@@ -48,8 +85,36 @@ export function Equipo({
                   {m.nombre}
                   {m.soy_yo ? <span style={{ color: 'var(--k-text-2)', fontWeight: 400 }}> · tú</span> : null}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--k-text-2)' }}>{m.correo}</div>
+                <div style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                  {m.correo}
+                  {' · '}
+                  {m.abiertas} {m.abiertas === 1 ? 'conversación abierta' : 'conversaciones abiertas'}
+                </div>
               </div>
+
+              {/* El turno, solo cuando el reparto está encendido: un interruptor
+                  que no hace nada porque el reparto está apagado es ruido que
+                  hace dudar de si está activo. */}
+              {reparto ? (
+                <label
+                  style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, flex: 'none' }}
+                  title={m.ultima_asignacion
+                    ? `Última asignación: ${new Date(m.ultima_asignacion).toLocaleString('es')}`
+                    : 'Todavía no ha recibido ninguna: es quien pasa primero'}
+                >
+                  <input
+                    type="checkbox"
+                    checked={m.en_rotacion}
+                    disabled={!puedeGestionar || ocupado}
+                    onChange={(e) => rpc('rotacion_de', {
+                      p_org: organizacionId, p_usuario: m.user_id, p_dentro: e.target.checked,
+                    })}
+                  />
+                  <span style={{ color: m.en_rotacion ? 'inherit' : 'var(--k-text-2)' }}>
+                    En el turno
+                  </span>
+                </label>
+              ) : null}
 
               {puedeGestionar && !m.soy_yo ? (
                 <select
