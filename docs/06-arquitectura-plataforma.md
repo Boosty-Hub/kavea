@@ -45,8 +45,10 @@ tenant por subdominio, y qué puede ver Boosty sobre los datos de sus clientes.
 | Sitio público | Netlify, desde `web/` | ya desplegado |
 | App multi-tenant y panel interno | **Netlify** | decisión de Gabriel, 2-ago |
 | Base de datos | **Supabase** — `sdazqohyjzzylwbkvovx` | `00` §5 |
-| Ingesta, cola y crones de Meta | **Netlify** Functions, Postgres y Scheduled Functions | decisión de Gabriel, 2-ago — **anula `02` §5.3** |
-| Amortiguador de emergencia de la ingesta | **Netlify Blobs** | mitigación, ver §1.1 |
+| Ingesta y normalización | **Supabase Edge Functions** | decisión de Gabriel, 2-ago — **anula `02` §5.3** |
+| Cola | Postgres `webhook_events` | ídem |
+| Crones | **`pg_cron` + `pg_net`** | ídem |
+| Amortiguador de emergencia de la ingesta | **Cloudflare R2** | mitigación, ver §1.1 |
 | Media saliente | **Cloudflare R2** | `00` §5 |
 | Aislamiento | Una sola base, RLS desde el día uno | `02` §7.7 |
 | Enrutado de tenant | **Subdominio, desde el día uno** | decisión de Gabriel, 2-ago |
@@ -71,15 +73,29 @@ fallidas, en silencio y por cliente, con resuscripción manual.
 
 ### Por qué se decide igual
 
-Gabriel eligió reducir de cuatro proveedores a dos —Netlify y Supabase, más Cloudflare R2
-solo como almacén— a cambio de asumir ese riesgo. Menos superficie operativa, un solo
-pipeline de despliegue, un solo almacén de secretos.
+Gabriel eligió consolidar: **todo el backend en Supabase, todo el frontend en Netlify, y de
+Cloudflare solo queda R2 como almacén, sin cómputo.** Menos superficie operativa, menos
+almacenes de secretos, menos pipelines.
+
+### Los límites que condicionan el diseño
+
+Verificados el 2 de agosto de 2026:
+
+| Límite de Supabase Edge Functions | Valor |
+|---|---|
+| Duración total | 400 s en plan de pago, 150 s en gratuito |
+| **CPU por petición** | **2 s**, sin contar operaciones asíncronas |
+| Memoria | 256 MB |
+| Funciones por proyecto | 500 en plan Pro |
+
+**Los 400 s son de reloj, no de cómputo.** Para el receptor sobra: leer el cuerpo, calcular
+un HMAC e insertar. Para el normalizador no: parsear un lote de 1000 updates y construir sus
+efectos es CPU pura, y ahí 2 segundos no es holgado. Obliga a acotar el tamaño de lote y a
+trocear el trabajo. Es una medición pendiente de la fase 2, con cifra concreta a obtener.
 
 ### La mitigación que hace viable la decisión
 
-**Netlify Blobs**, que Netlify describe como almacén de alta disponibilidad, escribible
-desde Functions, con consistencia fuerte opcional y sin depender de Postgres. El receptor
-queda así:
+**Cloudflare R2.** El receptor queda así:
 
 ```
 POST del webhook
@@ -89,35 +105,40 @@ POST del webhook
   ├─ 2. intenta insertar en webhook_events (Postgres)
   │       └─ si funciona → 200
   │
-  └─ 3. si Postgres falla → escribe el cuerpo crudo en Netlify Blobs → 200
-          └─ una Scheduled Function drena Blobs hacia Postgres al recuperarse
+  └─ 3. si Postgres falla → escribe el cuerpo crudo en R2 → 200
+          └─ un cron drena R2 hacia Postgres al recuperarse
 ```
 
-Con eso, una caída de Supabase deja de producir desuscripción: Meta sigue recibiendo 200 y
-los eventos se acumulan en Blobs en vez de perderse. Es el mismo patrón de la cola externa,
-con otra pieza.
+**No puede ser Supabase Storage.** Sus metadatos viven en `storage.buckets` y
+`storage.objects`, dentro del propio Postgres: si la base no está, escribir en Storage falla
+igual. R2 ya está en la arquitectura para media saliente, es compatible con S3 y es de verdad
+independiente de Supabase.
 
-**El camino de Blobs no es un extra opcional: es lo que sustituye a Cloudflare Queues.** Va
-desde el primer despliegue y se prueba apagando Supabase, igual que en el diseño anterior.
+**El camino de R2 no es un extra opcional: es lo que sustituye a la cola externa.** Va desde
+el primer despliegue y se prueba apagando Supabase.
 
-### Lo que sigue perdiéndose, y hay que saberlo
+### Lo que se pierde, y hay que saberlo
 
-1. **Blobs no es una cola.** No hay entrega garantizada, ni reintentos, ni DLQ. Hay que
-   implementar el drenaje, el orden y la limpieza a mano, con disciplina de nombres de clave.
-2. **Consistencia eventual por defecto.** Hay que pedir consistencia fuerte de forma
-   explícita en las escrituras del receptor.
-3. **No hay Durable Objects.** Los límites de envío son por `page_id`, y sin esa primitiva el
-   token bucket se implementa con `pg_advisory_xact_lock` en Postgres, que mete la base en el
-   camino caliente del envío. Aceptable porque el envío ya requiere la base para leer el
-   token; no lo era para la ingesta.
-4. **Función sincrónica limitada a 10 segundos.** Suficiente para el presupuesto de 5 s de
-   Meta, pero sin margen para hacer nada más que validar y encolar.
+1. **R2 no es una cola.** No hay entrega garantizada, ni reintentos, ni cola de fallidos. El
+   drenaje, el orden y la limpieza se implementan a mano, con disciplina de nombres de clave.
+2. **No hay Durable Objects.** Los límites de envío son por `page_id`, y sin esa primitiva el
+   token bucket se implementa con `pg_advisory_xact_lock`. Aceptable en el envío, que ya
+   necesita la base para leer el token; no lo era en la ingesta.
+3. **2 s de CPU por petición.** Ver arriba. Es el límite que más condiciona la fase 2.
+4. **Un incidente del proyecto de Supabase afecta a receptor y base a la vez.** Es
+   exactamente lo que temía el `02` §5.3. R2 cubre el caso frecuente —pool agotado, migración
+   larga, mantenimiento de la base— pero no el de una caída del proyecto entero. Menos
+   probable, y asumido.
+5. **El cron de reconciliación vive dentro de la base que puede caerse.** El `02` §5.2 lo
+   puso fuera a propósito. Contraargumento honesto: durante una caída no podría hacer su
+   trabajo de todos modos, porque necesita leer los tokens; lo que importa es que cure al
+   recuperarse, y para eso `pg_cron` sirve.
 
 ### Presupuesto
 
-Ya no hace falta el plan de pago de Workers. Sigue haciendo falta el plan de pago de Netlify
-—que ya existe, la cuenta es Pro— y vigilar el consumo de invocaciones de Functions, que con
-un webhook por mensaje escala con el tráfico de los clientes. `GRAPH_API_VERSION` y el
+Plan de pago de Supabase, que ya existe. Desaparece la necesidad del plan de pago de
+Cloudflare Workers. R2 se factura por almacenamiento y operaciones, y como amortiguador solo
+se usa durante incidentes, su coste es residual. `GRAPH_API_VERSION` y el
 App Secret viven en más de un sitio y pueden desincronizarse.
 
 ---
@@ -129,17 +150,23 @@ App Secret viven en más de un sitio y pueden desincronizarse.
 | Sitio público | `kavea.ai` | Netlify, desde `web/` | Cualquiera |
 | App de cliente | `*.kavea.ai` | Netlify, desde `app/` | Equipo del cliente |
 | Panel interno | `admin.kavea.ai` | Netlify, misma base de código | Solo Boosty |
-| Ingesta | `hooks.kavea.ai` | Netlify Function, sitio propio | Meta y Resend |
+| Ingesta | URL del proyecto Supabase | Supabase Edge Function | Meta y Resend |
 
-Son **tres** sitios de Netlify sobre el mismo repositorio, con `base` distinta: `web/` para
-el público, `app/` para la aplicación y `hooks/` para la ingesta. No es un despliegue por
-cliente; es un despliegue por superficie.
+Son **dos** sitios de Netlify sobre el mismo repositorio, con `base` distinta: `web/` para el
+público y `app/` para la aplicación. La ingesta ya no es un sitio de Netlify.
 
-La ingesta va en un sitio aparte y no como una ruta más de `app/`, y esto no es cosmético:
-es lo único que queda del principio de separar dominios de fallo. Un despliegue roto de la
-interfaz no puede tumbar la recepción de webhooks, porque son dos despliegues distintos con
-dos ciclos distintos. Con la zona ya en Netlify DNS, además recupera dominio propio:
-`hooks.kavea.ai` en vez de una URL de proveedor.
+El receptor mantiene su ciclo de despliegue propio —`supabase functions deploy`, separado del
+build de la interfaz—, así que un despliegue roto de la aplicación no puede tumbar la
+recepción de webhooks. Eso es lo que queda del principio de separar dominios de fallo.
+
+La URL es la del proyecto,
+`https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-webhook`. A Meta le sirve tal
+cual: solo necesita una URL HTTPS estable y verificable. Un dominio propio tipo
+`hooks.kavea.ai` es cosmético y se puede añadir después con un proxy.
+
+**La función se despliega con `verify_jwt = false`, fijado en `config.toml`.** Meta no manda
+bearer token; con la verificación activa devuelve 401 y a la hora hay desuscripción
+silenciosa. Es la trampa de configuración más cara de esta arquitectura.
 
 El OAuth de alta —inicio y callback— **no** va en el Worker. Va en route handlers de
 Next.js, porque el callback es un redirect con `code` y `state`, necesita la sesión del

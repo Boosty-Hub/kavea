@@ -28,26 +28,30 @@ verificado, no se escribe como hecho.
 
 ### 2026-08-02 · Cuatro decisiones de Gabriel
 
-**1. La ingesta se queda en Netlify.** Anula el `02` §5.3, que argumentaba a favor de
-Cloudflare Workers y Queues. Se cambia superficie operativa por riesgo: dos proveedores en
-lugar de cuatro, a cambio de que el receptor dependa de Postgres para responder 200.
+**1. La ingesta va en Supabase Edge Functions.** Anula el `02` §5.3, que argumentaba a favor
+de Cloudflare Workers y Queues. Consolidación: **todo el backend en Supabase, todo el frontend
+en Netlify, y de Cloudflare solo queda R2 como almacén, sin cómputo.**
 
-El riesgo está mitigado con **Netlify Blobs** como amortiguador: si la escritura a Postgres
-falla, el receptor vuelca el cuerpo crudo a Blobs y devuelve 200 igual; una Scheduled
-Function lo drena cuando la base vuelve. Meta nunca ve un error y no hay desuscripción.
-Netlify describe Blobs como almacén de alta disponibilidad, escribible desde Functions y con
-consistencia fuerte opcional.
+Se decidió en dos pasos el mismo día: primero pasar la ingesta a Netlify, y después
+consolidarla en Supabase junto al resto del backend. Queda la segunda.
 
-Lo que se pierde y queda documentado en `06` §1.1: Blobs no es una cola —no hay entrega
-garantizada, ni reintentos, ni DLQ—, la consistencia fuerte hay que pedirla explícitamente, y
-sin Durable Objects el token bucket por `page_id` se implementa con `pg_advisory_xact_lock`.
+El riesgo aceptado es el que el `02` §5.3 describía: el receptor depende de Postgres para
+responder 200, y Meta desuscribe cada Página tras una hora de fallos. Mitigado con
+**Cloudflare R2** como amortiguador: si la escritura a Postgres falla, el receptor vuelca el
+cuerpo crudo a R2 y devuelve 200 igual; un cron lo drena al recuperarse.
 
-Límites verificados: función sincrónica 10 s, background function 15 min, objeto de Blobs
-hasta 5 GB. El presupuesto de 5 s de Meta cabe.
+**No puede ser Supabase Storage:** sus metadatos viven en `storage.buckets` y
+`storage.objects`, dentro del propio Postgres, así que cae con la base. R2 ya estaba en la
+arquitectura para media saliente y es de verdad independiente.
 
-La ingesta va en un **sitio de Netlify aparte** con dominio `hooks.kavea.ai`, no como una
-ruta más de la aplicación. Es lo único que queda del principio de separar dominios de fallo:
-un despliegue roto de la interfaz no puede tumbar la recepción.
+Límites verificados de Supabase Edge Functions: 400 s de duración en plan de pago, **2 s de
+CPU por petición**, 256 MB de memoria. Los 400 s son de reloj, no de cómputo: para el receptor
+sobra, pero para el normalizador el límite de CPU obliga a acotar el tamaño de lote y trocear
+el trabajo. Es la restricción que más condiciona la fase 2.
+
+Trampa de configuración a no olvidar: **`verify_jwt = false` en `config.toml`.** Meta no manda
+bearer token; con la verificación activa la función devuelve 401 y a la hora hay desuscripción
+silenciosa.
 
 **2. Colores semánticos: dos tokens por estado.** El sólido de marca se conserva para el
 punto y el borde; se añade una variante oscurecida solo para el texto. La paleta del libro no
