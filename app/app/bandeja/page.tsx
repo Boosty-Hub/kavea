@@ -4,6 +4,7 @@ import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organ
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
+import { Buscador } from './buscador'
 
 export const dynamic = 'force-dynamic'
 
@@ -48,6 +49,8 @@ export default async function Bandeja({
             </span>
           </div>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
+
+          <Buscador />
 
           <nav className="filtros" aria-label="Filtrar por estado">
             {FILTROS.map((f) => (

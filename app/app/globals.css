@@ -82,6 +82,10 @@
     --k-canal-messenger: #6fa3dd;
     --k-canal-whatsapp:  #6fb083;
 
+    /* El resaltado en oscuro no puede usar terracota 100, que es casi blanco. */
+    --k-terra-100: #4a2e22;
+    --k-terra-700: #e8b9a4;
+
     --k-etapa-piedra:    #a8a39a;
     --k-etapa-terracota: #c9714f;
     --k-etapa-azul:      #6fa3dd;
@@ -567,6 +571,40 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
   color: inherit;
 }
 .tarjeta-vieja:hover { background: var(--k-surface-2); }
+
+/* ---------- Buscador ---------- */
+
+.resultados {
+  margin-top: 8px;
+  border-top: 1px solid var(--k-border);
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.resultado {
+  display: block;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--k-border);
+  text-decoration: none;
+  color: inherit;
+}
+.resultado:hover { background: var(--k-surface-2); }
+.resultado__frag {
+  margin: 4px 0 6px;
+  font-size: 13px;
+  color: var(--k-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* El resaltado va con `mark`, que es el elemento que significa exactamente eso
+   y que los lectores de pantalla anuncian. Fondo suave: subrayar la coincidencia
+   en amarillo chillón sobre una lista larga cansa. */
+.resultado__frag mark {
+  background: var(--k-terra-100);
+  color: var(--k-terra-700);
+  border-radius: 2px;
+  padding: 0 1px;
+}
 
 /* ---------- Operar la tarjeta ---------- */
 
