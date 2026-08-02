@@ -1,0 +1,157 @@
+/*
+ * Tokens del libro de identidad de marca v0.1 (docs/01).
+ * Reglas que no se rompen:
+ *   · Solo dos pesos: 400 y 500. Nunca 600 ni 700.
+ *   · Terracota nunca es fondo de área grande. Solo acento.
+ *   · Un único elemento terracota por vista.
+ *   · Rejilla base 4 px. Radio 6 en controles, 12 en tarjetas.
+ *   · Sentence case. Sin signos de exclamación.
+ */
+
+:root {
+  --k-tinta: #1a1917;
+  --k-grafito: #3d3b37;
+  --k-piedra: #6e6a63;
+  --k-ceniza: #a8a39a;
+  --k-cal: #d9d5cc;
+  --k-arena: #f0ede6;
+  --k-papel: #faf8f4;
+
+  --k-terra-700: #6e2e18;
+  --k-terra-600: #8f3e22;
+  --k-terra-500: #b04e2c;
+  --k-terra-400: #c9714f;
+  --k-terra-200: #e8c3b4;
+  --k-terra-100: #f3e2da;
+
+  /* Semánticos: sólido para el punto, -fg para el texto, -bg para el fondo.
+     Dos tokens por estado porque el sólido de 'esperando' da 2,83 y el de
+     'resuelta' 4,36, y la regla del libro exige 4,5 mínimo. */
+  --k-curso: #2d6ca8;      --k-curso-fg: #1f4c77;      --k-curso-bg: #e6eef6;
+  --k-esperando: #b8862b;  --k-esperando-fg: #7a5a18;  --k-esperando-bg: #f7efdd;
+  --k-escalada: #a83232;   --k-escalada-fg: #8a2626;   --k-escalada-bg: #f6e4e4;
+  --k-resuelta: #3f7a4e;   --k-resuelta-fg: #2c5637;   --k-resuelta-bg: #e7efe8;
+
+  --k-bg: var(--k-papel);
+  --k-surface: #ffffff;
+  --k-surface-2: var(--k-arena);
+  --k-border: var(--k-cal);
+  --k-text: var(--k-tinta);
+  --k-text-2: var(--k-piedra);
+  --k-accent: var(--k-terra-500);
+
+  --r-control: 6px;
+  --r-card: 12px;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --k-bg: #131211;
+    --k-surface: #1c1a18;
+    --k-surface-2: #26231f;
+    --k-border: #35322d;
+    --k-text: #edeae3;
+    --k-text-2: #a8a39a;
+    --k-accent: var(--k-terra-400);
+
+    --k-curso: #5b9bd5;      --k-curso-fg: #8fbee8;      --k-curso-bg: #16283a;
+    --k-esperando: #d9a93f;  --k-esperando-fg: #e8c776;  --k-esperando-bg: #33280f;
+    --k-escalada: #d45a5a;   --k-escalada-fg: #e89191;   --k-escalada-bg: #3a1a1a;
+    --k-resuelta: #5fa372;   --k-resuelta-fg: #8fc69f;   --k-resuelta-bg: #1a2e20;
+
+    color-scheme: dark;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--k-bg);
+  color: var(--k-text);
+  font-family: 'Instrument Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 {
+  margin: 0;
+  font-weight: 500;
+  letter-spacing: -0.011em;
+}
+
+h1 { font-size: 28px; line-height: 1.2; }
+h2 { font-size: 20px; line-height: 1.3; }
+
+a { color: inherit; text-underline-offset: 3px; }
+
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--k-accent);
+  outline-offset: 2px;
+  border-radius: var(--r-control);
+}
+
+.pagina {
+  max-width: 960px;
+  margin-inline: auto;
+  padding: 48px 24px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--k-text-2);
+}
+
+.tarjeta {
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-card);
+  padding: 24px;
+}
+
+.muted { color: var(--k-text-2); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: var(--r-control);
+  border: 1px solid transparent;
+  background: var(--k-accent);
+  color: #fff;
+  padding: 10px 20px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.btn:disabled { opacity: 0.6; cursor: default; }
+
+.campo {
+  display: block;
+  width: 100%;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  background: var(--k-surface);
+  color: var(--k-text);
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.error {
+  border: 1px solid var(--k-escalada);
+  background: var(--k-escalada-bg);
+  color: var(--k-escalada-fg);
+  border-radius: var(--r-control);
+  padding: 12px 16px;
+  font-size: 14px;
+}

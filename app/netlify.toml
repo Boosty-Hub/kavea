@@ -1,0 +1,33 @@
+# Configuración del sitio de la APLICACIÓN (*.kavea.ai y admin.kavea.ai).
+#
+# Vive aquí y no en la raíz porque hay dos sitios de Netlify sobre este
+# repositorio. La `base` se fija en el panel; Netlify busca este fichero dentro
+# de esa base.
+
+[build]
+  command = "pnpm build"
+  publish = ".next"
+
+# Con dos sitios sobre un repositorio, cada commit dispara los dos builds.
+# `ignore` corta el que no toca: sin esto, cada cambio en docs/ reconstruye la
+# aplicación y el tiempo de CI se dobla sin motivo.
+# Se evalúa desde `base`, así que "." es app/.
+  ignore = "git diff --quiet HEAD^ HEAD -- ."
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Versión fijada a propósito. El Next Runtime es lo que convierte el middleware
+# en una Edge Function de Netlify y lo que decide cómo se sirven las rutas del
+# App Router: una actualización automática cambia ese comportamiento sin que
+# nadie lo pida.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), interest-cohort=()"
