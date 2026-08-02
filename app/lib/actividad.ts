@@ -101,6 +101,15 @@ export function describirActividad(x: EntradaActividad): string {
       return `pasó ${d.concepto ?? 'el documento'} de ${d.de} a ${d.a}`
     case 'documento.borrado': return `borró el documento ${d.concepto ?? ''}`.trim()
 
+    // --- Tareas ---
+    case 'tarea.creada':
+      return `creó la tarea "${d.titulo}"${
+        d.vence_en ? ` para el ${new Date(String(d.vence_en)).toLocaleString('es', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}` : ''
+      }`
+    case 'tarea.completada': return `completó la tarea "${d.titulo}"`
+    case 'tarea.reabierta': return `reabrió la tarea "${d.titulo}"`
+    case 'tarea.borrada': return `borró la tarea "${d.titulo}"`
+
     // --- Envío ---
     // No hay `mensaje.fallido`: un envío que falla ya lo dice su propia burbuja
     // con `envio_estado`. Una línea de actividad sería decirlo dos veces.

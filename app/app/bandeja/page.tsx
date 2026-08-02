@@ -5,6 +5,8 @@ import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
 import { Buscador } from './buscador'
+import { Notificaciones } from '../notificaciones'
+import { misNotificaciones, sinLeer } from '@/lib/agenda'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,9 +32,11 @@ export default async function Bandeja({
   const sp = await searchParams
   const estado = sp.estado ?? 'todas'
 
-  const [tarjetas, conteos] = await Promise.all([
+  const [tarjetas, conteos, avisos, pendientes] = await Promise.all([
     listarTarjetas({ estado, canal: sp.canal }),
     contarPorEstado(),
+    misNotificaciones(),
+    sinLeer(),
   ])
 
   return (
@@ -43,9 +47,11 @@ export default async function Bandeja({
         <header className="bandeja__cabecera">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <p className="label">{org.nombre}</p>
-            <span style={{ fontSize: 12, display: 'flex', gap: 10 }}>
+            <span style={{ fontSize: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
               <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
+              <Link href="/agenda" style={{ color: 'var(--k-text-2)' }}>Agenda</Link>
               <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
+              <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} />
             </span>
           </div>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
