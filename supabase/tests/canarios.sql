@@ -4,99 +4,172 @@
 -- también las tablas que creen las fases futuras. Un canario que hay que
 -- actualizar a mano cada vez que se añade una tabla deja de correrse.
 --
--- Cada consulta devuelve CERO filas cuando todo está bien. Cualquier fila es un
--- fallo con nombre y apellido.
---
--- Uso: psql -f canarios.sql, o vía la API de gestión. En CI, cualquier fila
--- devuelta rompe el build.
+-- Cada bloque LANZA EXCEPCIÓN si encuentra un fallo, de modo que psql sale con
+-- código distinto de cero y el build se rompe. Un canario que solo imprime se
+-- ignora en cuanto la salida del CI pasa de veinte líneas.
 
-\echo '== C1: toda tabla de negocio con RLS activo y forzado =='
-select n.nspname || '.' || c.relname as tabla,
-       c.relrowsecurity   as rls_activo,
-       c.relforcerowsecurity as rls_forzado
-  from pg_class c
-  join pg_namespace n on n.oid = c.relnamespace
- where n.nspname in ('public', 'private')
-   and c.relkind = 'r'
-   and c.relname <> 'schema_migrations'
-   and not (c.relrowsecurity and c.relforcerowsecurity)
- order by 1;
+\set ON_ERROR_STOP on
 
-\echo '== C2: tabla con organization_id sin indice que empiece por esa columna =='
--- La politica de RLS se convierte en un filtro. Sin indice, cada lectura de
+-- C1 -------------------------------------------------------------------------
+-- Toda tabla de negocio con RLS activo Y forzado.
+-- Sin `force`, la política no aplica al dueño de la tabla.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(n.nspname || '.' || c.relname, ', ')
+    into v_fallos
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'private')
+     and c.relkind = 'r'
+     and c.relname not in ('schema_migrations')
+     and not (c.relrowsecurity and c.relforcerowsecurity);
+
+  if v_fallos is not null then
+    raise exception 'C1: tablas sin RLS activo y forzado: %', v_fallos;
+  end if;
+end $$;
+
+-- C2 -------------------------------------------------------------------------
+-- Toda columna organization_id con un índice que empiece por ella.
+-- La política de RLS se convierte en un filtro; sin índice, cada lectura de
 -- bandeja es un escaneo secuencial.
-select c.relname as tabla
-  from pg_class c
-  join pg_namespace n on n.oid = c.relnamespace
-  join pg_attribute a on a.attrelid = c.oid
-                     and a.attname = 'organization_id'
-                     and a.attnum > 0
-                     and not a.attisdropped
- where n.nspname = 'public'
-   and c.relkind = 'r'
-   and not exists (
-     select 1 from pg_index i
-      where i.indrelid = c.oid
-        and i.indkey[0] = a.attnum
-   )
- order by 1;
+do $$
+declare v_fallos text;
+begin
+  select string_agg(c.relname, ', ')
+    into v_fallos
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+    join pg_attribute a on a.attrelid = c.oid
+                       and a.attname = 'organization_id'
+                       and a.attnum > 0
+                       and not a.attisdropped
+   where n.nspname = 'public'
+     and c.relkind = 'r'
+     and not exists (
+       select 1 from pg_index i
+        where i.indrelid = c.oid and i.indkey[0] = a.attnum
+     );
 
-\echo '== C3: auth.uid() sin envolver en subconsulta =='
--- Sin envolver, Postgres lo evalua una vez POR FILA en lugar de una vez por
--- consulta. En una bandeja con cientos de miles de mensajes la diferencia no es
--- cosmetica.
+  if v_fallos is not null then
+    raise exception 'C2: organization_id sin indice que empiece por ella: %', v_fallos;
+  end if;
+end $$;
+
+-- C3 -------------------------------------------------------------------------
+-- auth.uid() envuelto en subconsulta.
+-- Sin envolver, Postgres lo evalúa una vez POR FILA en lugar de una vez por
+-- consulta. En una bandeja con cientos de miles de mensajes no es cosmético.
 --
--- OJO con el patron: Postgres renderiza la forma envuelta como
+-- OJO con el patrón: Postgres renderiza la forma correcta como
 --   ( SELECT auth.uid() AS uid)
--- en mayusculas y con alias. Un patron que busque 'select auth.uid()' en
--- minusculas y sin alias da FALSO POSITIVO sobre politicas correctas, y un
--- canario que grita en falso se acaba ignorando.
-select c.relname as tabla,
-       p.polname as politica,
-       pg_get_expr(p.polqual, p.polrelid) as expresion
-  from pg_policy p
-  join pg_class c on c.oid = p.polrelid
- where pg_get_expr(p.polqual, p.polrelid) ~* 'auth\.uid\s*\(\s*\)'
-   and pg_get_expr(p.polqual, p.polrelid) !~* '\(\s*SELECT\s+auth\.uid\s*\(\s*\)'
- order by 1, 2;
+-- en mayúsculas y con alias. Un patrón que busque 'select auth.uid()' en
+-- minúsculas y sin alias marca como rotas políticas que están bien, y un
+-- canario que grita en falso se acaba ignorando. Esto ya pasó una vez.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(c.relname || '.' || p.polname, ', ')
+    into v_fallos
+    from pg_policy p
+    join pg_class c on c.oid = p.polrelid
+   where pg_get_expr(p.polqual, p.polrelid) ~* 'auth\.uid\s*\(\s*\)'
+     and pg_get_expr(p.polqual, p.polrelid) !~* '\(\s*SELECT\s+auth\.uid\s*\(\s*\)';
 
-\echo '== C4: tabla con RLS activo y cero politicas, fuera de las esperadas =='
--- webhook_events es deliberadamente asi: deniega todo. Cualquier otra tabla en
--- ese estado es un olvido que deja los datos inaccesibles.
-select c.relname as tabla
-  from pg_class c
-  join pg_namespace n on n.oid = c.relnamespace
- where n.nspname = 'public'
-   and c.relkind = 'r'
-   and c.relrowsecurity
-   and c.relname not in ('webhook_events', 'schema_migrations')
-   and not exists (select 1 from pg_policy p where p.polrelid = c.oid)
- order by 1;
+  if v_fallos is not null then
+    raise exception 'C3: auth.uid() sin envolver en: %', v_fallos;
+  end if;
+end $$;
 
-\echo '== C5: clave foranea a una tabla con organization_id que no es compuesta =='
--- La integridad referencial de Postgres SALTA RLS, igual que el rol de servicio.
--- Sin clave compuesta, una fila de la organizacion A puede apuntar a una fila de
--- la B, y RLS no lo detecta porque cada fila cumple su propia politica.
-select con.conname     as restriccion,
-       hijo.relname    as tabla_hija,
-       padre.relname   as tabla_padre
-  from pg_constraint con
-  join pg_class hijo  on hijo.oid  = con.conrelid
-  join pg_class padre on padre.oid = con.confrelid
-  join pg_namespace n on n.oid = hijo.relnamespace
- where con.contype = 'f'
-   and n.nspname = 'public'
-   and array_length(con.conkey, 1) = 1
-   -- el padre tiene organization_id, asi que la relacion es intra-tenant
-   and exists (
-     select 1 from pg_attribute a
-      where a.attrelid = padre.oid and a.attname = 'organization_id' and not a.attisdropped
-   )
-   -- y el hijo tambien
-   and exists (
-     select 1 from pg_attribute a
-      where a.attrelid = hijo.oid and a.attname = 'organization_id' and not a.attisdropped
-   )
-   -- salvo la propia referencia a organizations, que es simple por definicion
-   and padre.relname <> 'organizations'
- order by 2, 1;
+-- C4 -------------------------------------------------------------------------
+-- Tabla con RLS activo y cero políticas, fuera de las esperadas.
+-- webhook_events es así a propósito: deniega todo. Cualquier otra en ese estado
+-- es un olvido que deja los datos inaccesibles.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(c.relname, ', ')
+    into v_fallos
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relkind = 'r'
+     and c.relrowsecurity
+     and c.relname not in ('webhook_events', 'schema_migrations')
+     and not exists (select 1 from pg_policy p where p.polrelid = c.oid);
+
+  if v_fallos is not null then
+    raise exception 'C4: tablas con RLS y sin politicas: %', v_fallos;
+  end if;
+end $$;
+
+-- C5 -------------------------------------------------------------------------
+-- Clave foránea intra-tenant que no es compuesta.
+-- La integridad referencial de Postgres SALTA RLS, igual que el rol de
+-- servicio. Sin clave compuesta, una fila de la organización A puede apuntar a
+-- una de la B, y RLS no lo detecta porque cada fila cumple su propia política.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(con.conname, ', ')
+    into v_fallos
+    from pg_constraint con
+    join pg_class hijo  on hijo.oid  = con.conrelid
+    join pg_class padre on padre.oid = con.confrelid
+    join pg_namespace n on n.oid = hijo.relnamespace
+   where con.contype = 'f'
+     and n.nspname = 'public'
+     and array_length(con.conkey, 1) = 1
+     and padre.relname <> 'organizations'
+     and exists (select 1 from pg_attribute a
+                  where a.attrelid = padre.oid and a.attname = 'organization_id'
+                    and not a.attisdropped)
+     and exists (select 1 from pg_attribute a
+                  where a.attrelid = hijo.oid and a.attname = 'organization_id'
+                    and not a.attisdropped);
+
+  if v_fallos is not null then
+    raise exception 'C5: claves foraneas intra-tenant sin componer: %', v_fallos;
+  end if;
+end $$;
+
+-- C6 -------------------------------------------------------------------------
+-- Ninguna función SECURITY DEFINER con search_path abierto.
+-- Un search_path mutable en una función que corre con privilegios del creador
+-- es una vía de escalada: basta crear un objeto que sombree al esperado.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(n.nspname || '.' || p.proname, ', ')
+    into v_fallos
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('public', 'private')
+     and p.prosecdef
+     and not exists (
+       select 1 from unnest(coalesce(p.proconfig, '{}')) cfg
+        where cfg like 'search_path=%'
+     );
+
+  if v_fallos is not null then
+    raise exception 'C6: security definer sin search_path fijado: %', v_fallos;
+  end if;
+end $$;
+
+-- C7 -------------------------------------------------------------------------
+-- La media entrante de Meta nunca se almacena, solo su URL.
+-- Es invariante del docs/03 y causa documentada de rechazo del App Review.
+-- El CHECK que lo impone no puede desaparecer en una migración distraída.
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint
+     where conname = 'media_origen_coherente'
+       and conrelid = 'public.media'::regclass
+  ) then
+    raise exception 'C7: falta media_origen_coherente, que impide cachear media entrante';
+  end if;
+end $$;
+
+\echo 'Canarios: los siete pasan.'

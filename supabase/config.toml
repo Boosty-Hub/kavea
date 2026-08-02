@@ -1,0 +1,57 @@
+project_id = "kavea"
+
+[api]
+enabled = true
+port = 54321
+# `private` NO se expone. Ahí viven los tokens cifrados de Meta.
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# Coincide con producción. Comprobado por API: 17.6.
+major_version = 17
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = [
+  "http://localhost:3000/**",
+  "http://boosty.localhost:3000/**",
+  "https://kavea.ai/**",
+  "https://admin.kavea.ai/**",
+]
+jwt_expiry = 3600
+enable_signup = false          # sin registro self-service en v1
+enable_confirmations = true
+
+[auth.email]
+enable_signup = false
+double_confirm_changes = true
+enable_confirmations = true
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+# --- Edge Functions ---------------------------------------------------------
+# El receptor de webhooks de Meta va SIN verificación de JWT.
+#
+# Meta no manda bearer token: con verify_jwt activo la función devuelve 401, y
+# tras una hora de entregas fallidas Meta desuscribe la Página en silencio y por
+# cliente, con resuscripción manual.
+#
+# Se fija aquí y no en la bandera de despliegue a propósito: una bandera se
+# olvida en el siguiente despliegue, un fichero versionado no.
+[functions.meta-webhook]
+verify_jwt = false
