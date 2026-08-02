@@ -167,24 +167,28 @@ jobs:
 
       - name: Nada usa las claves legacy de Supabase
         run: |
-          # El proyecto tiene deshabilitadas las claves anon y service_role
-          # basadas en JWT. Reintroducirlas rompe en produccion, no en local,
-          # porque en local el CLI sigue emitiendolas.
-          if grep -rEn 'SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY|service_role' \
+          # El proyecto tiene deshabilitadas las claves antiguas basadas en JWT.
+          # Reintroducirlas rompe en produccion y no en local, porque el CLI
+          # local las sigue emitiendo: por eso la guarda vive aqui.
+          #
+          # Se excluye este fichero: contiene los patrones y se detectaria a si
+          # mismo. Cualquier OTRO workflow si se revisa.
+          if grep -rEn 'SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY' \
                --include='*.ts' --include='*.tsx' --include='*.yml' --include='*.toml' \
+               --exclude='ci.yml' \
                app supabase scripts .github 2>/dev/null; then
-            echo "Hay una referencia a las claves legacy de Supabase."
+            echo "Hay una referencia a las claves antiguas de Supabase."
             echo "Se usan sb_publishable_* y sb_secret_*."
             exit 1
           fi
           # Y ninguna clave con forma de JWT en el arbol.
           if grep -rEn 'eyJhbGciOiJIUzI1NiIs' . \
                --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next \
-               --exclude-dir=dist 2>/dev/null; then
-            echo "Hay algo con forma de JWT legacy en el arbol."
+               --exclude-dir=dist --exclude='ci.yml' 2>/dev/null; then
+            echo "Hay algo con forma de JWT antiguo en el arbol."
             exit 1
           fi
-          echo "Sin claves legacy."
+          echo "Sin claves antiguas."
 
       - name: Los tags muertos de Meta no aparecen
         run: |
