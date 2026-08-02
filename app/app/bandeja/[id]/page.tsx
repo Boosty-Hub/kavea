@@ -324,6 +324,20 @@ function describir(x: EntradaHilo): string {
     case 'tarjetas.unidas':
       return `unió otra tarjeta con esta · ${d.motivo ?? ''}`
     case 'tarjetas.separadas': return 'deshizo la unión de tarjetas'
+    case 'tarjeta.etapa': {
+      const parado = d.dias_en_etapa_anterior != null && Number(d.dias_en_etapa_anterior) >= 1
+        ? ` · ${d.dias_en_etapa_anterior} días en la anterior` : ''
+      return d.de
+        ? `movió la tarjeta de ${d.de} a ${d.a}${parado}`
+        : `puso la tarjeta en ${d.a}`
+    }
+    case 'tarjeta.embudo': return `cambió el embudo de ${d.de ?? 'ninguno'} a ${d.a}`
+    case 'tarjeta.valor': {
+      const a = d.a != null ? `${d.a} ${d.moneda ?? ''}`.trim() : 'sin valor'
+      return d.de != null
+        ? `cambió el valor de ${d.de} a ${a}`
+        : `puso el valor en ${a}`
+    }
     case 'campo.valor':
       return `cambió ${d.etiqueta ?? 'un campo'}${d.de != null ? ` de "${textoValor(d.de)}"` : ''} a "${textoValor(d.a)}"`
     case 'contacto.fusionado':
