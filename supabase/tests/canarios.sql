@@ -84,8 +84,11 @@ end $$;
 
 -- C4 -------------------------------------------------------------------------
 -- Tabla con RLS activo y cero políticas, fuera de las esperadas.
--- webhook_events es así a propósito: deniega todo. Cualquier otra en ese estado
--- es un olvido que deja los datos inaccesibles.
+--
+-- webhook_events y alertas son así a propósito: deniegan todo. Una fila de
+-- cualquiera de las dos puede ser ANTERIOR al enrutado y por tanto no tener
+-- tenant, así que no puede quedar bajo RLS de organización. Cualquier otra
+-- tabla en ese estado es un olvido que deja los datos inaccesibles.
 do $$
 declare v_fallos text;
 begin
@@ -96,7 +99,7 @@ begin
    where n.nspname = 'public'
      and c.relkind = 'r'
      and c.relrowsecurity
-     and c.relname not in ('webhook_events', 'schema_migrations')
+     and c.relname not in ('webhook_events', 'alertas', 'schema_migrations')
      and not exists (select 1 from pg_policy p where p.polrelid = c.oid);
 
   if v_fallos is not null then

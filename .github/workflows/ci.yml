@@ -173,6 +173,11 @@ jobs:
           #
           # Se excluye este fichero: contiene los patrones y se detectaria a si
           # mismo. Cualquier OTRO workflow si se revisa.
+          # La plataforma de Edge Functions inyecta una variable con el nombre
+          # clasico de la clave de rol de servicio, pero en este proyecto esa
+          # clave esta DESHABILITADA. Usarla seria depender de algo que ya no
+          # autentica, asi que el patron tambien la caza aqui: el codigo usa
+          # KAVEA_SUPABASE_SECRET, con nombre propio y sin herencia del entorno.
           if grep -rEn 'SUPABASE_ANON_KEY|SUPABASE_SERVICE_ROLE_KEY' \
                --include='*.ts' --include='*.tsx' --include='*.yml' --include='*.toml' \
                --exclude='ci.yml' \

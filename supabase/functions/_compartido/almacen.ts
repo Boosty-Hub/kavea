@@ -20,6 +20,21 @@ export type EventoIngesta = {
   entry_ids?: string[] | null
 }
 
+/**
+ * Clave de servicio, con nombre propio y a propósito.
+ *
+ * La plataforma inyecta automáticamente una variable con el nombre clásico de
+ * la clave de rol de servicio, pero en este proyecto **las claves antiguas
+ * basadas en JWT están deshabilitadas**: usarla sería depender de algo que ya
+ * no autentica. Se usa un secreto con nombre propio que contiene la clave del
+ * formato nuevo, y así no hay herencia silenciosa del entorno.
+ */
+function claveServicio(): string {
+  const clave = Deno.env.get('KAVEA_SUPABASE_SECRET')
+  if (!clave) throw new Error('Falta KAVEA_SUPABASE_SECRET')
+  return clave
+}
+
 export function conTimeout<T>(p: Promise<T>, ms: number, etiqueta: string): Promise<T> {
   return Promise.race([
     p,
@@ -37,7 +52,7 @@ export function conTimeout<T>(p: Promise<T>, ms: number, etiqueta: string): Prom
  */
 export async function insertarEvento(e: EventoIngesta, ms: number): Promise<void> {
   const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/webhook_events`
-  const clave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY')!
+  const clave = claveServicio()
 
   const r = await conTimeout(
     fetch(url, {
@@ -132,7 +147,7 @@ export async function alertar(
 ): Promise<void> {
   try {
     const url = `${Deno.env.get('SUPABASE_URL')}/rest/v1/alertas`
-    const clave = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? Deno.env.get('SUPABASE_SECRET_KEY')!
+    const clave = claveServicio()
     await conTimeout(
       fetch(url, {
         method: 'POST',
