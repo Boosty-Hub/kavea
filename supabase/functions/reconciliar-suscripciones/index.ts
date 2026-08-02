@@ -30,6 +30,24 @@ const CAMPOS_MESSENGER = [
   'messaging_referrals',
   'messaging_optins',
   'messaging_handovers',
+
+  // SONDA DE COMENTARIOS, 2 de agosto de 2026.
+  //
+  // Los comentarios están FUERA DE V1 por decisión del docs/03: no tienen
+  // ventana de 24 h, no tienen conversación, no traen PSID ni IGSID sino
+  // comment_id, y su ciclo de vida es público. Kavea no los procesa: `aplanar`
+  // solo lee messaging[] y standby[], así que un `changes[]` se guarda crudo en
+  // `webhook_events` y produce cero efectos.
+  //
+  // Se suscriben igualmente para PODER MEDIR si llegan y con qué forma exacta.
+  // Suscribirse a un campo usa `pages_manage_metadata`, que ya tenemos, y NO
+  // añade ningún permiso al App Review pendiente: eso importa, porque pedir
+  // scopes de más es causa documentada de rechazo.
+  //
+  // Si la sonda confirma que llegan, la fase de comentarios arranca con la
+  // forma real del payload en la mano en vez de con dos páginas de Meta
+  // contradiciéndose.
+  'feed',
 ]
 
 function claveServicio(): string {
