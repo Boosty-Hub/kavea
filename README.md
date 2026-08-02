@@ -1,4 +1,4 @@
-# kavea-web
+# kavea
 
 Sitio público de **Kavea** — [kavea.ai](https://kavea.ai).
 
