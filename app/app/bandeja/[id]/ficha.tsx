@@ -374,15 +374,38 @@ function Unir({
   const [elegida, setElegida] = useState<{ id: string; nombre: string } | null>(null)
   const [motivo, setMotivo] = useState('')
 
+  /**
+   * Se busca en dos pasos, y no en uno con `or`.
+   *
+   * PostgREST NO resuelve columnas de un recurso embebido dentro de `or=(...)`:
+   * `contacts.nombre.ilike.%x%` ahí no filtra, devuelve cero y no da error, que
+   * es la peor combinación posible. Comprobado en vivo: el buscador encontraba
+   * cero tarjetas existiendo la que se buscaba.
+   *
+   * Así que primero se buscan las personas y luego las tarjetas por título o
+   * por esas personas. Dos viajes, pero funciona y se entiende al leerlo.
+   */
   async function buscar(t: string) {
     setTermino(t); setElegida(null)
     const limpio = terminoSeguro(t)
     if (limpio.length < 2) { setResultados([]); return }
-    const { data } = await crearClienteNavegador()
+
+    const supabase = crearClienteNavegador()
+    const { data: personas } = await supabase
+      .from('contacts')
+      .select('id')
+      .or(`nombre.ilike.%${limpio}%,username.ilike.%${limpio}%`)
+      .limit(20)
+
+    const ids = (personas ?? []).map((p: { id: string }) => p.id)
+    const clausulas = [`titulo.ilike.%${limpio}%`]
+    if (ids.length) clausulas.push(`contact_id.in.(${ids.join(',')})`)
+
+    const { data } = await supabase
       .from('tarjetas')
       .select('id, titulo, contacts(nombre, username)')
       .neq('id', tarjetaId)
-      .or(`titulo.ilike.%${limpio}%,contacts.nombre.ilike.%${limpio}%,contacts.username.ilike.%${limpio}%`)
+      .or(clausulas.join(','))
       .limit(8)
     setResultados((data ?? []) as never)
   }
