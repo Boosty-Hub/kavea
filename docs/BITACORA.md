@@ -32,6 +32,43 @@ verificado, no se escribe como hecho.
 
 ## 2. Entradas
 
+### 2026-08-02 · Claves legacy de Supabase deshabilitadas
+
+Las claves `anon` y `service_role` basadas en JWT quedaron deshabilitadas el 2 de agosto de
+2026 a las 12:38 UTC. El proyecto usa exclusivamente `sb_publishable_*` y `sb_secret_*`.
+
+**Comprobado antes de deshabilitar**, en cuatro capas y no en una:
+
+| Capa | Resultado |
+|---|---|
+| Repositorio | Cero claves con forma de JWT, cero variables `ANON_KEY` o `SERVICE_ROLE_KEY` |
+| Código de la app | Lee cuatro variables, todas del formato nuevo |
+| Netlify | `sb_publishable` en todos los contextos, `sb_secret` solo en producción |
+| Firma de tokens de usuario | **ES256 asimétrico**, no HS256 |
+
+El cuarto punto es el que despejaba el riesgo real. Un token emitido en ese momento traía
+`{"alg":"ES256","kid":"710ef748…"}`: las sesiones no dependían del secreto JWT antiguo, así que
+deshabilitarlo no cerraba la sesión de nadie. El HS256 figuraba como `previously_used`, no
+`in_use`. Por eso el middleware ya usaba `getClaims()` con verificación local en vez de
+`getUser()`, que es una ida y vuelta por petición.
+
+**Comprobado después**, con el servidor respondiendo:
+
+- La clave `anon` antigua devuelve **401 con "Legacy API keys are disabled"** y la marca
+  temporal del cambio. La `service_role` antigua, igual.
+- Sesión real, lectura bajo RLS, `es_staff` y break-glass: todo sigue funcionando.
+- Las tres superficies sirven 200.
+
+**Guarda añadida en CI.** Rompe el build si alguien reintroduce las claves antiguas. Vive ahí y
+no en una nota porque reintroducirlas rompería *en producción y no en local*: el CLI local las
+sigue emitiendo, así que el fallo no aparecería hasta desplegar.
+
+Detalle que costó un intento: la guarda falló la primera vez porque **se detectaba a sí
+misma** —el patrón aparecía en su propio comentario—. Corregida excluyendo ese fichero;
+cualquier otro workflow sí se revisa.
+
+---
+
 ### 2026-08-02 · Integración continua en verde
 
 Cinco trabajos en GitHub Actions, todos pasando: tipos y build, sitio público, esquema desde
