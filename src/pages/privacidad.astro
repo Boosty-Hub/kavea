@@ -38,7 +38,7 @@ const indice = [
   </p>
   <p>
     Para cualquier asunto relacionado con datos personales puedes escribir a
-    <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a>.
+    <a href={`mailto:${legal.contacto}`}>{legal.contacto}</a>.
   </p>
 
   <h2 id="roles">2. Nuestro papel en el tratamiento</h2>
@@ -282,7 +282,7 @@ const indice = [
     Ningún sistema es infalible. Si se produjera una brecha que afecte a datos personales, lo
     notificaremos a los negocios afectados y a las autoridades que corresponda en los plazos que fije
     la normativa aplicable. Si detectas una vulnerabilidad, escríbenos a
-    <a href={`mailto:${legal.correos.seguridad}`}>{legal.correos.seguridad}</a>: la revisaremos y no
+    <a href={`mailto:${legal.contacto}`}>{legal.contacto}</a>: la revisaremos y no
     emprenderemos acciones contra quien la reporte de buena fe.
   </p>
 
@@ -300,7 +300,7 @@ const indice = [
     </li>
   </ul>
   <p>
-    Escribe a <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a>.
+    Escribe a <a href={`mailto:${legal.contacto}`}>{legal.contacto}</a>.
     Responderemos en un plazo máximo de {legal.plazoRespuestaDatos}. Podemos pedirte que acredites tu
     identidad antes de actuar, precisamente para que nadie pueda pedir tus datos haciéndose pasar por
     ti.
@@ -342,7 +342,6 @@ const indice = [
   <p>
     {legal.razonSocial}<br />
     {legal.domicilio}<br />
-    Privacidad: <a href={`mailto:${legal.correos.privacidad}`}>{legal.correos.privacidad}</a><br />
-    Asuntos legales: <a href={`mailto:${legal.correos.legal}`}>{legal.correos.legal}</a>
+    <a href={`mailto:${legal.contacto}`}>{legal.contacto}</a>
   </p>
 </Legal>

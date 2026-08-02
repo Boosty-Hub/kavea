@@ -18,19 +18,21 @@ export const legal = {
   /** Razón social titular del servicio. */
   razonSocial: 'Boosty Digital LLC',
 
-  /** ⚠ porConfirmar — jurisdicción de constitución de la LLC. */
+  /** Jurisdicción de constitución de la LLC. */
   jurisdiccion: 'Estado de Florida, Estados Unidos de América',
 
-  /** ⚠ porConfirmar — domicilio que se publica en las páginas legales. */
-  domicilio: 'Miami, Florida, Estados Unidos de América',
+  /** Domicilio que se publica en las páginas legales. */
+  domicilio: '4702 Capri Place, Orlando, Florida 32811, Estados Unidos de América',
 
-  /** ⚠ porConfirmar — hay que crear estos alias en el correo del dominio. */
-  correos: {
-    general: 'hola@kavea.ai',
-    privacidad: 'privacidad@kavea.ai',
-    legal: 'legal@kavea.ai',
-    seguridad: 'seguridad@kavea.ai',
-  },
+  /**
+   * Dirección única de contacto para todo: soporte, privacidad, asuntos legales
+   * y reporte de vulnerabilidades. Una sola dirección publicada es una sola
+   * bandeja que vigilar, y ninguna que se quede sin leer.
+   *
+   * ⚠ Tiene que RECIBIR correo antes del App Review. Una dirección publicada en
+   * una política de privacidad que rebota es motivo de rechazo.
+   */
+  contacto: 'support@kavea.ai',
 
   /** Fecha de la última revisión de los documentos legales. */
   vigenciaDesde: '2 de agosto de 2026',
