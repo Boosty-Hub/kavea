@@ -46,7 +46,47 @@ en `admin.kavea.ai` con certificado válido.
 en el contexto `production`. Un Deploy Preview lo puede abrir cualquiera con acceso al
 repositorio, y con esa clave se lee cualquier fila de cualquier tenant sin pasar por RLS.
 
-#### El comodín `*.kavea.ai` está bloqueado, y no por un error de configuración
+#### Corrección sobre el comodín: el certificado ya lo cubre, lo que falta es el enrutado
+
+**El certificado emitido por Netlify ya es comodín** —cubre `*.kavea.ai` y `kavea.ai`— porque
+la zona está en Netlify DNS. Eso no era el problema.
+
+Lo que falta es que Netlify **enrute** un hostname concreto al sitio. Y eso sí se puede hacer
+hoy, cliente a cliente, con un alias de dominio: `boosty.kavea.ai` añadido como alias sirve
+HTTP 200 sin ningún ticket.
+
+Consecuencia práctica: **no hay bloqueo para el dogfooding.** Con un solo inquilino, un alias
+basta. El comodín solo hace falta cuando entren clientes en volumen, que es un mes largo
+después.
+
+Techo de la vía de alias, medido: Netlify recomienda **no pasar de 50 alias por sitio**, con
+límite duro en torno a 100. Suficiente para el primer año, insuficiente como modelo definitivo.
+
+**Aviso de incompatibilidad:** la documentación del comodín exige que el sitio no tenga alias
+de dominio. Si el ticket prospera, hay que retirar los alias antes de habilitarlo. Es
+reversible y ninguna de las dos vías cierra la otra.
+
+---
+
+#### Las opciones de subdominio, con sus números
+
+Ninguna implica un proyecto de Netlify por cliente. Hay **dos sitios y no van a crecer**: uno
+por superficie, no por inquilino.
+
+| Opción | Sitios | Techo | Disponible |
+|---|---|---|---|
+| Comodín en Netlify | 1 | ilimitado | ticket de soporte |
+| Alias por cliente | 1 | ~50 rec., 100 duro | ✅ hoy |
+| Ruta `app.kavea.ai/<slug>` | 1 | ilimitado | ✅ hoy |
+| Mover la app a Vercel | 1 | ilimitado | autoservicio, pero exige sus nameservers |
+
+Vercel ofrece comodín autoservicio en todos los planes, pero obliga a mover la zona a sus
+nameservers: sería cambiar un trámite de soporte por una migración de DNS con el correo de por
+medio, justo después de haber hecho una.
+
+---
+
+#### El comodín `*.kavea.ai` sigue pendiente de habilitación
 
 La API de Netlify rechaza el comodín tanto en `custom_domain` como en `domain_aliases`, con
 "has invalid characters". No es un fallo: **los dominios comodín no son autoservicio en
