@@ -155,3 +155,182 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   padding: 12px 16px;
   font-size: 14px;
 }
+
+/* ---------- Bandeja ----------
+   Densidad baja a propósito. El espacio en blanco es lo que va a diferenciar
+   a Kavea de Kommo, que se ve apretado. Cuando dudes, quita densidad. */
+
+.bandeja {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+  height: 100vh;
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .bandeja { grid-template-columns: 1fr; }
+  .bandeja__hilo { display: none; }
+  .bandeja--hilo .bandeja__lista { display: none; }
+  .bandeja--hilo .bandeja__hilo { display: flex; }
+}
+
+.bandeja__lista {
+  border-right: 1px solid var(--k-border);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--k-surface);
+}
+
+.bandeja__cabecera {
+  padding: 20px 20px 12px;
+  border-bottom: 1px solid var(--k-border);
+}
+
+.filtros {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.filtro {
+  border: 1px solid var(--k-border);
+  background: transparent;
+  color: var(--k-text-2);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.filtro[aria-current='true'] {
+  border-color: var(--k-accent);
+  color: var(--k-text);
+  background: var(--k-terra-100);
+}
+
+:root[data-theme='dark'] .filtro[aria-current='true'],
+@media (prefers-color-scheme: dark) { .filtro[aria-current='true'] { background: var(--k-surface-2); } }
+
+.filtro__n { font-size: 11px; color: var(--k-text-2); }
+
+.lista { overflow-y: auto; flex: 1; min-height: 0; }
+
+.fila {
+  display: block;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--k-border);
+  text-decoration: none;
+  color: inherit;
+}
+
+.fila:hover { background: var(--k-surface-2); }
+.fila[aria-current='true'] { background: var(--k-surface-2); box-shadow: inset 3px 0 0 var(--k-accent); }
+
+.fila__alto { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.fila__nombre { font-weight: 500; font-size: 15px; }
+.fila__cuando { font-size: 12px; color: var(--k-text-2); flex: none; }
+.fila__preview {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--k-text-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+.fila__pie { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+.pildora {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+.pildora__punto { width: 6px; height: 6px; border-radius: 999px; flex: none; }
+
+.sinleer {
+  margin-left: auto;
+  background: var(--k-accent);
+  color: #fff;
+  border-radius: 999px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------- Hilo ---------- */
+
+.bandeja__hilo { display: flex; flex-direction: column; min-height: 0; }
+
+.hilo__cabecera {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--k-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.hilo__cuerpo {
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.burbuja { max-width: min(560px, 78%); }
+.burbuja--saliente { align-self: flex-end; }
+
+.burbuja__caja {
+  border: 1px solid var(--k-border);
+  background: var(--k-surface);
+  border-radius: var(--r-card);
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.burbuja--saliente .burbuja__caja { background: var(--k-surface-2); }
+.burbuja__meta { font-size: 11px; color: var(--k-text-2); margin-top: 6px; }
+.burbuja--saliente .burbuja__meta { text-align: right; }
+.burbuja__borrado { font-style: italic; color: var(--k-text-2); }
+
+/* Actividad y eventos: no son burbujas. Van centrados y discretos, porque son
+   contexto y no conversación. */
+.traza {
+  align-self: center;
+  text-align: center;
+  font-size: 12px;
+  color: var(--k-text-2);
+  padding: 2px 12px;
+  max-width: 90%;
+}
+.traza__actor { color: var(--k-text); }
+
+.vacio {
+  margin: auto;
+  text-align: center;
+  max-width: 380px;
+  color: var(--k-text-2);
+}
+.vacio h2 { margin-bottom: 8px; color: var(--k-text); }

@@ -19,21 +19,6 @@ export default async function Inicio() {
   const org = await organizacionActual()
   if (!org) notFound()
 
-  return (
-    <main className="pagina">
-      <p className="label">Organización</p>
-      <h1>{org.nombre}</h1>
-      <p className="muted">
-        Sesión iniciada como {usuario.email}. Estás en <code>{org.slug}</code>.
-      </p>
-
-      <div className="tarjeta" style={{ marginTop: 32 }}>
-        <h2>Cimientos en pie</h2>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          El aislamiento entre organizaciones lo impone la base de datos, no esta pantalla. La
-          bandeja llega en el bloque 3, cuando haya ingesta que la alimente.
-        </p>
-      </div>
-    </main>
-  )
+  // La bandeja es la pantalla del producto. La raíz lleva ahí.
+  redirect('/bandeja')
 }
