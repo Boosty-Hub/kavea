@@ -1,6 +1,7 @@
 import { cache } from 'react'
 import { headers } from 'next/headers'
 import { crearClienteServidor } from './supabase/servidor'
+import { slugDesdeHost, superficieDesdeHost, type Superficie } from './dominio'
 
 export type Organizacion = {
   id: string
@@ -8,18 +9,23 @@ export type Organizacion = {
   nombre: string
 }
 
+/** La superficie de la petición, derivada del Host. */
+export const superficieActual = cache(async (): Promise<Superficie> => {
+  return superficieDesdeHost((await headers()).get('host'))
+})
+
 /**
  * Resuelve la organización del subdominio, bajo RLS.
  *
- * El slug lo pone el middleware desde el Host; esta función lo convierte en una
- * fila. Si el usuario no es miembro, RLS devuelve cero filas y esto devuelve
- * null: la página responde 404 y no confirma que la organización exista.
+ * Si el usuario no es miembro, RLS devuelve cero filas y esto devuelve null: la
+ * página responde 404 y no confirma que la organización exista, que sería lo
+ * que haría un 403.
  *
  * `cache` de React memoriza por petición, así que llamarla en el layout y en la
  * página no hace dos consultas.
  */
 export const organizacionActual = cache(async (): Promise<Organizacion | null> => {
-  const slug = (await headers()).get('x-kavea-org-slug')
+  const slug = slugDesdeHost((await headers()).get('host'))
   if (!slug) return null
 
   const supabase = await crearClienteServidor()

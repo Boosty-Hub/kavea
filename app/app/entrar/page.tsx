@@ -28,6 +28,8 @@ export default function Entrar() {
       return
     }
 
+    // En admin.kavea.ai la raíz redirige a /admin, así que basta con ir a la
+    // raíz y dejar que el servidor decida según la superficie.
     router.refresh()
     router.push('/')
   }

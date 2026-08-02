@@ -1,6 +1,5 @@
-import { notFound } from 'next/navigation'
-import { headers } from 'next/headers'
-import { esStaff, usuarioActual } from '@/lib/organizacion'
+import { notFound, redirect } from 'next/navigation'
+import { esStaff, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
 
 export const dynamic = 'force-dynamic'
@@ -17,11 +16,10 @@ export const dynamic = 'force-dynamic'
  * motivo escrito, que caduca solo y queda registrado.
  */
 export default async function PanelInterno() {
-  const superficie = (await headers()).get('x-kavea-superficie')
-  if (superficie !== 'admin') notFound()
+  if ((await superficieActual()) !== 'admin') notFound()
 
   const usuario = await usuarioActual()
-  if (!usuario) notFound()
+  if (!usuario) redirect('/entrar')
 
   if (!(await esStaff())) notFound()
 
@@ -62,6 +60,10 @@ export default async function PanelInterno() {
           </tbody>
         </table>
       </div>
+
+      <p className="muted" style={{ marginTop: 24, fontSize: 13 }}>
+        Sesión iniciada como {usuario.email}.
+      </p>
     </main>
   )
 }

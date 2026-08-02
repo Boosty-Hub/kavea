@@ -1,14 +1,14 @@
 import { notFound, redirect } from 'next/navigation'
-import { headers } from 'next/headers'
-import { organizacionActual, usuarioActual } from '@/lib/organizacion'
+import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Inicio() {
-  const superficie = (await headers()).get('x-kavea-superficie')
+  const superficie = await superficieActual()
 
-  // Sin superficie no hay subdominio de organización: es el dominio desnudo o
-  // un host que no reconocemos. No se revela nada.
+  // Sin subdominio de organización no hay nada que mostrar: es el dominio
+  // desnudo, la URL del proveedor o un host que no reconocemos.
+  if (superficie === 'admin') redirect('/admin')
   if (superficie !== 'app') notFound()
 
   const usuario = await usuarioActual()
