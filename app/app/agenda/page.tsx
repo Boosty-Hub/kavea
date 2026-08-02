@@ -65,6 +65,7 @@ export default async function Agenda({
         miembros={miembros}
         soloMias={soloMias}
         yo={usuario.id}
+        huso={org.zona_horaria ?? 'America/Caracas'}
       />
     </main>
   )

@@ -7,6 +7,14 @@ export type Organizacion = {
   id: string
   slug: string
   nombre: string
+  /**
+   * Huso del negocio, en nombre IANA.
+   *
+   * No es un detalle de formato. Boosty opera en Venezuela, República Dominicana
+   * y México, que son tres husos, y sin este dato el calendario coloca una tarea
+   * de las 22:00 en el día siguiente y un recordatorio a las 9 no significa nada.
+   */
+  zona_horaria: string
 }
 
 /** La superficie de la petición, derivada del Host. */
@@ -31,7 +39,7 @@ export const organizacionActual = cache(async (): Promise<Organizacion | null> =
   const supabase = await crearClienteServidor()
   const { data } = await supabase
     .from('organizations')
-    .select('id, slug, nombre')
+    .select('id, slug, nombre, zona_horaria')
     .eq('slug', slug)
     .maybeSingle()
 

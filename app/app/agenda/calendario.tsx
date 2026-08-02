@@ -21,9 +21,10 @@ const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
  * completar. No hay ningún estado guardado que pueda quedarse obsoleto.
  */
 export function Calendario({
-  organizacionId, anio, mes, tareas, miembros, soloMias, yo,
+  organizacionId, anio, mes, tareas, miembros, soloMias, yo, huso,
 }: {
   organizacionId: string
+  huso: string
   anio: number
   mes: number
   tareas: Tarea[]
@@ -52,11 +53,32 @@ export function Calendario({
   // getUTCDay: 0 es domingo. La semana empieza en lunes, que es como se lee un
   // calendario en español.
   const hueco = (primero.getUTCDay() + 6) % 7
-  const hoyISO = new Date().toISOString().slice(0, 10)
+  /**
+   * Todo se coloca y se pinta en el huso de la ORGANIZACIÓN.
+   *
+   * Antes se usaba `vence_en.slice(0,10)`, que es la fecha en UTC: una tarea a
+   * las 22:00 de Caracas son las 02:00 UTC del día siguiente y aparecía un día
+   * tarde. Y la hora se formateaba con el huso del servidor en el servidor y con
+   * el del navegador en el cliente, lo que además rompía la hidratación —el
+   * aviso críptico de React que destapó todo esto—.
+   *
+   * Con el huso explícito, servidor y cliente producen exactamente el mismo
+   * texto, y el día es el que el negocio considera ese día.
+   *
+   * `sv-SE` para la fecha no es capricho: es el único locale corriente que
+   * formatea como AAAA-MM-DD, que es justo la clave que hace falta.
+   */
+  const fechaEn = (iso: string) =>
+    new Intl.DateTimeFormat('sv-SE', { timeZone: huso }).format(new Date(iso))
+  const horaEn = (iso: string) =>
+    new Intl.DateTimeFormat('es', { timeZone: huso, hour: '2-digit', minute: '2-digit' })
+      .format(new Date(iso))
+
+  const hoyISO = fechaEn(new Date().toISOString())
 
   const porDia = new Map<string, Tarea[]>()
   for (const t of tareas) {
-    const d = t.vence_en.slice(0, 10)
+    const d = fechaEn(t.vence_en)
     porDia.set(d, [...(porDia.get(d) ?? []), t])
   }
 
@@ -139,7 +161,7 @@ export function Calendario({
               {suyas.map((t) => {
                 const listo = hecha(t)
                 const vencida = !listo && new Date(t.vence_en) < new Date()
-                const hora = new Date(t.vence_en).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+                const hora = horaEn(t.vence_en)
                 return (
                   <div
                     key={t.id}
