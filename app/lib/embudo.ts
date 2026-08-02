@@ -1,3 +1,5 @@
+import 'server-only'
+
 import { cache } from 'react'
 import { crearClienteServidor } from './supabase/servidor'
 import type { Canal } from './bandeja'

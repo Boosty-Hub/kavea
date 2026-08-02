@@ -572,6 +572,17 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 }
 .tarjeta-vieja:hover { background: var(--k-surface-2); }
 
+/* ---------- Equipo ---------- */
+
+.miembro {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--k-border);
+}
+.miembro:last-child { border-bottom: 0; }
+
 /* ---------- Buscador ---------- */
 
 .resultados {

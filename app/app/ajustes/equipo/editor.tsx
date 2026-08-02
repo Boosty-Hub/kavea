@@ -1,0 +1,253 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { crearClienteNavegador } from '@/lib/supabase/navegador'
+import type { Invitacion, Miembro } from '@/lib/equipo'
+import { ROLES, NOMBRE_ROL } from '@/lib/roles'
+
+export function Equipo({
+  organizacionId, miembros, invitaciones, puedeGestionar, esDuenio,
+}: {
+  organizacionId: string
+  miembros: Miembro[]
+  invitaciones: Invitacion[]
+  puedeGestionar: boolean
+  esDuenio: boolean
+}) {
+  const router = useRouter()
+  const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [ocupado, setOcupado] = useState(false)
+
+  async function rpc(fn: string, args: Record<string, unknown>) {
+    setOcupado(true); setError(null); setAviso(null)
+    const { error } = await crearClienteNavegador().rpc(fn, args)
+    setOcupado(false)
+    if (error) { setError(error.message); return false }
+    router.refresh()
+    return true
+  }
+
+  return (
+    <div style={{ display: 'grid', gap: 28, marginTop: 32 }}>
+      {error ? <p className="error" role="alert">{error}</p> : null}
+      {aviso ? (
+        <p className="compositor__aviso" style={{ background: 'var(--k-esperando-bg)', color: 'var(--k-esperando-fg)' }}>
+          {aviso}
+        </p>
+      ) : null}
+
+      <section>
+        <h2 style={{ fontSize: 16 }}>En el equipo ({miembros.length})</h2>
+        <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
+          {miembros.map((m) => (
+            <div key={m.user_id} className="miembro">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500 }}>
+                  {m.nombre}
+                  {m.soy_yo ? <span style={{ color: 'var(--k-text-2)', fontWeight: 400 }}> · tú</span> : null}
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--k-text-2)' }}>{m.correo}</div>
+              </div>
+
+              {puedeGestionar && !m.soy_yo ? (
+                <select
+                  className="operar__control"
+                  value={m.rol}
+                  disabled={ocupado}
+                  aria-label={`Rol de ${m.nombre}`}
+                  onChange={(e) => rpc('cambiar_rol', {
+                    p_org: organizacionId, p_usuario: m.user_id, p_rol: e.target.value,
+                  })}
+                >
+                  {ROLES.filter((r) => r.v !== 'owner' || esDuenio).map((r) => (
+                    <option key={r.v} value={r.v}>{r.n}</option>
+                  ))}
+                </select>
+              ) : (
+                <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>{NOMBRE_ROL[m.rol]}</span>
+              )}
+
+              {puedeGestionar && !m.soy_yo ? (
+                <button
+                  type="button"
+                  disabled={ocupado}
+                  onClick={() => {
+                    if (confirm(
+                      `Quitar a ${m.nombre} del equipo.\n\nLas conversaciones que tuviera asignadas se quedan sin responsable, no se pierden.`,
+                    )) rpc('quitar_miembro', { p_org: organizacionId, p_usuario: m.user_id })
+                  }}
+                  style={{
+                    border: '1px solid var(--k-border)', background: 'transparent',
+                    borderRadius: 'var(--r-control)', padding: '4px 10px',
+                    cursor: 'pointer', font: 'inherit', fontSize: 13, color: 'var(--k-text-2)',
+                  }}
+                >
+                  Quitar
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {puedeGestionar ? (
+        <>
+          {invitaciones.length > 0 ? (
+            <section>
+              <h2 style={{ fontSize: 16 }}>Invitaciones sin usar ({invitaciones.length})</h2>
+              <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
+                {invitaciones.map((i) => (
+                  <div key={i.id} className="miembro">
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14 }}>{i.correo}</div>
+                      <div style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                        {NOMBRE_ROL[i.rol]} · caduca el {new Date(i.expira_en).toLocaleDateString('es')}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={ocupado}
+                      onClick={() => rpc('revocar_invitacion', { p_invitacion: i.id })}
+                      style={{
+                        border: '1px solid var(--k-border)', background: 'transparent',
+                        borderRadius: 'var(--r-control)', padding: '4px 10px',
+                        cursor: 'pointer', font: 'inherit', fontSize: 13, color: 'var(--k-text-2)',
+                      }}
+                    >
+                      Revocar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          <Invitar
+            esDuenio={esDuenio}
+            ocupado={ocupado}
+            setOcupado={setOcupado}
+            setError={setError}
+            setAviso={setAviso}
+          />
+        </>
+      ) : (
+        <p style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
+          Solo quien administra la organización puede invitar o cambiar roles.
+        </p>
+      )}
+
+      <section>
+        <h2 style={{ fontSize: 16 }}>Qué puede cada rol</h2>
+        <div className="tarjeta" style={{ marginTop: 12, display: 'grid', gap: 10 }}>
+          {ROLES.map((r) => (
+            <div key={r.v}>
+              <strong style={{ fontWeight: 500 }}>{r.n}</strong>
+              <div style={{ fontSize: 13, color: 'var(--k-text-2)' }}>{r.que}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function Invitar({
+  esDuenio, ocupado, setOcupado, setError, setAviso,
+}: {
+  esDuenio: boolean
+  ocupado: boolean
+  setOcupado: (v: boolean) => void
+  setError: (v: string | null) => void
+  setAviso: (v: string | null) => void
+}) {
+  const router = useRouter()
+  const [abierto, setAbierto] = useState(false)
+  const [correo, setCorreo] = useState('')
+  const [rol, setRol] = useState('agente')
+
+  async function enviar(e: React.FormEvent) {
+    e.preventDefault()
+    setOcupado(true); setError(null); setAviso(null)
+
+    // Va por el servidor y no por el RPC directo: el token en claro no debe
+    // pasar por el navegador.
+    const r = await fetch('/api/invitar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ correo, rol }),
+    })
+    const j = await r.json()
+    setOcupado(false)
+
+    if (!r.ok || j.error) { setError(j.error ?? 'No se pudo invitar.'); return }
+
+    if (!j.correoEnviado) {
+      // La invitación existe aunque el correo no saliera. Se da el enlace en
+      // vez de dejar a alguien esperando un correo que no va a llegar.
+      setAviso(
+        `La invitación está creada pero el correo no salió (${j.motivo}). ` +
+        `Pásale este enlace tú: ${j.enlace}`,
+      )
+    } else {
+      setAviso(`Invitación enviada a ${correo}. El enlace vale siete días.`)
+    }
+    setCorreo(''); setRol('agente'); setAbierto(false)
+    router.refresh()
+  }
+
+  if (!abierto) {
+    return (
+      <button type="button" className="btn" onClick={() => setAbierto(true)} style={{ justifySelf: 'start' }}>
+        Invitar a alguien
+      </button>
+    )
+  }
+
+  return (
+    <form onSubmit={enviar} className="tarjeta" style={{ display: 'grid', gap: 12 }}>
+      <div>
+        <label className="label" htmlFor="correo-inv">Correo</label>
+        <input
+          id="correo-inv"
+          className="campo"
+          type="email"
+          value={correo}
+          onChange={(e) => setCorreo(e.target.value)}
+          required
+          style={{ marginTop: 6 }}
+        />
+      </div>
+      <div>
+        <label className="label" htmlFor="rol-inv">Rol</label>
+        <select
+          id="rol-inv"
+          className="campo"
+          value={rol}
+          onChange={(e) => setRol(e.target.value)}
+          style={{ marginTop: 6 }}
+        >
+          {ROLES.filter((r) => r.v !== 'owner' || esDuenio).map((r) => (
+            <option key={r.v} value={r.v}>{r.n}</option>
+          ))}
+        </select>
+        <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+          {ROLES.find((r) => r.v === rol)?.que}
+        </span>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button className="btn" type="submit" disabled={ocupado}>
+          {ocupado ? 'Enviando' : 'Enviar invitación'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          style={{ border: 0, background: 'transparent', cursor: 'pointer', font: 'inherit', color: 'var(--k-text-2)' }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
