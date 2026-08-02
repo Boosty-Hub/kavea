@@ -32,6 +32,37 @@ verificado, no se escribe como hecho.
 
 ## 2. Entradas
 
+### 2026-08-02 · El middleware de Netlify no propaga cabeceras al servidor
+
+Se cumplió el riesgo que el plan de la fase 0 marcaba como verificación empírica pendiente, y
+conviene que quede escrito porque afecta a cualquier cosa que se construya encima.
+
+**Síntoma:** entrar en `boosty.kavea.ai` devolvía el 404 de la aplicación.
+
+**Diagnóstico.** El middleware inyectaba el slug con
+`NextResponse.next({ request: { headers } })`. Ese mecanismo es una función de Next.js que el
+Next Runtime de Netlify **emula**, y en la práctica no propaga: la cabecera nunca llega al
+componente de servidor.
+
+Lo que descartó las hipótesis fáciles fue una comparación: `admin.kavea.ai` devolvía **307
+hacia /entrar** mientras `boosty.kavea.ai` devolvía **404**. Ambas pasan por el mismo
+middleware. Si el middleware no corriera, la redirección de admin tampoco funcionaría. Luego el
+middleware corre y lo que falla es la propagación.
+
+**Salida.** Leer el `Host` directamente en el servidor, que es una cabecera real de la petición
+y la misma que usa el CDN para enrutar. La lógica vive en `app/lib/dominio.ts` y la comparten
+middleware y componentes.
+
+**Por qué no abre un agujero:** el slug solo decide qué organización se *intenta* abrir. Quién
+puede verla lo decide RLS contra `organization_members`. Un Host inventado resuelve a una
+organización inexistente o ajena, y en ambos casos la consulta devuelve cero filas. El
+middleware sigue borrando las cabeceras internas por si una futura ruta confiara en ellas.
+
+**Lección transferible:** las funciones de Next.js que un proveedor *emula* hay que verificarlas
+en producción, no darlas por buenas porque el build pase y el tipo exista.
+
+---
+
 ### 2026-08-02 · Claves legacy de Supabase deshabilitadas
 
 Las claves `anon` y `service_role` basadas en JWT quedaron deshabilitadas el 2 de agosto de
