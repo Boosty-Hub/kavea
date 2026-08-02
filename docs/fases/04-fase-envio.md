@@ -400,23 +400,38 @@ Se registra en §9 si `message_id == mid del echo`, y ese resultado decide si la
 mantienen. Cero mensajes duplicados en la bandeja tras la llegada del echo. Cero reactivaciones del
 agente por un echo propio.
 
-### T11 — Media saliente a R2
+### T11 — Media saliente ✅
+
+> **R2 ya no existe en esta arquitectura.** Cloudflare salió del proyecto entero y el almacén es el
+> bucket privado `salientes` de Supabase Storage, creado en 0033. Todo lo demás de esta tarea se
+> mantiene igual: lo que cambia es quién guarda el objeto, no la regla.
 
 - Solo media **saliente**. La entrante se queda en la URL del CDN de Meta, sin copia, sin caché y sin
   proxy por un dominio de Kavea. Es causa documentada de rechazo de App Review.
-- Validación previa a la llamada: imágenes png/jpeg ≤ 8 MB (hasta 10 por petición en Instagram desde el
-  6 de mayo de 2026), audio aac/m4a/wav/mp4 ≤ 25 MB, vídeo mp4/ogg/avi/mov/webm ≤ 25 MB, PDF ≤ 25 MB.
-  Lo que no cumple se rechaza en Kavea, con mensaje al usuario, antes de gastar cuota.
-- La URL de R2 que consume Meta lleva clave no adivinable, sin listado de bucket y con TTL suficiente
-  para la descarga y no más.
+- Validación previa a la llamada: imágenes png/jpeg ≤ 8 MB, el resto ≤ 25 MB. Se comprueba **al subir**
+  y se guarda en `archivos.enviable`, no al enviar: es la diferencia entre avisar cuando todavía se
+  puede cambiar el archivo y fallar delante del cliente cuatro días después. El RPC lo vuelve a mirar,
+  porque esconder el botón evita el error honesto y no el deliberado.
+- **La URL se firma en el despacho, nunca al encolar.** Diez minutos de vida que empiezan a contar en
+  el momento de la llamada: una firma hecha al encolar y consumida tras un bloqueo de quince minutos
+  por límites llegaría caducada. La cola guarda la RUTA dentro del bucket, y por eso no hay ninguna
+  URL escrita en una tabla que los miembros leen.
 - **No se depende de `attachment_id` ni de `is_reusable`**: no están confirmados para esta vía, así que
-  el diseño asume que cada envío vuelve a exponer el objeto.
-- El carril de media va a 10/s. En Messenger eso es 30 veces menos que el de texto.
+  cada envío vuelve a exponer el objeto.
+- El carril de media va a 10/s. En Messenger eso es 30 veces menos que el de texto, y por eso
+  `outbound_messages.carril` los separa desde 0034.
+- Instagram no acepta documentos: imagen, audio y vídeo, y nada más. Un PDF se rechaza en Kavea con un
+  mensaje que dice por dónde mandarlo. **Asunción a verificar**: la lista no está confirmada verbatim
+  en fuente oficial para esta vía. Bloquear de más cuesta un canal alternativo; dejar pasar de más
+  cuesta un fallo delante del cliente.
 
 **Aceptación.** Un jpeg de 9 MB se rechaza antes de salir a la red, con mensaje al usuario. Un envío
-real con imagen llega al destinatario por cada canal. Una URL de R2 caducada devuelve 403 y no permite
-enumerar otros objetos. Búsqueda en el repositorio: ninguna ruta escribe en R2 desde el procesamiento
-de webhooks de media entrante.
+real con imagen llega al destinatario por cada canal. Búsqueda en el repositorio: ninguna ruta escribe
+en el bucket desde el procesamiento de webhooks de media entrante.
+
+**Hecho.** Migración 0049, `encolar_archivo`, firma en `functions/despachar`, botón en la pestaña de
+archivos. Siete comprobaciones en la suite de aislamiento: 61 en total, 61 en verde. Queda pendiente
+el envío real con imagen por cada canal, que exige un contacto de verdad.
 
 ### T12 — Compositor de la bandeja
 

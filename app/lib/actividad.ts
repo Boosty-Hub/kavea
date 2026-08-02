@@ -138,10 +138,11 @@ export function describirActividad(x: EntradaActividad): string {
     // --- Envío ---
     // No hay `mensaje.fallido`: un envío que falla ya lo dice su propia burbuja
     // con `envio_estado`. Una línea de actividad sería decirlo dos veces.
-    case 'mensaje.encolado':
-      return d.fuera_de_ventana
-        ? 'respondió fuera de la ventana de 24 horas, como intervención humana'
-        : 'respondió'
+    case 'mensaje.encolado': {
+      const fuera = d.fuera_de_ventana
+        ? ' fuera de la ventana de 24 horas, como intervención humana' : ''
+      return d.archivo ? `envió el archivo ${d.archivo}${fuera}` : `respondió${fuera}`
+    }
 
     // --- El equipo. No cuelgan de ninguna conversación: salen en el registro
     //     de la organización, no en un hilo. ---

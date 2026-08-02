@@ -556,6 +556,70 @@ try {
 } catch { $rechazado = $true }
 Comprobar "no se reclama una tarjeta que ya tiene otra persona" $rechazado
 
+Write-Host "`n=== Enviar archivos por la conversacion ===" -ForegroundColor Cyan
+
+# Para que la ventana este abierta hace falta un entrante reciente y una
+# identidad del canal: sin las dos, encolar_archivo falla por el motivo
+# equivocado y la comprobacion no probaria nada.
+Sql @"
+update public.conversations set last_incoming_at = now()
+ where id = '00000000-0000-4000-8000-00000000aa05';
+
+insert into public.contact_identities (organization_id, contact_id, canal, scoped_id) values
+  ('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa02','instagram','igsid-a')
+on conflict do nothing;
+
+insert into public.archivos (id, organization_id, tarjeta_id, nombre, storage_path, content_type, bytes, enviable, motivo_no_enviable) values
+  ('00000000-0000-4000-8000-00000000aa09','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa08','foto-a.jpg','00000000-0000-4000-8000-00000000aa01/t/x/foto-a.jpg','image/jpeg',1024,true,null),
+  ('00000000-0000-4000-8000-00000000aa0a','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa08','presupuesto.pdf','00000000-0000-4000-8000-00000000aa01/t/x/presupuesto.pdf','application/pdf',2048,true,null),
+  ('00000000-0000-4000-8000-00000000aa0b','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa08','enorme.png','00000000-0000-4000-8000-00000000aa01/t/x/enorme.png','image/png',99999999,false,'Las imagenes que se envian por Meta no pueden pasar de 8 MB.'),
+  ('00000000-0000-4000-8000-00000000bb09','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb08','foto-b.jpg','00000000-0000-4000-8000-00000000bb01/t/x/foto-b.jpg','image/jpeg',1024,true,null)
+on conflict do nothing;
+"@ | Out-Null
+
+$h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+function Encolar($conversacion, $archivo) {
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/encolar_archivo" -Method Post -Headers $h `
+    -Body (@{ p_conversacion = $conversacion; p_archivo = $archivo } | ConvertTo-Json)
+}
+
+$envio = Encolar '00000000-0000-4000-8000-00000000aa05' '00000000-0000-4000-8000-00000000aa09'
+$fila = Sql "select carril, cuerpo::text as cuerpo from public.outbound_messages where id = '$envio'"
+Comprobar "una imagen propia se encola" ($fila.carril -eq 'media') "carril: $($fila.carril)"
+
+# La URL firmada se hace en el despacho. Si apareciera aqui, quedaria escrita en
+# una tabla que los miembros leen y sobreviviria a la fila.
+Comprobar "el cuerpo encolado no lleva ninguna URL" ($fila.cuerpo -notmatch 'https?://') "cuerpo: $($fila.cuerpo)"
+
+$rechazado = $false
+try { Encolar '00000000-0000-4000-8000-00000000aa05' '00000000-0000-4000-8000-00000000bb09' | Out-Null }
+catch { $rechazado = $true }
+Comprobar "A no envia un archivo de B por su conversacion" $rechazado
+
+$rechazado = $false
+try { Encolar '00000000-0000-4000-8000-00000000bb05' '00000000-0000-4000-8000-00000000aa09' | Out-Null }
+catch { $rechazado = $true }
+Comprobar "A no envia nada por la conversacion de B" $rechazado
+
+# `enviable` lo calcula la subida. Esconder el boton evita el error honesto, no
+# el deliberado: la comprobacion tiene que estar tambien en el RPC.
+$rechazado = $false
+try { Encolar '00000000-0000-4000-8000-00000000aa05' '00000000-0000-4000-8000-00000000aa0b' | Out-Null }
+catch { $rechazado = $true }
+Comprobar "un archivo marcado como no enviable se rechaza" $rechazado
+
+$rechazado = $false
+try { Encolar '00000000-0000-4000-8000-00000000aa05' '00000000-0000-4000-8000-00000000aa0a' | Out-Null }
+catch { $rechazado = $true }
+Comprobar "un PDF a Instagram se rechaza antes de gastar cuota" $rechazado
+
+# Fuera de los 7 dias no hay tag que valga, ni para un archivo.
+Sql "update public.conversations set last_incoming_at = now() - interval '8 days' where id = '00000000-0000-4000-8000-00000000aa05';" | Out-Null
+$rechazado = $false
+try { Encolar '00000000-0000-4000-8000-00000000aa05' '00000000-0000-4000-8000-00000000aa09' | Out-Null }
+catch { $rechazado = $true }
+Comprobar "con la ventana vencida no se encola un archivo" $rechazado
+
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"
 

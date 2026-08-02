@@ -30,11 +30,13 @@ const PESTANAS = [
  */
 export function Ficha({
   organizacionId, tarjetaId, contactoId, canales, otras, camposTarjeta, camposContacto,
-  etapas, etapaActual, valor, moneda, archivos, documentos, resumen,
+  etapas, etapaActual, valor, moneda, archivos, documentos, resumen, conversaciones,
 }: {
   organizacionId: string
   tarjetaId: string
   contactoId: string | null
+  /** Por dónde se puede mandar un archivo. Cada canal tiene SU ventana. */
+  conversaciones: Array<{ id: string; canal: string; ventana: { clase: string; motivo: string | null } }>
   canales: CanalDePersona[]
   otras: Array<{ id: string; titulo: string | null; estado: string; preview_texto: string | null }>
   camposTarjeta: CampoDeFicha[]
@@ -106,6 +108,7 @@ export function Ficha({
           tarjetaId={tarjetaId}
           contactoId={contactoId}
           archivos={archivos}
+          conversaciones={conversaciones}
         />
       ) : activa === 'compras' ? (
         <Compras

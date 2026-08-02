@@ -90,6 +90,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   // el despachador. Aquí solo se pinta.
   const ventanas = await Promise.all(vivas.map((c) => ventanaDe(c.id)))
 
+  // Lo consumen el compositor y la pestaña de archivos: los dos sitios desde los
+  // que sale algo hacia Meta, y los dos con la misma verdad sobre la ventana.
+  const canalesVivos = vivas.map((c, i) => ({ id: c.id, canal: c.canal, ventana: ventanas[i]! }))
+
   return (
     <div className="bandeja bandeja--hilo">
       <Refrescador organizationId={org.id} />
@@ -202,6 +206,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             archivos={archivos}
             documentos={documentos}
             resumen={resumen}
+            conversaciones={canalesVivos}
           />
         </div>
 
@@ -210,11 +215,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
         <Compositor
           tarjetaId={id}
           plantillas={plantillas}
-          conversaciones={vivas.map((c, i) => ({
-            id: c.id,
-            canal: c.canal,
-            ventana: ventanas[i]!,
-          }))}
+          conversaciones={canalesVivos}
         />
       </section>
     </div>
@@ -290,6 +291,7 @@ function Entrada({
   const borrado = Boolean(x.detalle.borrado)
   const texto = x.detalle.texto as string | null
   const visibles = borrado ? [] : adjuntos
+  const enCola = borrado ? null : (x.detalle.adjunto_nombre as string | null)
 
   return (
     <>
@@ -305,7 +307,17 @@ function Entrada({
             <>
               {texto ? <div style={{ marginBottom: visibles.length ? 8 : 0 }}>{texto}</div> : null}
               {visibles.length ? <Adjuntos lista={visibles} /> : null}
-              {!texto && !visibles.length ? (
+              {/* Un adjunto que todavía está en la cola: aún no existe la fila
+                  de `media` que lo describiría, así que se pinta con lo que la
+                  cola sabe de él. Sin esto la burbuja sale vacía entre que se
+                  pulsa Enviar y vuelve el echo, y el operador vuelve a pulsar. */}
+              {enCola ? (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span aria-hidden="true">📎</span>
+                  {enCola}
+                </span>
+              ) : null}
+              {!texto && !visibles.length && !enCola ? (
                 <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
               ) : null}
             </>

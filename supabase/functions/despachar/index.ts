@@ -27,10 +27,19 @@ type Envio = {
   conversation_id: string
   canal: 'instagram' | 'messenger' | 'whatsapp'
   particion: string
+  carril: 'texto' | 'media'
   emisor: string
   messaging_type: string | null
   tag: string | null
-  cuerpo: { texto: string; destinatario: string }
+  cuerpo: {
+    destinatario: string
+    /** Carril de texto. */
+    texto?: string
+    /** Carril de media. `tipo` lo derivó la base; aquí no se vuelve a calcular. */
+    tipo?: 'image' | 'audio' | 'video' | 'file'
+    ruta?: string
+    nombre?: string
+  }
   metadata: string | null
   intentos: number
 }
@@ -57,6 +66,42 @@ async function sql<T>(ruta: string, init?: RequestInit): Promise<T> {
   if (r.status === 204) return undefined as T
   const t = await r.text()
   return (t ? JSON.parse(t) : undefined) as T
+}
+
+/**
+ * La URL que va a leer Meta se firma AQUÍ, no al encolar.
+ *
+ * El bucket `salientes` es privado. Meta necesita poder descargar el objeto sin
+ * credenciales, así que se le da una URL firmada de vida corta, y la vida corta
+ * solo sirve si empieza a contar en el momento de la llamada: una firma hecha al
+ * encolar y consumida quince minutos después, tras un bloqueo por límites,
+ * llegaría caducada.
+ *
+ * Diez minutos. Meta descarga el objeto durante la propia llamada al Send API;
+ * el margen es para su reintento, no para que el enlace ande suelto.
+ */
+async function firmar(ruta: string, segundos = 600): Promise<string> {
+  const clave = claveServicio()
+  const base = Deno.env.get('SUPABASE_URL')
+  // Cada segmento por separado: encodeURIComponent sobre la ruta entera
+  // escaparía las barras y buscaría un objeto con nombre literal "a%2Fb".
+  const camino = ruta.split('/').map(encodeURIComponent).join('/')
+
+  const r = await fetch(`${base}/storage/v1/object/sign/salientes/${camino}`, {
+    method: 'POST',
+    headers: {
+      apikey: clave,
+      Authorization: `Bearer ${clave}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ expiresIn: segundos }),
+  })
+  if (!r.ok) {
+    throw new Error(`no se pudo firmar el adjunto: ${r.status} ${(await r.text()).slice(0, 200)}`)
+  }
+  const j = await r.json() as { signedURL?: string }
+  if (!j.signedURL) throw new Error('la firma no devolvió URL')
+  return `${base}/storage/v1${j.signedURL}`
 }
 
 /**
@@ -138,8 +183,13 @@ async function anotarUso(e: Envio, r: Response, http: number, codigo?: number) {
  * llamada y un fallo de selección de token falle en voz alta en vez de mandar
  * desde la Página equivocada.
  */
-function peticion(e: Envio, token: string): { url: string; init: RequestInit } {
-  const mensaje: Record<string, unknown> = { text: e.cuerpo.texto }
+function peticion(e: Envio, token: string, urlMedia?: string): { url: string; init: RequestInit } {
+  // `is_reusable: false` a propósito. El plan lo deja escrito: no se depende de
+  // `attachment_id` ni de la reutilización, que no están confirmados para esta
+  // vía, así que cada envío vuelve a exponer el objeto.
+  const mensaje: Record<string, unknown> = urlMedia
+    ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
+    : { text: e.cuerpo.texto }
 
   if (e.canal === 'instagram') {
     const form = new URLSearchParams()
@@ -242,7 +292,14 @@ Deno.serve(async (): Promise<Response> => {
         const listo: Envio = { ...e, messaging_type: v.messaging_type, tag: v.tag }
 
         const { token, conexion } = await tokenDe(e.conversation_id)
-        const { url, init } = peticion(listo, token)
+
+        // La firma antes de la llamada, y dentro del try de la fila: si Storage
+        // no responde, cae este envío y no el lote entero.
+        const urlMedia = e.carril === 'media' && e.cuerpo.ruta
+          ? await firmar(e.cuerpo.ruta)
+          : undefined
+
+        const { url, init } = peticion(listo, token, urlMedia)
 
         let r: Response
         try {

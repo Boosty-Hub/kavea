@@ -4,7 +4,9 @@ import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { Archivo } from '@/lib/comercial'
-import { pesoLegible } from '@/lib/ventana'
+import { pesoLegible, etiquetaCanal } from '@/lib/ventana'
+
+type Conversacion = { id: string; canal: string; ventana: { clase: string; motivo: string | null } }
 
 /**
  * Archivos de la conversación, de la persona y de la organización.
@@ -15,23 +17,58 @@ import { pesoLegible } from '@/lib/ventana'
  * cuerpo. Las políticas del bucket comprueban que el primer segmento de la ruta
  * sea una organización de la que este usuario es miembro.
  *
- * ENVIAR NO ES DE ESTA FASE. Aquí el archivo se guarda y se marca si Meta lo
- * aceptará; el botón de mandarlo llega con el compositor. Un botón que parece
- * que envía y no envía es peor que no tener botón.
+ * ENVIAR SALE DE AQUÍ, no del compositor, y es a propósito: el archivo se
+ * guarda una vez y se manda las veces que haga falta, a esta persona hoy y a la
+ * siguiente el mes que viene. Un adjunto que solo existiera dentro del
+ * compositor habría que volver a subirlo cada vez.
+ *
+ * El botón solo aparece si Meta va a aceptar el archivo Y hay un canal por el
+ * que se pueda escribir. Un botón que parece que envía y no envía es peor que
+ * no tener botón.
  */
 export function Archivos({
-  organizacionId, tarjetaId, contactoId, archivos,
+  organizacionId, tarjetaId, contactoId, archivos, conversaciones,
 }: {
   organizacionId: string
   tarjetaId: string
   contactoId: string | null
   archivos: Archivo[]
+  conversaciones: Conversacion[]
 }) {
   const router = useRouter()
   const entrada = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const [subiendo, setSubiendo] = useState(false)
+  const [enviando, setEnviando] = useState<string | null>(null)
   const [ambito, setAmbito] = useState<'tarjeta' | 'contacto' | 'organizacion'>('tarjeta')
+
+  // Solo por donde de verdad se puede escribir ahora mismo. La ventana la
+  // calculó `ventana_de()` en la base; aquí no se recalcula nada.
+  const abiertas = conversaciones.filter((c) => c.ventana.clase !== 'cerrada')
+  const [porDonde, setPorDonde] = useState(
+    abiertas.find((c) => c.ventana.clase === 'abierta')?.id ?? abiertas[0]?.id ?? '',
+  )
+
+  async function enviar(a: Archivo) {
+    const conv = abiertas.find((c) => c.id === porDonde)
+    if (!conv) return
+    if (conv.ventana.clase === 'humana' && !confirm(
+      `Va por ${etiquetaCanal(conv.canal)} fuera de la ventana de 24 horas, como intervención humana.\n\n`
+      + `Enviar "${a.nombre}".`,
+    )) return
+
+    setEnviando(a.id); setError(null)
+    const { error } = await crearClienteNavegador()
+      .rpc('encolar_archivo', { p_conversacion: conv.id, p_archivo: a.id })
+    setEnviando(null)
+    if (error) { setError(error.message); return }
+
+    router.refresh()
+    // Igual que el compositor: se despierta al despachador en vez de esperar al
+    // cron. Un minuto de espera para algo que se acaba de pulsar se siente roto.
+    fetch('/api/despachar', { method: 'POST' }).catch(() => {})
+    setTimeout(() => router.refresh(), 2500)
+  }
 
   async function subir(file: File) {
     setSubiendo(true); setError(null)
@@ -133,10 +170,29 @@ export function Archivos({
 
       <section className="ficha__bloque">
         <p className="ficha__titulo">Archivos ({archivos.length})</p>
+
+        {/* El canal se elige una vez para toda la lista, no archivo por archivo:
+            quien manda tres cosas seguidas las manda por el mismo sitio. */}
+        {archivos.length > 0 && abiertas.length > 1 ? (
+          <select
+            className="campo"
+            value={porDonde}
+            onChange={(e) => setPorDonde(e.target.value)}
+            aria-label="Por qué canal se envía"
+          >
+            {abiertas.map((c) => (
+              <option key={c.id} value={c.id}>
+                Enviar por {etiquetaCanal(c.canal)}
+                {c.ventana.clase === 'humana' ? ' · fuera de ventana' : ''}
+              </option>
+            ))}
+          </select>
+        ) : null}
+
         {archivos.length === 0 ? (
           <p className="ficha__vacia">
-            Todavía no hay ninguno. Lo que se suba aquí se podrá adjuntar a una respuesta
-            cuando llegue el compositor.
+            Todavía no hay ninguno. Lo que se suba aquí se puede mandar por la conversación
+            tantas veces como haga falta, sin volver a subirlo.
           </p>
         ) : (
           archivos.map((a) => (
@@ -167,6 +223,20 @@ export function Archivos({
                   </div>
                 ) : null}
               </div>
+              {a.enviable && abiertas.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => enviar(a)}
+                  disabled={enviando !== null}
+                  className="operar__control"
+                  style={{
+                    cursor: 'pointer', flex: 'none', fontSize: 12, padding: '3px 10px',
+                    borderColor: 'var(--k-accent)', color: 'var(--k-accent)',
+                  }}
+                >
+                  {enviando === a.id ? 'Enviando' : 'Enviar'}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => borrar(a)}
