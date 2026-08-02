@@ -16,9 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Sin `version`: la toma de `packageManager` en package.json. Declararla
+      # en los dos sitios hace que la acción falle por versiones en conflicto.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:

@@ -25,7 +25,6 @@ additional_redirect_urls = [
 ]
 jwt_expiry = 3600
 enable_signup = false          # sin registro self-service en v1
-enable_confirmations = true
 
 [auth.email]
 enable_signup = false
