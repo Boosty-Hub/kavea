@@ -352,6 +352,14 @@ function describir(x: EntradaHilo): string {
     case 'contacto.fusionado':
       return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
     case 'contacto.separado': return 'deshizo la unión de contactos'
+    case 'archivo.subido':
+      return `subió ${d.nombre ?? 'un archivo'}${d.enviable === false ? ', que no se podrá enviar por Meta' : ''}`
+    case 'archivo.borrado': return `borró el archivo ${d.nombre ?? ''}`.trim()
+    case 'documento.registrado':
+      return `registró un ${d.tipo ?? 'documento'}: ${d.concepto ?? ''} por ${d.total ?? ''} ${d.moneda ?? ''}`.trim()
+    case 'documento.estado':
+      return `pasó ${d.concepto ?? 'el documento'} de ${d.de} a ${d.a}`
+    case 'documento.borrado': return `borró el documento ${d.concepto ?? ''}`.trim()
     default: return x.tipo.replace(/[._]/g, ' ')
   }
 }

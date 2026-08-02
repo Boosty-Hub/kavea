@@ -444,6 +444,59 @@ try {
 } catch { $rechazado = $true }
 Comprobar "no se puede archivar la ultima etapa abierta" $rechazado
 
+Write-Host "`n=== Archivos y documentos ===" -ForegroundColor Cyan
+
+Sql @"
+insert into public.archivos (id, organization_id, contacto_id, nombre, storage_path, bytes)
+values ('00000000-0000-4000-8000-00000000bb09','00000000-0000-4000-8000-00000000bb01',
+        '00000000-0000-4000-8000-00000000bb02','secreto-de-b.pdf',
+        '00000000-0000-4000-8000-00000000bb01/c/x/secreto.pdf', 100)
+on conflict do nothing;
+
+insert into public.documentos (id, organization_id, contacto_id, tipo, concepto, total, estado, vence_en)
+values ('00000000-0000-4000-8000-00000000bb0a','00000000-0000-4000-8000-00000000bb01',
+        '00000000-0000-4000-8000-00000000bb02','factura','FACTURA SECRETA DE B', 999, 'enviado',
+        current_date - 10)
+on conflict do nothing;
+"@ | Out-Null
+
+$arch = ComoUsuario "a" "archivos?select=nombre"
+Comprobar "A no ve los archivos de B" (($arch | Where-Object { $_.nombre -like '*secreto*' }).Count -eq 0) "vio $($arch.Count)"
+
+$docs = ComoUsuario "a" "documentos?select=concepto"
+Comprobar "A no ve los documentos de B" (($docs | Where-Object { $_.concepto -like '*SECRETA*' }).Count -eq 0) "vio $($docs.Count)"
+
+$res = ComoUsuario "a" "resumen_comercial?select=vencido"
+Comprobar "A no ve el resumen comercial de B" ($res.Count -eq 0) "vio $($res.Count) filas"
+
+# Registrar una fila apuntando a la carpeta de otra organizacion seria darle un
+# nombre legitimo a un objeto ajeno.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/registrar_archivo" -Method Post -Headers $h -Body (@{
+    p_org = '00000000-0000-4000-8000-00000000aa01'
+    p_nombre = 'colado.pdf'
+    p_ruta = '00000000-0000-4000-8000-00000000bb01/c/x/colado.pdf'
+    p_bytes = 10
+  } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "no se registra un archivo en la carpeta de otra organizacion" $rechazado
+
+# El bucket es privado: sin sesion no se descarga nada.
+$anon = $false
+try {
+  $r = Invoke-WebRequest -Uri "$base/storage/v1/object/salientes/00000000-0000-4000-8000-00000000bb01/c/x/secreto.pdf" -SkipHttpErrorCheck
+  if ($r.StatusCode -ge 400) { $anon = $true }
+} catch { $anon = $true }
+Comprobar "el bucket no sirve objetos sin sesion" $anon
+
+# Un pagado sin fecha de pago es un dato a medias.
+$rechazado = $false
+try { Sql "insert into public.documentos (organization_id,contacto_id,tipo,concepto,total,estado) values ('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa02','factura','sin fecha',10,'pagado');" | Out-Null }
+catch { $rechazado = $true }
+Comprobar "un documento pagado exige fecha de pago" $rechazado
+
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"
 
