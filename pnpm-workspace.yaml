@@ -1,0 +1,12 @@
+packages:
+  - app
+  - scripts
+
+# `web/` queda deliberadamente FUERA del workspace.
+#
+# El sitio público está vivo y se construye con npm y su propio package-lock.json.
+# Meterlo en el workspace obligaría a migrarlo a pnpm y a que Netlify resolviera
+# dependencias desde la raíz, y el riesgo de romper kavea.ai no compensa: es un
+# sitio estático de cinco páginas sin dependencias compartidas con la aplicación.
+#
+# Se reevalúa si algún día comparte código con `app/`.

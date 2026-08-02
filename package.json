@@ -1,0 +1,21 @@
+{
+  "name": "kavea",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Centro de operaciones conversacionales multi-tenant",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "db:push": "tsx scripts/aplicar-migraciones.ts",
+    "db:verify": "tsx scripts/verificar-esquema.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

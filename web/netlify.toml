@@ -1,9 +1,19 @@
-# Netlify construye únicamente el sitio público, que vive en web/.
-# El resto del monorepo (app/, supabase/) se despliega en otra parte.
+# Configuración del sitio PÚBLICO (kavea.ai).
+#
+# Vive aquí y no en la raíz porque hay dos sitios de Netlify sobre este mismo
+# repositorio: un netlify.toml en la raíz aplicaría a los dos y el de la
+# aplicación heredaría esta configuración.
+#
+# La `base` de cada sitio se fija en el panel de Netlify; Netlify busca el
+# netlify.toml dentro de esa base.
+
 [build]
-  base = "web"
   command = "npm run build"
   publish = "dist"
+
+# Con dos sitios sobre un repositorio, cada commit dispara los dos builds.
+# `ignore` corta el que no toca. Se evalúa desde `base`, así que "." es web/.
+  ignore = "git diff --quiet HEAD^ HEAD -- ."
 
 [build.environment]
   NODE_VERSION = "22"
