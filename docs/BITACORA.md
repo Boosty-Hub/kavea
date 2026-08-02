@@ -479,6 +479,66 @@ Signup usa Facebook Login **for Business**, que se configura desde el panel.
 
 ---
 
+### 2026-08-02 · Verificación visual, adjuntos y una persona con varios canales
+
+Primera sesión en la que la interfaz se revisa **mirándola**, con Playwright iniciando sesión
+de verdad contra `boosty.kavea.ai` y capturando. Compilar no dice nada sobre si la pantalla
+se lee. Cuatro defectos aparecieron a la primera captura y ninguno habría salido de leer el
+código.
+
+**Adjuntos.** Antes solo se nombraban ("Imagen"), con la duda documentada de si el navegador
+podía cargar `lookaside.fbsbx.com`. Se resolvió midiendo contra la URL real:
+
+| Cabecera | Valor | Qué decide |
+|---|---|---|
+| Estado sin token | `200`, `image/jpeg`, 220 KB | No hace falta autenticación |
+| `Cross-Origin-Resource-Policy` | `cross-origin` | Se puede incrustar |
+| `Access-Control-Allow-Origin` | ausente | JS **no** puede leer los bytes |
+| `Cache-Control` | `no-store, no-cache, private` | Meta misma pide que no se guarde |
+
+El invariante "solo la URL, nunca el binario" queda intacto: quien pide la imagen es el
+navegador del operador, igual que cuando abre Instagram. La ausencia de CORS es la que
+descarta el botón de descarga con `fetch` + blob, y el atributo `download` lo ignoran los
+navegadores entre orígenes distintos. Se abre el original en pestaña nueva en vez de fingir
+una descarga. Un proxy con `Content-Disposition` exigiría que Kavea se bajara el binario, que
+es justo el riesgo que el `03` deja abierto pendiente de respuesta escrita de Meta.
+
+Las notas de voz se reproducen en el hilo. Cuando la URL caduque, el hueco se explica solo.
+
+**Una persona, varios canales.** Se unifica el contacto, no la conversación. Un hilo sigue
+siendo de un canal porque la ventana de 24 h, el token de envío y la propiedad del hilo lo
+son; una conversación mixta tendría dos relojes de ventana y el compositor no podría decidir
+si se puede responder. Entran `whatsapp` en el dominio, identidades manuales, fusión
+reversible y auditada, y los otros hilos de la misma persona a un clic. Todo pasa por RPC
+para que no exista ninguna ruta que escriba sin dejar actividad.
+
+**`linea_tiempo` no tenía `security_invoker`.** Su comentario afirmaba que sí y que en
+Supabase era el valor por defecto. Es falso: en Postgres las vistas son `security_definer`
+salvo que se diga lo contrario, y `reloptions` estaba en `null`. No hubo fuga porque las tres
+tablas base llevan `FORCE RLS` y las políticas resuelven por `auth.uid()`, que no depende del
+rol. Pero el aislamiento dependía de dos condiciones que no estaban escritas en ninguna parte.
+
+**Un falso positivo que llevaba semanas en verde.** La comprobación "el staff SIN grant no ve
+contenido" exigía cero mensajes en total, y el usuario de prueba es owner de su propia
+organización. Pasaba únicamente porque la suite nunca sembró un mensaje: afirmaba que el
+break-glass funcionaba sin haberlo ejercido jamás. Ahora pregunta por el contenido **ajeno**,
+y se añadió el lado positivo —con grant válido abre, al revocarlo cierra— que tampoco se
+probaba nunca.
+
+**Evidencia:**
+
+| Qué | Medición |
+|---|---|
+| Filtro activo en modo oscuro | `@media` dentro de una lista de selectores: CSS inválido, regla descartada, terracota claro sobre texto claro |
+| Lista en móvil | `matchesMax860: true` pero `displayHilo: flex` — la media query iba antes de la regla base y perdía por cascada |
+| Apertura del hilo | `scrollTop 0` de `scrollHeight 1325` → aterrizaba en el mensaje más viejo |
+| Anchos de burbuja | entrantes `560, 560, 560…` contra salientes `68, 155` — las entrantes heredaban `stretch` |
+| Tras arreglar | `alFinal: true`, anchos `122, 146, 84, 79, 190, 68, 155` |
+| Multicanal de extremo a extremo | WhatsApp añadido y quitado desde la interfaz, ambas cosas en el hilo |
+| Suite de aislamiento | 27 comprobaciones, 27 en verde, ahora cubre `linea_tiempo`, `actividades`, `media` y la fusión |
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -507,6 +567,20 @@ El App Review propiamente dicho **no se puede enviar todavía**: exige al menos 
 exitosa por permiso en los 30 días previos, un screencast por permiso y un tenant demo
 funcionando. Se envía al cerrar la fase 4.
 
+### Visto de paso, sin tocar
+
+**`private.avisar_bandeja` abre una subtransacción por cada mensaje insertado.** El bloque
+`exception when others` que protege la ingesta de un fallo de Realtime es, en PL/pgSQL, una
+subtransacción. El aplicador tiene el lote topado en 64 justamente por el caché de
+subtransacciones de Postgres, que también es 64 y que al desbordarse degrada el clúster
+entero, no solo la sesión. Con este trigger, un lote de 64 mensajes gasta 64 subtransacciones
+solo aquí, más las que consuman `aplicar_efecto` y `aplicar_adjuntos`. No se ha medido si el
+total pasa del umbral y no se ha tocado nada: queda anotado porque el día que se note será en
+forma de lentitud general del clúster, que es lo más difícil de atribuir a su causa.
+
+Medirlo con `pg_stat_slru` y, si hace falta, sustituir el `exception` por una escritura a una
+tabla de salidas fallidas o bajar el tope del lote.
+
 ### Decisiones sin fecha límite
 
 Retención de `webhook_events` · presupuesto de latencia p95 del normalizador · nivel de PITR
@@ -534,3 +608,14 @@ que Meta no publica.
   certificado se emite la primera vez y falla al renovar a los tres meses, que es el peor
   modo de fallo posible.
 - **Las credenciales pegadas en un chat quedan en el historial.** Rotar al cerrar la sesión.
+- **Una comprobación que no puede fallar no es una comprobación.** "El staff sin grant no ve
+  contenido" estuvo semanas en verde sin que existiera un solo mensaje que ver. El día que la
+  suite sembró datos reales, falló. Toda aserción negativa necesita que el caso positivo
+  exista, o solo mide el vacío.
+- **La interfaz se revisa mirándola.** Cuatro defectos —filtro ilegible en oscuro, lista a
+  media pantalla en móvil, hilo abierto por el mensaje más viejo, burbujas descuadradas— y
+  ninguno se ve leyendo el código ni lo detiene el compilador. Iniciar sesión y capturar
+  cuesta un minuto.
+- **Los valores por defecto de Postgres se comprueban, no se recuerdan.** Un comentario en una
+  migración afirmaba que las vistas son `security_invoker` por defecto en Supabase. No lo son.
+  El comentario sobrevivió a varias revisiones porque sonaba plausible.
