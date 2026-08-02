@@ -57,6 +57,87 @@ export function aplanar(cuerpo: unknown): Update[] {
 /** App ID de Kavea: distingue lo que enviamos nosotros de lo que envió el cliente por fuera. */
 const APP_ID = Deno.env.get('META_APP_ID') ?? ''
 
+/**
+ * Allowlist de hosts de media entrante.
+ *
+ * Todo fetch de una URL que venga de un webhook pasa por aquí. Es SSRF de
+ * manual: un `payload.url` es contenido que decide un tercero, y seguirlo sin
+ * comprobar convierte al normalizador en un proxy hacia la red interna.
+ * Chatwoot tuvo que cerrarlo con un SafeFetch.
+ *
+ * Kavea no descarga nada en fase 2 —solo persiste la URL—, pero el host se
+ * valida y se guarda igual: cuando la bandeja quiera mostrar la imagen, la
+ * comprobación ya está hecha y auditada.
+ */
+const HOSTS_PERMITIDOS = [
+  'lookaside.fbsbx.com',
+  'scontent.xx.fbcdn.net',
+]
+
+function hostPermitido(host: string): boolean {
+  const h = host.toLowerCase()
+  if (HOSTS_PERMITIDOS.includes(h)) return true
+  // Comodines: *.fbcdn.net y scontent-*.
+  return h.endsWith('.fbcdn.net') || h.startsWith('scontent')
+}
+
+type Adjunto = {
+  tipo: string
+  cdn_url: string | null
+  cdn_host: string | null
+  payload: unknown
+}
+
+/**
+ * Extrae los adjuntos de un mensaje.
+ *
+ * Tolerante por diseño: un tipo que Meta invente mañana va a 'fallback' con el
+ * payload crudo y se sigue. Nunca lanza. En Chatwoot, cada tipo nuevo —sticker
+ * en junio de 2026, post en junio de 2026— tumbaba el job completo y perdía
+ * TODOS los mensajes del lote, no solo el afectado.
+ *
+ * Se aceptan a la vez `share` e `ig_post`: se anunció que `share` desaparecería
+ * el 1 de febrero de 2026 en favor de `ig_post`, pero la referencia viva sigue
+ * listando `share`. Contradicción sin resolver, así que el parser admite ambos.
+ */
+export function extraerAdjuntos(msg: Record<string, any>): Adjunto[] {
+  const lista = Array.isArray(msg?.attachments) ? msg.attachments : []
+  const out: Adjunto[] = []
+
+  for (const a of lista) {
+    const tipoCrudo = typeof a?.type === 'string' ? a.type : 'fallback'
+    const url = typeof a?.payload?.url === 'string' ? a.payload.url : null
+
+    let host: string | null = null
+    let urlValida: string | null = null
+
+    if (url) {
+      try {
+        const u = new URL(url)
+        host = u.hostname
+        // Solo https, y solo hosts de Meta. Un http:// o un host ajeno se
+        // guarda como payload crudo sin url, para no dejar en la base una
+        // dirección que alguien pueda acabar siguiendo.
+        if (u.protocol === 'https:' && hostPermitido(u.hostname)) urlValida = url
+      } catch {
+        // URL no parseable: se conserva el payload y se descarta la dirección.
+      }
+    }
+
+    out.push({
+      // El valor de attachment.type se guarda TAL COMO LLEGA, sin validar
+      // contra una lista: un check cerrado convertiría un tipo nuevo en un
+      // insert fallido.
+      tipo: tipoCrudo,
+      cdn_url: urlValida,
+      cdn_host: host,
+      payload: a,
+    })
+  }
+
+  return out
+}
+
 export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
   const m = u.m
   const base = {
@@ -108,6 +189,7 @@ export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
       quick_reply_payload: msg.quick_reply?.payload ?? null,
       referral: m.referral ?? msg.referral ?? null,
       is_unsupported: Boolean(msg.is_unsupported),
+      adjuntos: extraerAdjuntos(msg),
       ...base,
     }]
   }
