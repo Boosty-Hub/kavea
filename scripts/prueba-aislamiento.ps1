@@ -82,6 +82,44 @@ insert into public.contacts (id, organization_id, nombre) values
   ('00000000-0000-4000-8000-00000000aa02','00000000-0000-4000-8000-00000000aa01','Contacto de A'),
   ('00000000-0000-4000-8000-00000000bb02','00000000-0000-4000-8000-00000000bb01','Contacto de B')
 on conflict do nothing;
+
+-- Conversación completa por organización: conexión, canal, hilo, mensaje,
+-- adjunto y actividad.
+--
+-- Sin esto la suite no tocaba `linea_tiempo`, que es precisamente la superficie
+-- donde vive TODO el contenido de los mensajes: si algún día se filtra algo,
+-- se filtra por ahí. La vista se creó además sin `security_invoker`, con lo que
+-- el acceso a las tablas base se comprobaba como su dueño; se corrigió en 0026
+-- y esta comprobación es lo que impide que vuelva a pasar sin que nadie se dé
+-- cuenta.
+insert into public.meta_connections (id, organization_id, page_id) values
+  ('00000000-0000-4000-8000-00000000aa03','00000000-0000-4000-8000-00000000aa01','pagina-a'),
+  ('00000000-0000-4000-8000-00000000bb03','00000000-0000-4000-8000-00000000bb01','pagina-b')
+on conflict do nothing;
+
+insert into public.channels (id, organization_id, meta_connection_id, canal, nombre) values
+  ('00000000-0000-4000-8000-00000000aa04','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa03','instagram','IG de A'),
+  ('00000000-0000-4000-8000-00000000bb04','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb03','instagram','IG de B')
+on conflict do nothing;
+
+insert into public.conversations (id, organization_id, channel_id, canal, contact_id) values
+  ('00000000-0000-4000-8000-00000000aa05','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa04','instagram','00000000-0000-4000-8000-00000000aa02'),
+  ('00000000-0000-4000-8000-00000000bb05','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb04','instagram','00000000-0000-4000-8000-00000000bb02')
+on conflict do nothing;
+
+insert into public.messages (id, organization_id, conversation_id, canal, mid, direccion, texto, meta_timestamp_ms, raw) values
+  ('00000000-0000-4000-8000-00000000aa06','00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa05','instagram','mid-a','inbound','SECRETO DE A',1000,'{}'),
+  ('00000000-0000-4000-8000-00000000bb06','00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb05','instagram','mid-b','inbound','SECRETO DE B',1000,'{}')
+on conflict do nothing;
+
+insert into public.media (organization_id, message_id, origen, cdn_url, cdn_host, tipo, payload) values
+  ('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa06','meta_cdn','https://lookaside.fbsbx.com/secreto-a','lookaside.fbsbx.com','image','{}'),
+  ('00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb06','meta_cdn','https://lookaside.fbsbx.com/secreto-b','lookaside.fbsbx.com','image','{}')
+on conflict do nothing;
+
+insert into public.actividades (organization_id, conversation_id, tipo, actor_tipo, actor_nombre, detalle) values
+  ('00000000-0000-4000-8000-00000000aa01','00000000-0000-4000-8000-00000000aa05','nota.añadida','usuario','Quien sea','{"texto":"NOTA DE A"}'),
+  ('00000000-0000-4000-8000-00000000bb01','00000000-0000-4000-8000-00000000bb05','nota.añadida','usuario','Quien sea','{"texto":"NOTA DE B"}');
 "@ | Out-Null
 
 # Sesiones reales
@@ -156,8 +194,32 @@ Comprobar "con fila en staff, es_staff() es cierto" ((ComoUsuario "a" "rpc/es_st
 $orgsStaff = ComoUsuario "a" "organizations?select=slug"
 Comprobar "el staff ve metadatos de todas las organizaciones" ($orgsStaff.Count -ge 2) "vio $($orgsStaff.Count)"
 
-$msgs = ComoUsuario "a" "messages?select=id"
-Comprobar "el staff SIN grant no ve contenido" ($msgs.Count -eq 0) "vio $($msgs.Count) mensajes"
+# Se pregunta por los mensajes DE B, no por todos.
+#
+# La versión anterior exigía que el staff viera CERO mensajes en total, y A es
+# owner de la organización A: sus propios mensajes los ve como miembro, no como
+# staff. La comprobación pasaba únicamente porque la suite no sembraba ningún
+# mensaje, así que durante semanas afirmó que el break-glass funcionaba sin
+# haberlo ejercido ni una vez. Una comprobación que no puede fallar no es una
+# comprobación.
+$ajena = "messages?select=id&organization_id=eq.00000000-0000-4000-8000-00000000bb01"
+$msgs = ComoUsuario "a" $ajena
+Comprobar "el staff SIN grant no ve el contenido ajeno" ($msgs.Count -eq 0) "vio $($msgs.Count) mensajes de B"
+
+# Y el lado positivo, que tampoco se probaba: con un grant válido SÍ se ve. Un
+# break-glass que no abre es tan inútil como uno que no cierra, y el que no abre
+# se descubre el día de la incidencia, que es el peor momento.
+Sql @"
+insert into public.access_grants (organization_id, user_id, motivo, expira_en)
+values ('00000000-0000-4000-8000-00000000bb01','$($usuarios['a'])',
+        'incidencia de soporte reproducible en el hilo del cliente', now() + interval '2 hours');
+"@ | Out-Null
+$conGrant = ComoUsuario "a" $ajena
+Comprobar "el staff CON grant si ve el contenido ajeno" ($conGrant.Count -eq 1) "vio $($conGrant.Count)"
+
+Sql "delete from public.access_grants where user_id = '$($usuarios['a'])';" | Out-Null
+$trasRevocar = ComoUsuario "a" $ajena
+Comprobar "al revocar el grant deja de verse" ($trasRevocar.Count -eq 0) "vio $($trasRevocar.Count)"
 
 # Un grant se rechaza si el motivo es corto o si dura mas de 72 horas.
 $rechazado = $false
@@ -169,6 +231,66 @@ $rechazado = $false
 try { Sql "insert into public.access_grants (organization_id,user_id,motivo,expira_en) values ('00000000-0000-4000-8000-00000000bb01','$($usuarios['a'])','motivo suficientemente largo para pasar', now() + interval '7 days');" | Out-Null }
 catch { $rechazado = $true }
 Comprobar "un grant de mas de 72 horas se rechaza" $rechazado
+
+Write-Host "`n=== El hilo: mensajes, adjuntos y actividad ===" -ForegroundColor Cyan
+
+# `linea_tiempo` es la vista que mezcla las tres cosas. Es la consulta que sirve
+# la pantalla del hilo y la que más contenido expone de golpe.
+$hiloA = ComoUsuario "a" "linea_tiempo?select=tipo,detalle"
+$textos = ($hiloA | ForEach-Object { $_.detalle | ConvertTo-Json -Compress }) -join ' '
+Comprobar "A ve su propia linea de tiempo" ($hiloA.Count -ge 2) "vio $($hiloA.Count) entradas"
+Comprobar "la linea de tiempo de A no contiene nada de B" (-not ($textos -match 'SECRETO DE B|NOTA DE B')) "fuga en el contenido"
+
+$msgsA = ComoUsuario "a" "messages?select=texto"
+Comprobar "A no ve los mensajes de B" (($msgsA.Count -eq 1) -and ($msgsA[0].texto -eq 'SECRETO DE A')) "vio: $($msgsA.texto -join ',')"
+
+$mediaA = ComoUsuario "a" "media?select=cdn_url"
+Comprobar "A no ve los adjuntos de B" (($mediaA.Count -eq 1) -and ($mediaA[0].cdn_url -notmatch 'secreto-b')) "vio $($mediaA.Count)"
+
+$actA = ComoUsuario "a" "actividades?select=detalle"
+Comprobar "A no ve la actividad de B" (($actA.Count -eq 1) -and (($actA[0].detalle | ConvertTo-Json) -notmatch 'NOTA DE B')) "vio $($actA.Count)"
+
+# La actividad es un registro de auditoría: si el auditado puede escribirla o
+# borrarla, no registra nada. Los grants de Supabase la dejan abierta a
+# `authenticated`; lo que la cierra es que RLS no tiene política de escritura.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  $cuerpo = @{ organization_id = '00000000-0000-4000-8000-00000000aa01'; tipo = 'inventada'; actor_tipo = 'usuario' } | ConvertTo-Json
+  Invoke-RestMethod -Uri "$base/rest/v1/actividades" -Method Post -Headers $h -Body $cuerpo | Out-Null
+} catch { $rechazado = $true }
+Comprobar "nadie puede fabricar actividad desde el cliente" $rechazado
+
+Write-Host "`n=== Una persona, varios canales ===" -ForegroundColor Cyan
+
+# La fusión mueve conversaciones entre contactos. Si aceptara contactos de dos
+# organizaciones, sería una forma de arrastrar los hilos de otro cliente a la
+# bandeja propia: es el peor fallo posible bajo RLS y por eso se comprueba.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  $cuerpo = @{
+    p_superviviente = '00000000-0000-4000-8000-00000000aa02'
+    p_absorbido     = '00000000-0000-4000-8000-00000000bb02'
+    p_motivo        = 'intento de fusion cruzada entre organizaciones'
+  } | ConvertTo-Json
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/fusionar_contactos" -Method Post -Headers $h -Body $cuerpo | Out-Null
+} catch { $rechazado = $true }
+Comprobar "no se pueden fusionar contactos de organizaciones distintas" $rechazado
+
+$sigue = ComoUsuario "a" "conversations?select=id"
+Comprobar "el intento de fusion no movio ningun hilo" ($sigue.Count -eq 1) "A ve $($sigue.Count) conversaciones"
+
+# `fusionado_en` la mueve el RPC, que deja registro. Un PATCH directo dejaría el
+# contacto marcado como fusionado sin haber movido nada.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json"; Prefer = "return=representation" }
+  $r = Invoke-RestMethod -Uri "$base/rest/v1/contacts?id=eq.00000000-0000-4000-8000-00000000aa02" -Method Patch -Headers $h `
+        -Body (@{ fusionado_en = '00000000-0000-4000-8000-00000000bb02' } | ConvertTo-Json)
+  if ($r.Count -eq 0) { $rechazado = $true }
+} catch { $rechazado = $true }
+Comprobar "fusionado_en no se puede tocar con un PATCH directo" $rechazado
 
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"

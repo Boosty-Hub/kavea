@@ -16,6 +16,7 @@ import { ESTADOS, etiquetaCanal, calcularVentana, COLOR_VENTANA, haceCuanto, typ
 import { Refrescador } from '../refrescador'
 import { Adjuntos } from './adjunto'
 import { Persona } from './persona'
+import { AlFinal } from './alfinal'
 
 export const dynamic = 'force-dynamic'
 
@@ -150,6 +151,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
           {entradas.map((x) => (
             <Entrada key={`${x.clase}-${x.ref}`} x={x} adjuntos={porMensaje.get(x.ref) ?? []} />
           ))}
+
+          {/* La marca cambia cuando cambia la última entrada, que es justo
+              cuando hay que volver a mirar si toca bajar. */}
+          <AlFinal marca={`${id}:${entradas.at(-1)?.ref ?? ''}`} />
         </div>
 
         <footer

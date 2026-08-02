@@ -294,7 +294,12 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   gap: 16px;
 }
 
-.burbuja { max-width: min(560px, 78%); }
+/* align-self en las DOS direcciones.
+   Sin el flex-start, las entrantes heredaban `stretch` del contenedor y se
+   estiraban hasta los 560 px del máximo mientras las salientes se ajustaban a
+   su contenido: medido, 560 px para un "Recibe?" y 68 px para un "Si". Con una
+   imagen de 156 px dentro de una caja de 560 el desajuste se ve a un metro. */
+.burbuja { max-width: min(560px, 78%); align-self: flex-start; }
 .burbuja--saliente { align-self: flex-end; }
 
 .burbuja__caja {
