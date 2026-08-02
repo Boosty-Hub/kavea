@@ -603,6 +603,64 @@ que la unión copió al contacto real.
 
 ---
 
+### 2026-08-02 · Fase 3c: embudos, y el eje que Kommo mezcla
+
+Otra vez alcance **perdido**, no nuevo. El `00-documento-base.md` §9 lista desde
+el primer día una «Fase 4 — Comercial: contactos unificados, pipelines, campos
+personalizados». El plan de ocho fases nunca la recogió. La 3b devolvió los
+contactos y los campos; la 3c devuelve los embudos.
+
+**La frase «no es un CRM» del `00` se aclaró, no se contradijo.** Descarta el
+posicionamiento, no la funcionalidad: el mismo documento dice que Kavea nace
+para reemplazar Kommo y que «se replica lo que se usa». Lo que sigue fuera:
+previsión, cuotas por vendedor, puntuación de oportunidades y vistas de tabla.
+
+**La decisión de diseño que separa a Kavea de Kommo:**
+
+| | `estado` | `etapa` |
+|---|---|---|
+| Responde | ¿Necesita a alguien **ahora**? | ¿Dónde está en el **proceso comercial**? |
+| Se ve en | Bandeja | Embudo |
+
+Una tarjeta puede estar **esperando** y a la vez en **Propuesta enviada**. Kommo
+los mezcla: mover de etapa cambia el estado, y cerrar la conversación saca la
+tarjeta del embudo. El resultado conocido es que o el embudo miente sobre el
+negocio o la bandeja miente sobre el trabajo pendiente. Aquí van en dos columnas
+y **ninguna acción sobre una toca la otra**, con una comprobación en la suite
+que lo vigila. Mover a «Ganada» no cierra la conversación: si el cliente sigue
+escribiendo, la conversación sigue viva.
+
+Varios embudos por organización —ventas y cobros son procesos distintos—, etapas
+con tipo `abierta`/`ganada`/`perdida`, valor y moneda de primera clase porque el
+tablero suma por columna, y `etapa_desde` para el «lleva 9 días aquí», que es la
+señal más útil de un embudo.
+
+**Evidencia:**
+
+| Qué | Medición |
+|---|---|
+| Tablero | Seis columnas, terminales con borde discontinuo, suma por cabecera |
+| Valor y movimiento | 2400 USD guardado, tarjeta movida a Interesado, columna sumando `2400 US$` |
+| Los dos ejes | Estado `En curso` **antes y después** de mover de etapa |
+| Actividad | «movió la tarjeta de Nuevo a Interesado», una sola línea |
+| Aislamiento | 42 comprobaciones, 42 en verde |
+
+**Un hueco de producto que destapó la suite.** La semilla de embudos de 0031
+recorrió las organizaciones existentes. Las que se crearan después —es decir,
+**todos los clientes del onboarding de la fase 7**— nacían sin embudo, y
+`tarjeta_de_contacto` les creaba las tarjetas **sin etapa, en silencio**: las
+conversaciones entraban, se veían en la bandeja, y no estaban en ninguna parte
+del tablero. Ahora hay trigger al crear la organización. Es la segunda vez en
+dos días que la suite de aislamiento encuentra algo antes que la interfaz.
+
+**Y un defecto de la propia suite.** Una corrida que aborta a mitad no llegaba a
+su limpieza y dejaba las organizaciones de prueba, el usuario dentro de `staff` y
+los campos creados. La siguiente fallaba en cosas que funcionaban: «A ve tres
+organizaciones», «es_staff() no es falso», «A ve los adjuntos de B». Ahora limpia
+al **empezar**, que es donde sí se ejecuta siempre.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -695,3 +753,14 @@ que Meta no publica.
 - **Añadir una columna `not null` rompe las semillas de las pruebas.** `conversations.tarjeta_id`
   tumbó la suite de aislamiento antes que la aplicación. Fue una buena señal: la suite es el
   primer sitio donde se nota un cambio de esquema.
+- **Una semilla en una migración solo cubre lo que ya existe.** El embudo de partida de 0031
+  alcanzó a las organizaciones del momento; las futuras nacían sin él y con las tarjetas sin
+  etapa, en silencio. Toda semilla de datos de partida necesita además su trigger de creación,
+  o es una bomba con fecha en el primer cliente nuevo.
+- **Una suite de pruebas limpia al empezar, no solo al terminar.** La limpieza final no se
+  ejecuta cuando la corrida aborta, y el estado que queda produce fallos inventados en la
+  siguiente. Perseguir un fallo de aislamiento que no existe cuesta más que la prueba entera.
+- **Un módulo con dependencias de servidor no puede exportar ayudantes de presentación.** Pasó
+  dos veces: `terminoSeguro` en `lib/bandeja.ts` y `colorEtapa` en `lib/embudo.ts`. Basta con
+  que un componente de cliente importe un valor —no un tipo— para arrastrar `next/headers` al
+  bundle del navegador y romper el build.
