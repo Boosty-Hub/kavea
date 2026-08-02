@@ -7,10 +7,15 @@ import {
   obtenerConversacion,
   obtenerHilo,
   adjuntosDe,
+  canalesDe,
+  otrasConversacionesDe,
   type EntradaHilo,
+  type Adjunto,
 } from '@/lib/bandeja'
-import { ESTADOS, CANALES, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado } from '@/lib/ventana'
+import { ESTADOS, etiquetaCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado } from '@/lib/ventana'
 import { Refrescador } from '../refrescador'
+import { Adjuntos } from './adjunto'
+import { Persona } from './persona'
 
 export const dynamic = 'force-dynamic'
 
@@ -27,14 +32,18 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   // 404 en vez de un 403 que confirmaría que existe.
   if (!conv) notFound()
 
-  const [entradas, adjuntos, lista, conteos] = await Promise.all([
+  const contactoId = conv.contacts?.id ?? null
+
+  const [entradas, adjuntos, lista, conteos, canales, otras] = await Promise.all([
     obtenerHilo(id),
     adjuntosDe(id),
     listarConversaciones({}),
     contarPorEstado(),
+    contactoId ? canalesDe(contactoId) : Promise.resolve([]),
+    contactoId ? otrasConversacionesDe(contactoId, id) : Promise.resolve([]),
   ])
 
-  const porMensaje = new Map<string, typeof adjuntos>()
+  const porMensaje = new Map<string, Adjunto[]>()
   for (const a of adjuntos) {
     const l = porMensaje.get(a.message_id) ?? []
     l.push(a)
@@ -95,10 +104,19 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
               ← Bandeja
             </Link>
             <h2 style={{ marginTop: 4 }}>{nombre}</h2>
-            <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '4px 0 0' }}>
-              {CANALES[conv.canal] ?? conv.canal}
-              {conv.contacts?.username ? ` · @${conv.contacts.username}` : ''}
-            </p>
+            {contactoId ? (
+              <Persona
+                contactoId={contactoId}
+                canales={canales}
+                otras={otras}
+                conversacionActual={id}
+                canalActual={conv.canal}
+              />
+            ) : (
+              <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '4px 0 0' }}>
+                {etiquetaCanal(conv.canal)}
+              </p>
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -150,13 +168,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   )
 }
 
-function Entrada({
-  x,
-  adjuntos,
-}: {
-  x: EntradaHilo
-  adjuntos: Array<{ tipo: string; cdn_url: string | null }>
-}) {
+function Entrada({ x, adjuntos }: { x: EntradaHilo; adjuntos: Adjunto[] }) {
   const hora = new Date(x.momento).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
 
   // Actividad del equipo y eventos de Meta no son burbujas: son contexto.
@@ -173,19 +185,23 @@ function Entrada({
   const borrado = Boolean(x.detalle.borrado)
   const texto = x.detalle.texto as string | null
 
+  // Un borrado se lleva sus adjuntos por delante: si el contacto hizo unsend de
+  // una foto, seguir mostrándola sería servir contenido que ya retiró.
+  const visibles = borrado ? [] : adjuntos
+
   return (
     <div className={`burbuja${saliente ? ' burbuja--saliente' : ''}`}>
       <div className="burbuja__caja">
         {borrado ? (
           <span className="burbuja__borrado">Mensaje eliminado</span>
-        ) : texto ? (
-          texto
-        ) : adjuntos.length ? (
-          <span style={{ color: 'var(--k-text-2)' }}>
-            {adjuntos.map((a) => etiquetaAdjunto(a.tipo)).join(', ')}
-          </span>
         ) : (
-          <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
+          <>
+            {texto ? <div style={{ marginBottom: visibles.length ? 8 : 0 }}>{texto}</div> : null}
+            {visibles.length ? <Adjuntos lista={visibles} /> : null}
+            {!texto && !visibles.length ? (
+              <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
+            ) : null}
+          </>
         )}
       </div>
       <div className="burbuja__meta">
@@ -194,29 +210,6 @@ function Entrada({
       </div>
     </div>
   )
-}
-
-/**
- * Los adjuntos se nombran, no se incrustan.
- *
- * De la media entrante solo se guarda la URL del CDN de Meta, y NO está
- * confirmado que el navegador pueda cargarla directamente: `lookaside.fbsbx.com`
- * es privacy-aware y puede exigir contexto. Proxearla desde el servidor
- * equivaldría a cachear, que es justo lo que Meta prohíbe y la causa documentada
- * de rechazos de App Review. Hasta comprobarlo empíricamente, se nombra el
- * adjunto sin intentar mostrarlo.
- */
-function etiquetaAdjunto(tipo: string): string {
-  switch (tipo) {
-    case 'image': return 'Imagen'
-    case 'video': return 'Vídeo'
-    case 'audio': return 'Nota de voz'
-    case 'file': return 'Archivo'
-    case 'share':
-    case 'ig_post': return 'Publicación compartida'
-    case 'story_mention': return 'Mención en historia'
-    default: return `Adjunto (${tipo})`
-  }
 }
 
 function describir(x: EntradaHilo): string {
@@ -232,6 +225,13 @@ function describir(x: EntradaHilo): string {
     case 'conversacion.cerrada': return 'cerró la conversación'
     case 'nota.añadida': return `añadió una nota: ${d.texto ?? ''}`
     case 'breakglass.abierto': return 'abrió un acceso temporal al contenido'
+    case 'identidad.vinculada':
+      return `vinculó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) a esta persona`
+    case 'identidad.desvinculada':
+      return `quitó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) de esta persona`
+    case 'contacto.fusionado':
+      return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
+    case 'contacto.separado': return 'deshizo la unión de contactos'
     default: return x.tipo.replace(/[._]/g, ' ')
   }
 }

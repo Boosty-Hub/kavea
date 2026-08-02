@@ -107,16 +107,81 @@ export const obtenerHilo = cache(async (conversacionId: string, limite = 100) =>
   return (data ?? []) as unknown as EntradaHilo[]
 })
 
+export type Adjunto = {
+  message_id: string
+  tipo: string
+  cdn_url: string | null
+  cdn_host: string | null
+  cdn_url_recibida_en: string | null
+}
+
+/**
+ * Los adjuntos del hilo, en una sola consulta.
+ *
+ * Va por el join compuesto (organization_id, message_id) porque es la única FK
+ * que hay: `media` no tiene conversation_id. Se nombra la constraint de forma
+ * explícita para que PostgREST no tenga que adivinar la relación y para que, si
+ * alguien la renombra, esto falle en voz alta en vez de devolver vacío.
+ */
 export const adjuntosDe = cache(async (conversacionId: string) => {
   const supabase = await crearClienteServidor()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('media')
-    .select('message_id, tipo, cdn_url, cdn_host')
-    .in(
-      'message_id',
-      (
-        await supabase.from('messages').select('id').eq('conversation_id', conversacionId)
-      ).data?.map((m: { id: string }) => m.id) ?? [],
+    .select(
+      'message_id, tipo, cdn_url, cdn_host, cdn_url_recibida_en, messages!media_mensaje_mismo_tenant!inner(conversation_id)',
     )
-  return (data ?? []) as Array<{ message_id: string; tipo: string; cdn_url: string | null; cdn_host: string | null }>
+    .eq('messages.conversation_id', conversacionId)
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as Adjunto[]
 })
+
+export type CanalDePersona = {
+  identidad_id: string
+  canal: 'instagram' | 'messenger' | 'whatsapp'
+  scoped_id: string
+  origen: 'meta' | 'manual'
+  etiqueta: string
+  conversacion_abierta: string | null
+}
+
+/** Los canales por los que se puede hablar con esta persona. */
+export const canalesDe = cache(async (contactoId: string) => {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .from('persona_canales')
+    .select('identidad_id, canal, scoped_id, origen, etiqueta, conversacion_abierta')
+    .eq('contact_id', contactoId)
+    .order('canal')
+  if (error) throw new Error(error.message)
+  return (data ?? []) as unknown as CanalDePersona[]
+})
+
+/**
+ * Los otros hilos de la misma persona.
+ *
+ * Una persona unificada puede tener un hilo por canal. Desde uno se ve el
+ * resto: si alguien te escribe por Instagram lo que ya te contó por Messenger
+ * hace una hora, el operador tiene que poder llegar ahí en un clic y no
+ * responder como si no supiera nada.
+ */
+export const otrasConversacionesDe = cache(
+  async (contactoId: string, exceptoId: string) => {
+    const supabase = await crearClienteServidor()
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('id, canal, estado, preview_texto, last_message_at')
+      .eq('contact_id', contactoId)
+      .neq('id', exceptoId)
+      .order('last_message_at', { ascending: false, nullsFirst: false })
+      .limit(10)
+    if (error) throw new Error(error.message)
+    return (data ?? []) as Array<{
+      id: string
+      canal: string
+      estado: string
+      preview_texto: string | null
+      last_message_at: string | null
+    }>
+  },
+)
+

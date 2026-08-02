@@ -88,6 +88,36 @@ export const CANALES = {
   whatsapp: 'WhatsApp',
 } as const
 
+/**
+ * Nombre del canal para pintar.
+ *
+ * Acepta `string` a propósito: el canal llega de la base de datos, donde el
+ * dominio puede crecer antes que este archivo. Un canal que no conocemos se
+ * muestra tal cual, que es feo pero cierto; indexar el objeto directamente lo
+ * pintaría como `undefined`.
+ */
+export function etiquetaCanal(canal: string): string {
+  return (CANALES as Record<string, string>)[canal] ?? canal
+}
+
+/**
+ * Sanea un término antes de meterlo en un filtro `or=(...)` de PostgREST.
+ *
+ * En esa sintaxis la coma separa condiciones y el paréntesis las agrupa, así
+ * que un término con `,` o `)` no busca: reescribe el filtro. RLS seguiría
+ * conteniendo el daño dentro de la organización, pero "el daño está acotado" no
+ * es razón para dejar una inyección abierta. Se quedan solo caracteres que no
+ * significan nada para el analizador.
+ *
+ * Vive aquí y no en `lib/bandeja.ts` porque lo llama un componente de cliente, y
+ * ese módulo importa el cliente de servidor de Supabase: importar de él un valor
+ * —aunque sea esta función suelta— arrastra `next/headers` al bundle del
+ * navegador y rompe el build.
+ */
+export function terminoSeguro(termino: string): string {
+  return termino.replace(/[,().:*"\\%_]/g, ' ').trim().slice(0, 60)
+}
+
 /** Fecha relativa corta para la lista. */
 export function haceCuanto(iso: string | null): string {
   if (!iso) return ''

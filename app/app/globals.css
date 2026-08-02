@@ -39,6 +39,7 @@
   --k-text: var(--k-tinta);
   --k-text-2: var(--k-piedra);
   --k-accent: var(--k-terra-500);
+  --k-filtro-activo: var(--k-terra-100);
 
   --r-control: 6px;
   --r-card: 12px;
@@ -55,6 +56,7 @@
     --k-text: #edeae3;
     --k-text-2: #a8a39a;
     --k-accent: var(--k-terra-400);
+    --k-filtro-activo: #3a2a22;
 
     --k-curso: #5b9bd5;      --k-curso-fg: #8fbee8;      --k-curso-bg: #16283a;
     --k-esperando: #d9a93f;  --k-esperando-fg: #e8c776;  --k-esperando-bg: #33280f;
@@ -163,15 +165,8 @@ a:focus-visible, button:focus-visible, input:focus-visible {
 .bandeja {
   display: grid;
   grid-template-columns: minmax(300px, 380px) 1fr;
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
-}
-
-@media (max-width: 860px) {
-  .bandeja { grid-template-columns: 1fr; }
-  .bandeja__hilo { display: none; }
-  .bandeja--hilo .bandeja__lista { display: none; }
-  .bandeja--hilo .bandeja__hilo { display: flex; }
 }
 
 .bandeja__lista {
@@ -208,14 +203,16 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   gap: 6px;
 }
 
+/* El fondo del filtro activo es un token, no un literal.
+   Antes había aquí un `@media` metido dentro de una lista de selectores, que es
+   CSS inválido: el navegador descartaba la regla entera y en modo oscuro el
+   filtro activo quedaba terracota claro con texto claro encima, ilegible. Un
+   token que cambia con el esquema no puede romperse así. */
 .filtro[aria-current='true'] {
   border-color: var(--k-accent);
   color: var(--k-text);
-  background: var(--k-terra-100);
+  background: var(--k-filtro-activo);
 }
-
-:root[data-theme='dark'] .filtro[aria-current='true'],
-@media (prefers-color-scheme: dark) { .filtro[aria-current='true'] { background: var(--k-surface-2); } }
 
 .filtro__n { font-size: 11px; color: var(--k-text-2); }
 
@@ -334,3 +331,87 @@ a:focus-visible, button:focus-visible, input:focus-visible {
   color: var(--k-text-2);
 }
 .vacio h2 { margin-bottom: 8px; color: var(--k-text); }
+
+/* ---------- Adjuntos ----------
+   Se incrustan apuntando directo al CDN de Meta: es el NAVEGADOR del operador
+   quien los pide, igual que hace el cliente web de Instagram. Kavea no los
+   descarga ni los guarda, así que el invariante de "solo se persiste la URL,
+   nunca el binario" se mantiene intacto. Meta responde con
+   Cross-Origin-Resource-Policy: cross-origin, que es justo lo que permite
+   incrustarlos, y con Cache-Control: no-store, que confirma que no hay que
+   guardarlos. */
+
+.adjuntos { display: flex; flex-direction: column; gap: 8px; }
+
+.adjunto__media {
+  display: block;
+  max-width: 100%;
+  max-height: 340px;
+  width: auto;
+  border-radius: var(--r-control);
+  background: var(--k-surface-2);
+}
+
+a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-control); }
+
+.adjunto__audio { width: 100%; min-width: 260px; height: 40px; }
+
+.adjunto__ficha {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--k-surface);
+}
+.adjunto__ficha:hover { background: var(--k-surface-2); }
+.adjunto__icono { font-size: 18px; line-height: 1; flex: none; }
+.adjunto__nombre { font-size: 14px; }
+.adjunto__accion { margin-left: auto; font-size: 12px; color: var(--k-text-2); flex: none; }
+
+/* La URL de Meta caduca y no está documentado cuándo. Cuando eso pase el
+   adjunto tiene que explicarse solo, no aparecer como un hueco roto. */
+.adjunto__caido {
+  border: 1px dashed var(--k-border);
+  border-radius: var(--r-control);
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--k-text-2);
+}
+
+/* ---------- La persona y sus canales ---------- */
+
+.canales { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+
+.canal-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--k-border);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: var(--k-text-2);
+  text-decoration: none;
+}
+.canal-chip[aria-current='true'] { border-color: var(--k-accent); color: var(--k-text); }
+.canal-chip:hover { background: var(--k-surface-2); }
+
+/* ---------- Responsive ----------
+   Va AL FINAL a propósito. Estaba antes de `.bandeja__hilo { display: flex }`
+   y perdía por orden de cascada con la misma especificidad: la media query
+   coincidía (medido: matchesMax860 true) y aun así el panel se pintaba, así que
+   en el móvil la lista se quedaba en media pantalla. Las reglas que dependen
+   del tamaño se declaran después de las que modifican. */
+
+@media (max-width: 860px) {
+  .bandeja { grid-template-columns: 1fr; }
+  .bandeja__hilo { display: none; }
+  .bandeja--hilo .bandeja__lista { display: none; }
+  .bandeja--hilo .bandeja__hilo { display: flex; }
+  .hilo__cuerpo { padding: 16px; }
+  .burbuja { max-width: 88%; }
+}
