@@ -28,6 +28,7 @@ import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
 import { Compositor } from './compositor'
 import { Operar } from './operar'
+import { describirActividad } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
 
@@ -275,7 +276,7 @@ function Entrada({
         {separador}
         <p className="traza">
           {x.actor_nombre ? <span className="traza__actor">{x.actor_nombre}</span> : null}{' '}
-          {describir(x)} · {hora}
+          {describirActividad(x)} · {hora}
         </p>
       </>
     )
@@ -345,75 +346,3 @@ function EstadoEnvio({ x }: { x: EntradaHilo }) {
   )
 }
 
-function describir(x: EntradaHilo): string {
-  // El detalle es jsonb: trae cadenas, números y booleanos. Tiparlo como
-  // Record<string,string> mentía, y la mentira solo se notó al comparar
-  // `d.enviable === false` y ver que TypeScript decía que nunca coincidirían.
-  const d = x.detalle as Record<string, string | number | boolean | null | undefined>
-  switch (x.tipo) {
-    case 'evento.read': return 'leyó la conversación'
-    case 'evento.reaction': return `reaccionó ${d.emoji ?? ''}`.trim()
-    case 'evento.delivery': return 'recibió el mensaje'
-    case 'evento.postback': return 'pulsó un botón'
-    case 'conversacion.asignada':
-    case 'tarjeta.asignada': return `asignó la conversación a ${d.a_nombre ?? 'alguien'}`
-    case 'conversacion.desasignada':
-    case 'tarjeta.desasignada': return 'quitó la asignación'
-    case 'conversacion.estado':
-    case 'tarjeta.estado': return `cambió el estado de ${d.de} a ${d.a}`
-    case 'conversacion.cerrada':
-    case 'tarjeta.cerrada': return 'cerró la conversación'
-    case 'tarjeta.titulo': return `cambió el título a "${d.a ?? ''}"`
-    case 'nota.añadida': return `añadió una nota: ${d.texto ?? ''}`
-    case 'breakglass.abierto': return 'abrió un acceso temporal al contenido'
-    case 'identidad.vinculada':
-      return `vinculó ${etiquetaCanal(String(d.canal ?? ''))} (${d.etiqueta ?? ''}) a esta persona`
-    case 'identidad.desvinculada':
-      return `quitó ${etiquetaCanal(String(d.canal ?? ''))} (${d.etiqueta ?? ''}) de esta persona`
-    case 'tarjetas.unidas':
-      return `unió otra tarjeta con esta · ${d.motivo ?? ''}`
-    case 'tarjetas.separadas': return 'deshizo la unión de tarjetas'
-    case 'tarjeta.etapa': {
-      const parado = d.dias_en_etapa_anterior != null && Number(d.dias_en_etapa_anterior) >= 1
-        ? ` · ${d.dias_en_etapa_anterior} días en la anterior` : ''
-      return d.de
-        ? `movió la tarjeta de ${d.de} a ${d.a}${parado}`
-        : `puso la tarjeta en ${d.a}`
-    }
-    case 'tarjeta.embudo': return `cambió el embudo de ${d.de ?? 'ninguno'} a ${d.a}`
-    case 'tarjeta.valor': {
-      const a = d.a != null ? `${d.a} ${d.moneda ?? ''}`.trim() : 'sin valor'
-      return d.de != null
-        ? `cambió el valor de ${d.de} a ${a}`
-        : `puso el valor en ${a}`
-    }
-    case 'campo.valor':
-      return `cambió ${d.etiqueta ?? 'un campo'}${d.de != null ? ` de "${textoValor(d.de)}"` : ''} a "${textoValor(d.a)}"`
-    case 'contacto.fusionado':
-      return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
-    case 'contacto.separado': return 'deshizo la unión de contactos'
-    case 'archivo.subido':
-      return `subió ${d.nombre ?? 'un archivo'}${d.enviable === false ? ', que no se podrá enviar por Meta' : ''}`
-    case 'archivo.borrado': return `borró el archivo ${d.nombre ?? ''}`.trim()
-    case 'documento.registrado':
-      return `registró un ${d.tipo ?? 'documento'}: ${d.concepto ?? ''} por ${d.total ?? ''} ${d.moneda ?? ''}`.trim()
-    case 'documento.estado':
-      return `pasó ${d.concepto ?? 'el documento'} de ${d.de} a ${d.a}`
-    case 'documento.borrado': return `borró el documento ${d.concepto ?? ''}`.trim()
-    case 'mensaje.encolado':
-      return d.fuera_de_ventana
-        ? 'respondió fuera de la ventana de 24 horas, como intervención humana'
-        : 'respondió'
-    // No hay `mensaje.fallido`: un envío que falla ya lo dice su propia burbuja
-    // con `envio_estado`. Una línea de actividad además sería decir lo mismo dos
-    // veces en el mismo sitio.
-    default: return x.tipo.replace(/[._]/g, ' ')
-  }
-}
-
-function textoValor(v: unknown): string {
-  if (v === null || v === undefined) return 'vacío'
-  if (typeof v === 'boolean') return v ? 'sí' : 'no'
-  if (Array.isArray(v)) return v.join(', ')
-  return String(v)
-}

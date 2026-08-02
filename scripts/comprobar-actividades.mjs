@@ -6,7 +6,7 @@
  * Cuatro veces seguidas pasó lo mismo: se añade un RPC que registra una
  * actividad nueva, se despliega, y el hilo escupe el identificador técnico
  * —«tarjeta valor», «archivo subido», «mensaje encolado»— porque nadie se
- * acordó de añadir el caso en `describir()`. El fallo no rompe nada, no lo
+ * acordó de añadir el caso en `describirActividad()`. El fallo no rompe nada, no lo
  * detiene el compilador y solo se ve mirando la pantalla, que es la peor
  * combinación posible: sobrevive a los despliegues.
  *
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url'
 // `pathname` lo deja como %20, con lo que ninguna lectura encuentra nada.
 const raiz = dirname(dirname(fileURLToPath(import.meta.url)))
 const dirMigraciones = join(raiz, 'supabase', 'migrations')
-const vista = join(raiz, 'app', 'app', 'bandeja', '[id]', 'page.tsx')
+const vista = join(raiz, 'app', 'lib', 'actividad.ts')
 
 // Los tipos salen del segundo argumento de registrar_actividad y del tercero de
 // registrar_actividad_tarjeta, siempre literales entre comillas simples.
@@ -75,7 +75,7 @@ if (faltan.length) {
   console.error('\nTipos de actividad que la base escribe y la interfaz no sabe traducir:\n')
   for (const t of faltan) console.error(`  · ${t}`)
   console.error(`\nAñade su \`case\` en describir(), dentro de`)
-  console.error(`  app/app/bandeja/[id]/page.tsx`)
+  console.error(`  app/lib/actividad.ts`)
   console.error(`o, si de verdad no debe salir en el hilo, apúntalo en FUERA_DEL_HILO`)
   console.error(`de este mismo archivo con el motivo.\n`)
   process.exit(1)
