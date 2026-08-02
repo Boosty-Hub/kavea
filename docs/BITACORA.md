@@ -539,6 +539,70 @@ probaba nunca.
 
 ---
 
+### 2026-08-02 · Fase 3b: la tarjeta es la unidad de trabajo
+
+Un hueco del plan, no un aplazamiento. Las ocho fases tratan `conversations`
+como la unidad; la 3 excluye «pipeline comercial y unificación de contactos
+entre canales» y ninguna posterior lo recoge. Se añade
+`docs/fases/03b-fase-tarjetas.md` **entre la 3 y la 4**, porque la 4 construye el
+compositor y si la unidad es la tarjeta el compositor tiene que preguntar por
+qué canal se responde y mirar la ventana de ese canal.
+
+**La decisión.** La tarjeta es el asunto; la conversación, el transporte.
+
+| Sube a la tarjeta | Se queda en la conversación |
+|---|---|
+| Estado del trabajo, responsable, título | Canal, ventana de 24 h, token, propiedad del hilo, espacio de `mid` |
+| Campos propios del negocio | `cerrada_en`, que es su ciclo de vida propio |
+
+Fundirlo todo obligaría a llevar dos relojes de ventana en la misma fila y el
+compositor no podría decidir si se puede responder.
+
+**Unión automática y determinista:** una conversación nueva de un contacto que
+ya tiene tarjeta viva entra en esa tarjeta. Mismo `contact_id`, sin interpretar
+parecidos. **Manual:** `unir_tarjetas`, que si además son dos personas distintas
+unifica también el contacto. Una sola palabra para quien atiende aunque por
+debajo toque tres tablas.
+
+**Campos propios** con definiciones por organización, valor `jsonb` validado por
+tipo en la frontera y pantalla en `/ajustes/campos`. Se archivan, no se borran:
+borrar la definición se llevaría por delante el histórico de valores, que es
+justo el dato que alguien quiso guardar.
+
+**Varios canales sin convertir el hilo en un semáforo:** filete de 2 px en el
+borde de la burbuja, separador solo cuando cambia el canal, y el canal también
+en texto en el pie. Un hilo de un solo canal se ve exactamente igual que antes.
+
+**Evidencia:**
+
+| Qué | Medición |
+|---|---|
+| Relleno de tarjetas | Cero conversaciones sin tarjeta; estado y contador arrastrados |
+| Unión desde la interfaz | Dos tarjetas → una. Cabecera con `Instagram 21 h` y `Messenger 23 h`, cada una con su ventana |
+| Distinción de canal | Dos colores de filete distintos medidos: `rgb(168,68,122)` y `rgb(47,111,181)` |
+| Campos | Tres definidos, rellenados y registrados con su valor en el hilo |
+| Aislamiento | 34 comprobaciones, 34 en verde |
+
+**Tres defectos que solo se vieron mirando la pantalla:**
+
+1. El buscador de tarjetas devolvía **cero** con la tarjeta buscada delante.
+   PostgREST no resuelve columnas de un recurso embebido dentro de `or=(...)`:
+   `contacts.nombre.ilike` no filtra, devuelve vacío y **no da error**, que es la
+   peor combinación posible. Se busca en dos pasos.
+2. El separador de canal saltaba también con la actividad, que cuelga de una
+   conversación y por tanto trae canal. Salía un separador «Instagram» seguido
+   de ninguna burbuja de Instagram. Ahora solo lo disparan los mensajes.
+3. «Unió otra tarjeta con esta» salía **dos veces**. Los RPC escribían la
+   actividad recorriendo todas las conversaciones de la tarjeta. Con un canal
+   daba una fila y parecía correcto; con dos, dos. El bucle era el síntoma: hay
+   actividad que es del asunto y no de ninguna conversación. `actividades` lleva
+   ahora `tarjeta_id`, con un `CHECK` de que las dos referencias son excluyentes.
+
+Los datos sintéticos de la demostración se borraron, incluido revertir el nombre
+que la unión copió al contacto real.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -619,3 +683,15 @@ que Meta no publica.
 - **Los valores por defecto de Postgres se comprueban, no se recuerdan.** Un comentario en una
   migración afirmaba que las vistas son `security_invoker` por defecto en Supabase. No lo son.
   El comentario sobrevivió a varias revisiones porque sonaba plausible.
+- **Un filtro que no filtra y no falla es peor que uno que falla.** PostgREST acepta
+  `contacts.nombre.ilike` dentro de `or=(...)`, no lo aplica y devuelve cero filas sin error.
+  El buscador parecía funcionar y decía «no hay nada» con el resultado delante.
+- **Lo que se repite por conversación deja de ser correcto en cuanto hay dos.** La actividad
+  del asunto se escribía en bucle sobre todas las conversaciones de la tarjeta. Con un canal
+  daba una fila y nadie lo notó; con dos, duplicados. Un bucle sobre hijos para registrar un
+  hecho del padre es casi siempre un modelo mal puesto.
+- **Un `create or replace view` no puede insertar columnas en medio.** Solo añade al final.
+  Recrear la vista dentro de la misma transacción no deja hueco visible.
+- **Añadir una columna `not null` rompe las semillas de las pruebas.** `conversations.tarjeta_id`
+  tumbó la suite de aislamiento antes que la aplicación. Fue una buena señal: la suite es el
+  primer sitio donde se nota un cambio de esquema.
