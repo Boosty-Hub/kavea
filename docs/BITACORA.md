@@ -845,6 +845,73 @@ se buscó.
 
 ---
 
+### 2026-08-02 · Módulos de equipo, plantillas y agenda
+
+Tres de los seis módulos que pidió Gabriel. Quedan actividad global y contactos.
+
+**Equipo.** Invitaciones por correo con Resend, roles y una matriz de permisos.
+Del token solo se guarda el `sha256`: un volcado de la base no da acceso a
+ninguna organización. El token en claro sale una vez, del RPC al servidor y de
+ahí al correo; **nunca pasa por el navegador**, donde quedaría en la pestaña de
+red y en cualquier extensión instalada.
+
+De paso salió un defecto: `es_owner()` comprueba `rol = 'owner'` literalmente, y
+se había usado en 0028 y 0031 pensando «quien administra». Un **admin no podía
+definir ni un campo**. Ahora la matriz vive en `puede(org, accion)`, un solo
+sitio, y la interfaz llama a la misma función para decidir qué enseña: no puede
+haber un botón que se pueda pulsar y falle.
+
+**Plantillas.** Internas con variables con nombre; de WhatsApp con huecos
+numerados, porque así funciona su API. Las variables sin resolver **se avisan,
+no se maquillan**: un «Hola , ¿cómo estás?» que sale al cliente es peor que no
+mandar nada, y el hueco vacío no se ve al releer.
+
+Y el importe pierde el separador de millares. `to_char` con `lc_numeric` daba
+`2,400.00`, que en España y Venezuela se lee *dos con cuarenta* y en México *dos
+mil cuatrocientos*. **No hay formato correcto para los tres mercados**, así que
+`2400`: se lee un poco peor y significa lo mismo en todas partes.
+
+**Agenda.** Tareas con recordatorio, calendario mensual y centro de
+notificaciones. Tres reglas comprobadas en vivo:
+
+| Regla | Prueba |
+|---|---|
+| No se repite un recordatorio | Primera pasada del cron: 1 aviso. Segunda: 0 |
+| Se agrupan | Tres mensajes seguidos → **una** notificación con el cuerpo del último |
+| Nadie se notifica a sí mismo | El disparador compara con `auth.uid()` |
+
+La segunda es la que salva el centro: sin ella, media hora sin mirar deja
+cuarenta líneas de la misma conversación y la reacción de cualquiera es vaciarlo
+a ciegas. Una bandeja que se vacía sin leerse no notifica nada.
+
+**Y un aviso críptico de React que escondía un fallo de negocio.** Un error #418
+de hidratación en el calendario. La causa: se colocaba cada tarea por su fecha
+en **UTC**, así que una a las 22:00 de Caracas —02:00 UTC del día siguiente—
+aparecía **un día tarde**. A Kavea le faltaba un dato: en qué huso trabaja el
+negocio. Boosty opera en tres. Ahora `organizations.zona_horaria`, validada con
+trigger porque un `CHECK` no admite subconsultas y la lista de husos cambia con
+las actualizaciones del sistema.
+
+**Cuatro tropiezos míos, tres de ellos repetidos:**
+
+1. Tercer componente de cliente que arrastra `next/headers` al bundle por
+   importar un valor de un módulo de datos. Los cuatro llevan ya `server-only`
+   en la primera línea: no evita el fallo, pero convierte una traza confusa en
+   un error que dice lo que pasa.
+2. Segunda vez llamando a `.schema('private')` desde la aplicación, que
+   PostgREST no expone. Peor que de costumbre: la página trataba «no puedo
+   consultar» y «no existe» como lo mismo, así que un enlace válido decía «esta
+   invitación ya no vale». Un fallo de infraestructura disfrazado de invitación
+   caducada.
+3. `renderizar_plantilla` era `security invoker` y necesita `auth.users`, sobre
+   la que `authenticated` no tiene lectura. Daba 403 y el compositor insertaba
+   texto vacío, sin error visible. Al pasarla a `definer` hubo que escribir a
+   mano las dos comprobaciones que la RLS hacía sola.
+4. La casilla de completar una tarea no se marcaba hasta que contestaba el
+   servidor. Lo dijo Playwright antes que yo.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
