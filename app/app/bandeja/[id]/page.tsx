@@ -400,6 +400,13 @@ function describir(x: EntradaHilo): string {
     case 'documento.estado':
       return `pasó ${d.concepto ?? 'el documento'} de ${d.de} a ${d.a}`
     case 'documento.borrado': return `borró el documento ${d.concepto ?? ''}`.trim()
+    case 'mensaje.encolado':
+      return d.fuera_de_ventana
+        ? 'respondió fuera de la ventana de 24 horas, como intervención humana'
+        : 'respondió'
+    // No hay `mensaje.fallido`: un envío que falla ya lo dice su propia burbuja
+    // con `envio_estado`. Una línea de actividad además sería decir lo mismo dos
+    // veces en el mismo sitio.
     default: return x.tipo.replace(/[._]/g, ' ')
   }
 }

@@ -30,6 +30,13 @@ jobs:
       - name: Comprobación de tipos
         run: pnpm --filter @kavea/app typecheck
 
+      # Cuatro veces se desplegó una actividad nueva que el hilo mostraba con su
+      # identificador técnico —«tarjeta valor», «archivo subido»— porque el
+      # `case` se quedó sin añadir. No lo detiene el compilador y solo se ve
+      # mirando la pantalla, así que sobrevive a los despliegues.
+      - name: Toda actividad sabe decirse en castellano
+        run: node scripts/comprobar-actividades.mjs
+
       # Las variables son FALSAS a propósito. El build no debe hablar con
       # Supabase; si lo hiciera, es un fallo de diseño y conviene descubrirlo
       # aquí y no en producción.
