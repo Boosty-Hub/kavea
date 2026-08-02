@@ -132,6 +132,44 @@ export function terminoSeguro(termino: string): string {
   return termino.replace(/[,().:*"\\%_]/g, ' ').trim().slice(0, 60)
 }
 
+/* ---------- Embudo ----------
+   Aquí y no en `lib/embudo.ts` por la misma razón que `terminoSeguro`: aquel
+   módulo importa el cliente de servidor de Supabase, y el tablero es un
+   componente de cliente. */
+
+const COLORES_ETAPA = ['piedra', 'terracota', 'azul', 'verde', 'ambar', 'ciruela', 'teja', 'oliva']
+
+/** Color de la etapa. Paleta cerrada; un valor desconocido cae en el neutro. */
+export function colorEtapa(color: string): string {
+  return COLORES_ETAPA.includes(color) ? `var(--k-etapa-${color})` : 'var(--k-text-2)'
+}
+
+/**
+ * Cuánto lleva parada.
+ *
+ * Es la señal más útil de un embudo: no la etapa, sino el tiempo en ella. Se
+ * calla por debajo de un día para no llenar el tablero de "0 días".
+ */
+export function diasEnEtapa(desde: string | null): string | null {
+  if (!desde) return null
+  const dias = Math.floor((Date.now() - new Date(desde).getTime()) / 86_400_000)
+  if (dias < 1) return null
+  return dias === 1 ? '1 día aquí' : `${dias} días aquí`
+}
+
+/** Importe con separadores, sin decimales cuando son cero. */
+export function formatoValor(valor: number, moneda: string): string {
+  try {
+    return new Intl.NumberFormat('es', {
+      style: 'currency', currency: moneda,
+      minimumFractionDigits: 0, maximumFractionDigits: valor % 1 === 0 ? 0 : 2,
+    }).format(valor)
+  } catch {
+    // Una moneda que Intl no conoce no puede tumbar el tablero.
+    return `${valor.toLocaleString('es')} ${moneda}`
+  }
+}
+
 /** Fecha relativa corta para la lista. */
 export function haceCuanto(iso: string | null): string {
   if (!iso) return ''

@@ -114,6 +114,7 @@ export const obtenerTarjeta = cache(async (id: string) => {
     .from('tarjetas')
     .select(
       'id, estado, titulo, asignado_a, no_leidos, last_message_at, cerrada_en, ' +
+      'embudo_id, etapa_id, valor, moneda, ' +
       'contacts(id, nombre, username, profile_pic_url), ' +
       'conversations(id, canal, last_incoming_at, last_message_at, en_standby, cerrada_en)',
     )
@@ -125,6 +126,10 @@ export const obtenerTarjeta = cache(async (id: string) => {
   return data as unknown as
     | (Omit<FilaBandeja, 'conversations' | 'contacts'> & {
         cerrada_en: string | null
+        embudo_id: string | null
+        etapa_id: string | null
+        valor: number | null
+        moneda: string
         contacts: { id: string; nombre: string | null; username: string | null; profile_pic_url: string | null } | null
         conversations: ConversacionDeTarjeta[]
       })

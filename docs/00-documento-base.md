@@ -98,6 +98,10 @@ Recibe todas las conversaciones que llegan por Instagram, Facebook Messenger y W
 
 **No es un CRM.** Un CRM es un archivador de contactos con un pipeline encima. Nombrarlo así lo mete a competir con Kommo, HubSpot y Zoho en su terreno, con su lógica de precio por usuario y su expectativa de features. Kavea se posiciona como categoría distinta: donde el CRM guarda, Kavea opera.
 
+> **Aclaración del 2 de agosto de 2026, porque esta frase se leyó como alcance y no lo es.** Lo que se descarta es el POSICIONAMIENTO, no la funcionalidad. Kavea sí tiene embudo, etapas, campos propios y contactos unificados: están en la «Fase 4 — Comercial» de la §9 de este mismo documento desde el primer día, y la §"Contexto de origen" dice literalmente que se replica lo que se usa. El embudo se usa todos los días en Boosty.
+>
+> Lo que de verdad queda fuera: informes de previsión, cuotas por vendedor, puntuación automática de oportunidades y vistas de tabla tipo hoja de cálculo. Y una diferencia de diseño que sí separa a Kavea de Kommo: **el estado de atención y la etapa comercial son dos ejes distintos y ninguna acción sobre uno toca el otro.** Kommo los mezcla, y por eso o el embudo miente sobre el negocio o la bandeja miente sobre el trabajo pendiente. Ver `docs/fases/03c-fase-embudos.md` §1.
+
 **No es un chatbot.** Un chatbot responde. Kavea atiende: entiende el contexto de la conversación, decide si responde o escala, deja registro y mueve el estado comercial.
 
 **No es una herramienta de marketing.** No manda campañas masivas como propuesta central. El envío proactivo existe como capacidad, no como eje.

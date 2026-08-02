@@ -42,9 +42,10 @@ export default async function Bandeja({
         <header className="bandeja__cabecera">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
             <p className="label">{org.nombre}</p>
-            <Link href="/ajustes/campos" style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-              Ajustes
-            </Link>
+            <span style={{ fontSize: 12, display: 'flex', gap: 10 }}>
+              <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
+              <Link href="/ajustes/campos" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
+            </span>
           </div>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
 

@@ -21,6 +21,7 @@ import { etiquetaCanal, terminoSeguro, colorCanal } from '@/lib/ventana'
  */
 export function Ficha({
   tarjetaId, contactoId, canales, otras, camposTarjeta, camposContacto,
+  etapas, etapaActual, valor, moneda,
 }: {
   tarjetaId: string
   contactoId: string | null
@@ -28,6 +29,10 @@ export function Ficha({
   otras: Array<{ id: string; titulo: string | null; estado: string; preview_texto: string | null }>
   camposTarjeta: CampoDeFicha[]
   camposContacto: CampoDeFicha[]
+  etapas: Array<{ id: string; nombre: string; embudo_id: string; embudos: { nombre: string } | null }>
+  etapaActual: string | null
+  valor: number | null
+  moneda: string
 }) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
@@ -45,6 +50,18 @@ export function Ficha({
   return (
     <aside className="ficha" aria-label="Ficha de la conversación">
       {error ? <p className="error" role="alert">{error}</p> : null}
+
+      {etapas.length > 0 ? (
+        <Embudo
+          tarjetaId={tarjetaId}
+          etapas={etapas}
+          etapaActual={etapaActual}
+          valor={valor}
+          moneda={moneda}
+          ocupado={ocupado}
+          llamar={llamar}
+        />
+      ) : null}
 
       <section className="ficha__bloque">
         <p className="ficha__titulo">Canales de esta persona</p>
@@ -127,6 +144,85 @@ export function Ficha({
 
       <Unir tarjetaId={tarjetaId} ocupado={ocupado} llamar={llamar} />
     </aside>
+  )
+}
+
+/**
+ * Etapa y valor, dentro de la conversación.
+ *
+ * Mover de etapa sin salir del hilo es lo que evita el vaivén entre la bandeja
+ * y el tablero: la etapa se decide leyendo lo que acaba de escribir el cliente,
+ * no mirando un tablero.
+ *
+ * El estado de atención NO está aquí y no es un olvido: es el otro eje. Se
+ * cambia desde la bandeja, y ninguna de las dos acciones toca a la otra.
+ */
+function Embudo({
+  tarjetaId, etapas, etapaActual, valor, moneda, ocupado, llamar,
+}: {
+  tarjetaId: string
+  etapas: Array<{ id: string; nombre: string; embudo_id: string; embudos: { nombre: string } | null }>
+  etapaActual: string | null
+  valor: number | null
+  moneda: string
+  ocupado: boolean
+  llamar: (fn: string, args: Record<string, unknown>) => Promise<boolean>
+}) {
+  const [importe, setImporte] = useState(valor != null ? String(valor) : '')
+
+  // Agrupadas por embudo: mover una tarjeta de "Ventas" a una etapa de "Cobros"
+  // es legítimo —se vendió y ahora toca cobrar— pero tiene que verse que se
+  // está cambiando de proceso, no solo de columna.
+  const porEmbudo = new Map<string, typeof etapas>()
+  for (const e of etapas) {
+    const l = porEmbudo.get(e.embudos?.nombre ?? 'Embudo') ?? []
+    l.push(e)
+    porEmbudo.set(e.embudos?.nombre ?? 'Embudo', l)
+  }
+
+  return (
+    <section className="ficha__bloque">
+      <p className="ficha__titulo">Embudo</p>
+
+      <div className="ficha__campo">
+        <label className="ficha__etiqueta" htmlFor="etapa">Etapa</label>
+        <select
+          id="etapa"
+          className="campo"
+          value={etapaActual ?? ''}
+          disabled={ocupado}
+          onChange={(e) => llamar('mover_etapa', { p_tarjeta: tarjetaId, p_etapa: e.target.value })}
+        >
+          {etapaActual === null ? <option value="">Sin etapa</option> : null}
+          {[...porEmbudo.entries()].map(([nombre, lista]) => (
+            <optgroup key={nombre} label={nombre}>
+              {lista.map((e) => <option key={e.id} value={e.id}>{e.nombre}</option>)}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+
+      <div className="ficha__campo">
+        <label className="ficha__etiqueta" htmlFor="valor">Valor ({moneda})</label>
+        <input
+          id="valor"
+          className="campo"
+          type="number"
+          min="0"
+          step="0.01"
+          value={importe}
+          disabled={ocupado}
+          onChange={(e) => setImporte(e.target.value)}
+          onBlur={(e) => {
+            const v = e.target.value.trim()
+            const n = v === '' ? null : Number(v)
+            if (n === valor) return
+            llamar('fijar_valor', { p_tarjeta: tarjetaId, p_valor: n, p_moneda: null })
+          }}
+        />
+        <span className="ficha__ayuda">Lo que suma este asunto en la columna del tablero.</span>
+      </div>
+    </section>
   )
 }
 

@@ -37,6 +37,22 @@ function Comprobar($nombre, $condicion, $detalle = "") {
 
 Write-Host "`n=== Preparacion ===" -ForegroundColor Cyan
 
+# SE LIMPIA AL EMPEZAR, NO SOLO AL TERMINAR.
+#
+# Una corrida que aborta a mitad no llega a su limpieza y deja las
+# organizaciones de prueba, el usuario dentro de `staff` y los campos ya
+# creados. La siguiente corrida entonces falla en cosas que funcionan
+# perfectamente: "A ve tres organizaciones", "es_staff() no es falso", "A ve los
+# adjuntos de B". Pasó exactamente eso, y perder diez minutos persiguiendo un
+# fallo de aislamiento inventado es peor que no tener la prueba.
+#
+# El estado previo se borra aquí porque aquí sí se ejecuta siempre.
+Sql @"
+delete from public.staff where user_id in (
+  select id from auth.users where email in ('prueba-a@kavea.test','prueba-b@kavea.test'));
+delete from public.organizations where slug in ('prueba-a','prueba-b');
+"@ | Out-Null
+
 # Dos organizaciones desechables con prefijo reconocible, para poder limpiarlas.
 Sql @"
 insert into public.organizations (id,nombre,slug) values
@@ -336,7 +352,8 @@ Comprobar "un agente no puede definir campos" $rechazado
 # El tipo lo impone la definicion en la frontera, no la interfaz.
 Sql @"
 insert into public.campos (id, organization_id, clave, etiqueta, tipo, ambito)
-values ('00000000-0000-4000-8000-00000000aa07','00000000-0000-4000-8000-00000000aa01','importe','Importe','numero','tarjeta');
+values ('00000000-0000-4000-8000-00000000aa07','00000000-0000-4000-8000-00000000aa01','importe','Importe','numero','tarjeta')
+on conflict do nothing;
 "@ | Out-Null
 
 $rechazado = $false
@@ -368,6 +385,64 @@ try {
   if ($r.Count -eq 0) { $rechazado = $true }
 } catch { $rechazado = $true }
 Comprobar "nadie escribe valores saltandose el RPC" $rechazado
+
+Write-Host "`n=== Embudos y etapas ===" -ForegroundColor Cyan
+
+# La migracion siembra un embudo por organizacion, asi que A y B tienen el suyo.
+$etapasA = ComoUsuario "a" "etapas?select=id,nombre,tipo&order=orden"
+Comprobar "A ve las etapas de su embudo y solo las suyas" ($etapasA.Count -eq 6) "vio $($etapasA.Count)"
+
+$etapaB = (Sql "select e.id from public.etapas e join public.embudos b on b.id=e.embudo_id where b.organization_id='00000000-0000-4000-8000-00000000bb01' order by e.orden limit 1").id
+
+# Mover una tarjeta a la etapa de otra organizacion seria arrastrar el negocio
+# de un cliente al tablero de otro.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/mover_etapa" -Method Post -Headers $h `
+    -Body (@{ p_tarjeta = $tA[0].id; p_etapa = $etapaB } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "no se mueve una tarjeta a la etapa de otra organizacion" $rechazado
+
+$sigue = (Sql "select etapa_id from public.tarjetas where id = '$($tA[0].id)'").etapa_id
+Comprobar "la tarjeta de A sigue en una etapa de A" ($sigue -ne $etapaB)
+
+# Mover SI funciona dentro de la organizacion, y deja actividad.
+$destino = ($etapasA | Where-Object { $_.tipo -eq 'abierta' })[1].id
+$h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+Invoke-RestMethod -Uri "$base/rest/v1/rpc/mover_etapa" -Method Post -Headers $h `
+  -Body (@{ p_tarjeta = $tA[0].id; p_etapa = $destino } | ConvertTo-Json) | Out-Null
+$movida = (Sql "select etapa_id from public.tarjetas where id = '$($tA[0].id)'").etapa_id
+Comprobar "mover dentro de la organizacion si funciona" ($movida -eq $destino)
+
+$actMover = (Sql "select count(*)::int as n from public.actividades where tarjeta_id='$($tA[0].id)' and tipo='tarjeta.etapa'").n
+Comprobar "mover de etapa deja UNA linea de actividad" ($actMover -eq 1) "hay $actMover"
+
+# El eje comercial no toca el de atencion. Es la diferencia deliberada con Kommo.
+$estado = (Sql "select estado from public.tarjetas where id = '$($tA[0].id)'").estado
+Comprobar "mover de etapa NO cambia el estado de atencion" ($estado -eq 'en_curso') "estado: $estado"
+
+# Definir etapas cambia el tablero de toda la organizacion. B es 'agente'.
+$rechazado = $false
+try {
+  $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['b'])"; "Content-Type" = "application/json" }
+  $embudoB = (Sql "select id from public.embudos where organization_id='00000000-0000-4000-8000-00000000bb01'").id
+  Invoke-RestMethod -Uri "$base/rest/v1/rpc/definir_etapa" -Method Post -Headers $h `
+    -Body (@{ p_embudo = $embudoB; p_nombre = 'Colada' } | ConvertTo-Json) | Out-Null
+} catch { $rechazado = $true }
+Comprobar "un agente no puede definir etapas" $rechazado
+
+# Un embudo sin ninguna etapa abierta dejaria las tarjetas nuevas sin sitio.
+$abiertas = $etapasA | Where-Object { $_.tipo -eq 'abierta' }
+$rechazado = $false
+try {
+  foreach ($e in $abiertas) {
+    $h = @{ apikey = $publicable; Authorization = "Bearer $($sesiones['a'])"; "Content-Type" = "application/json" }
+    Invoke-RestMethod -Uri "$base/rest/v1/rpc/archivar_etapa" -Method Post -Headers $h `
+      -Body (@{ p_etapa = $e.id } | ConvertTo-Json) | Out-Null
+  }
+} catch { $rechazado = $true }
+Comprobar "no se puede archivar la ultima etapa abierta" $rechazado
 
 Write-Host "`n=== Frontera de escritura, con rol de servicio ===" -ForegroundColor Cyan
 Write-Host "  (BYPASSRLS: lo que bloquea aqui es la clave compuesta, no RLS)"

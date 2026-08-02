@@ -49,6 +49,18 @@
   --k-canal-messenger: #2f6fb5;
   --k-canal-whatsapp:  #3f7a4e;
 
+  /* Etapas del embudo. Paleta cerrada y apagada: un tablero es una superficie
+     grande y ocho colores saturados en columnas cansan a la tercera hora. Se
+     usan como filete de cabecera, nunca como fondo. */
+  --k-etapa-piedra:    #6e6a63;
+  --k-etapa-terracota: #b04e2c;
+  --k-etapa-azul:      #2f6fb5;
+  --k-etapa-verde:     #3f7a4e;
+  --k-etapa-ambar:     #b8862b;
+  --k-etapa-ciruela:   #7a4a7d;
+  --k-etapa-teja:      #a83232;
+  --k-etapa-oliva:     #6b7a3f;
+
   --r-control: 6px;
   --r-card: 12px;
 
@@ -69,6 +81,15 @@
     --k-canal-instagram: #d17aa8;
     --k-canal-messenger: #6fa3dd;
     --k-canal-whatsapp:  #6fb083;
+
+    --k-etapa-piedra:    #a8a39a;
+    --k-etapa-terracota: #c9714f;
+    --k-etapa-azul:      #6fa3dd;
+    --k-etapa-verde:     #6fb083;
+    --k-etapa-ambar:     #d9a93f;
+    --k-etapa-ciruela:   #b083b3;
+    --k-etapa-teja:      #d45a5a;
+    --k-etapa-oliva:     #9fb06b;
 
     --k-curso: #5b9bd5;      --k-curso-fg: #8fbee8;      --k-curso-bg: #16283a;
     --k-esperando: #d9a93f;  --k-esperando-fg: #e8c776;  --k-esperando-bg: #33280f;
@@ -486,6 +507,108 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
   color: inherit;
 }
 .tarjeta-vieja:hover { background: var(--k-surface-2); }
+
+/* ---------- Embudo ----------
+   El tablero es una superficie grande. El color va en un filete de cabecera y
+   en ningún fondo: ocho columnas teñidas cansan a la tercera hora, y el libro
+   de marca dice que el espacio en blanco es material de construcción. */
+
+.tablero {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  align-items: flex-start;
+  padding: 0 24px 24px;
+  flex: 1;
+  min-height: 0;
+}
+
+.columna {
+  flex: 0 0 288px;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  background: var(--k-surface-2);
+  border-radius: var(--r-card);
+}
+
+/* Las terminales, separadas del cuerpo del embudo: lo cerrado no compite
+   visualmente con lo que sigue vivo. */
+.columna--terminal { background: transparent; border: 1px dashed var(--k-border); }
+
+.columna__cabecera {
+  padding: 12px 14px 10px;
+  border-top: 2px solid;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+  position: sticky;
+  top: 0;
+}
+.columna__nombre { font-size: 13px; font-weight: 500; display: flex; gap: 8px; align-items: baseline; }
+.columna__n { font-size: 12px; color: var(--k-text-2); }
+.columna__suma { font-size: 15px; font-weight: 500; margin-top: 2px; }
+.columna__cuerpo {
+  overflow-y: auto;
+  padding: 0 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 60px;
+  flex: 1;
+}
+.columna--recibiendo { outline: 2px solid var(--k-accent); outline-offset: -2px; }
+
+.naipe {
+  display: block;
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  padding: 10px 12px;
+  text-decoration: none;
+  color: inherit;
+  cursor: grab;
+}
+.naipe:hover { border-color: var(--k-ceniza); }
+.naipe--arrastrando { opacity: 0.4; }
+.naipe__nombre { font-size: 14px; font-weight: 500; }
+.naipe__valor { font-size: 14px; margin-top: 2px; }
+.naipe__pie {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--k-text-2);
+}
+.naipe__mover {
+  width: 100%;
+  margin-top: 8px;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-control);
+  background: var(--k-surface);
+  color: var(--k-text-2);
+  font-family: inherit;
+}
+
+.barra {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--k-border);
+  flex-wrap: wrap;
+}
+.barra__nav { display: flex; gap: 4px; }
+.barra__nav a {
+  padding: 5px 12px;
+  border-radius: var(--r-control);
+  text-decoration: none;
+  font-size: 14px;
+  color: var(--k-text-2);
+}
+.barra__nav a[aria-current='true'] { background: var(--k-surface-2); color: var(--k-text); }
 
 /* ---------- Responsive ----------
    Va AL FINAL a propósito. Estaba antes de `.bandeja__hilo { display: flex }`

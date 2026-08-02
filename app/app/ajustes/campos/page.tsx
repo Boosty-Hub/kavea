@@ -17,9 +17,11 @@ export default async function Campos() {
 
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
-      <Link href="/bandeja" style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
-        ← Bandeja
-      </Link>
+      <div style={{ display: 'flex', gap: 16, fontSize: 13 }}>
+        <Link href="/bandeja" style={{ color: 'var(--k-text-2)' }}>← Bandeja</Link>
+        <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
+        <Link href="/ajustes/embudos" style={{ color: 'var(--k-text-2)' }}>Embudos</Link>
+      </div>
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Campos</h1>
       <p style={{ color: 'var(--k-text-2)', marginTop: 0, maxWidth: 560 }}>

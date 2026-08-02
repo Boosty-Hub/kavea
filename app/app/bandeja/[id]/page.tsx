@@ -15,6 +15,7 @@ import {
   type Adjunto,
   type ConversacionDeTarjeta,
 } from '@/lib/bandeja'
+import { todasLasEtapas } from '@/lib/embudo'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
@@ -41,16 +42,18 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const contactoId = tarjeta.contacts?.id ?? null
   const convIds = tarjeta.conversations.map((c) => c.id)
 
-  const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC] = await Promise.all([
-    obtenerHilo(id),
-    adjuntosDe(convIds),
-    listarTarjetas({}),
-    contarPorEstado(),
-    contactoId ? canalesDe(contactoId) : Promise.resolve([]),
-    contactoId ? otrasTarjetasDe(contactoId, id) : Promise.resolve([]),
-    fichaDeTarjeta(id),
-    contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
-  ])
+  const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas] =
+    await Promise.all([
+      obtenerHilo(id),
+      adjuntosDe(convIds),
+      listarTarjetas({}),
+      contarPorEstado(),
+      contactoId ? canalesDe(contactoId) : Promise.resolve([]),
+      contactoId ? otrasTarjetasDe(contactoId, id) : Promise.resolve([]),
+      fichaDeTarjeta(id),
+      contactoId ? fichaDeContacto(contactoId) : Promise.resolve([]),
+      todasLasEtapas(),
+    ])
 
   const porMensaje = new Map<string, Adjunto[]>()
   for (const a of adjuntos) {
@@ -171,6 +174,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             otras={otras}
             camposTarjeta={campoT}
             camposContacto={campoC}
+            etapas={etapas}
+            etapaActual={tarjeta.etapa_id}
+            valor={tarjeta.valor != null ? Number(tarjeta.valor) : null}
+            moneda={tarjeta.moneda}
           />
         </div>
 
