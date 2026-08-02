@@ -661,6 +661,55 @@ al **empezar**, que es donde sí se ejecuta siempre.
 
 ---
 
+### 2026-08-02 · Fase 3d: ficha con pestañas, archivos e historial comercial
+
+**La decisión que había que acertar:** los documentos comerciales cuelgan de la
+**persona**, no de la tarjeta. Un cliente que compra tres veces al año tiene
+tres asuntos y un solo historial; si colgaran de la tarjeta, al abrir la
+conversación de hoy no se vería lo que compró en marzo, que es justo el dato que
+decide cómo se le atiende. `tarjeta_id` queda como referencia informativa: dice
+de qué conversación salió, sin que el documento le pertenezca.
+
+Con los **archivos** es al revés y también a propósito: uno puede ser de la
+tarjeta, de la persona o de la organización entera —el catálogo, la lista de
+precios—, y las tres combinaciones significan cosas distintas.
+
+**La frontera, para no acabar construyendo un ERP:** Kavea **registra**
+documentos, no los **genera**. Sin componer PDF, sin impuestos, sin inventario,
+sin contabilidad. Por eso no hay líneas de detalle: sin generación ni cálculo
+solo servirían para volver a sumar a mano un total que ya viene dado.
+
+**Dos cosas que se calculan en vez de guardarse o de comprobarse tarde:**
+
+- **Lo vencido** sale de `vence_en < current_date`, no de un `estado` almacenado.
+  Un estado guardado exigiría un cron nocturno y que alguien notara el día que
+  dejara de correr.
+- **Los límites de Meta** se comprueban **al subir**, no al enviar. Es la
+  diferencia entre avisar cuando todavía se puede cambiar el archivo y fallar
+  delante del cliente cuatro días después.
+
+**La pestaña activa va en la URL.** Con estado local, el refresco de tiempo real
+—que llega cuando entra un mensaje, en cualquier momento— devolvería al operador
+a «Datos» mientras rellena un presupuesto en «Compras».
+
+**Evidencia:**
+
+| Qué | Medición |
+|---|---|
+| Subida real a Storage | PDF y PNG de 9 MB subidos desde el navegador al bucket privado |
+| Aviso de Meta | El PNG de 9 MB queda marcado «no se podrá enviar · las imágenes no pueden pasar de 8 MB» |
+| Los tres números | Presupuesto de 1200 fuera del cómputo; factura de 800 vencida → `0 comprado / 800 pendiente / 800 vencido` |
+| Vencido | La factura con `vence_en` en el pasado se marca sola, sin cron |
+| Pestaña en la URL | `?f=compras` sobrevive a un recargado completo |
+| Aislamiento | 48 comprobaciones, 48 en verde |
+
+**Un error mío que conviene anotar:** hice commit y push del arreglo de las
+etiquetas de actividad **antes** de mirar la salida de `npm run build`. El build
+estaba roto y el despliegue quedó en error unos minutos. El orden correcto es
+compilar, mirar, y solo entonces publicar; lo tenía y lo salté.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
@@ -764,3 +813,11 @@ que Meta no publica.
   dos veces: `terminoSeguro` en `lib/bandeja.ts` y `colorEtapa` en `lib/embudo.ts`. Basta con
   que un componente de cliente importe un valor —no un tipo— para arrastrar `next/headers` al
   bundle del navegador y romper el build.
+- **Cada RPC que registra algo necesita su línea en `describir()`.** Van tres veces que el hilo
+  escupe el identificador técnico —«tarjeta valor», «archivo subido»— porque se añadió el tipo
+  de actividad en la base y no en la interfaz. Añadir el tipo son dos sitios, siempre.
+- **Compilar, mirar, y solo entonces publicar.** Se hizo commit y push de un arreglo antes de
+  leer la salida del build. Estaba roto y el despliegue quedó en error. La regla ya existía.
+- **Un componente definido dentro del render se remonta en cada pasada.** Convertir la ficha en
+  pestañas tentaba a sacar cada una a su propia función anidada; eso habría borrado lo que el
+  operador estuviera escribiendo cada vez que llegara un mensaje.
