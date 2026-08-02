@@ -32,6 +32,76 @@ verificado, no se escribe como hecho.
 
 ## 2. Entradas
 
+### 2026-08-02 · Boosty conectada y el amortiguador probado con mensajes reales
+
+**Canales conectados.** Página `1790677317841377` (Boosty.digital) con Instagram
+`17841421294200897` (@boosty.digital) vinculado, que es el requisito no negociable de v1. App
+suscrita con ocho campos. Token de Página cifrado con AES-256-GCM en `private.meta_credentials`,
+`kid=k1`, con la clave en los secretos del proyecto y fuera de la base.
+
+`messaging_feature_status` devuelve `hop_v2: true`, `msgr_multi_app: false`,
+`ig_multi_app: false`: Conversation Routing activo y sin conflicto multi-app.
+
+#### El primer mensaje real
+
+Un DM de Instagram, 403 bytes, `firma_ok = true`, escrito en 1 ms. Enrutado resuelto:
+`asset 17841421294200897 → boosty`.
+
+Eso cierra lo único que quedaba sin verificar de la firma: **la implementación del HMAC cuadra
+con la de Meta**, no solo con `openssl`.
+
+**Resuelve una incertidumbre del `03`:** el objeto llega como `"instagram"`, no como `"page"`.
+Las dos páginas oficiales de Meta se contradecían. El parser sigue aceptando ambos, pero ahora
+se sabe cuál llega.
+
+#### El amortiguador, probado con una caída provocada
+
+Se rompió `KAVEA_SUPABASE_SECRET` a propósito para que las escrituras a Postgres fallaran, y se
+enviaron mensajes reales durante la ventana:
+
+```
+14:29:47  ruta=directa   antes de romper
+14:35:55  ruta=blobs     durante la caida
+14:38:23  ruta=blobs     durante la caida
+14:41:05  ruta=directa   tras restaurar
+```
+
+Los dos del medio se rescataron con el drenaje. `recibido_en` conserva el instante original de
+la entrega y `drenado_en` marca el rescate: sin esa distinción, una caída larga falsearía toda
+la latencia medida.
+
+#### Tres hallazgos que costaron encontrar
+
+**1. Los secretos de Supabase no son legibles por API: devuelve su SHA-256.** Se descubrió
+comparando el verify token que se había puesto con lo que devolvía la API — no coincidían, y lo
+devuelto tenía forma de hash. Es la protección correcta, pero significa que **no se pueden
+firmar peticiones de prueba desde fuera** y toda verificación de firma necesita una entrega real
+de Meta.
+
+**2. `encodeURIComponent` sobre la clave completa rompía el amortiguador entero.** Convierte la
+barra en `%2F` y Netlify guarda el objeto con ese nombre literal: `crudo%2F2026-...`. El objeto
+se escribía bien, pero el filtro por prefijo `crudo/` no lo encontraba y **el drenaje no veía
+nada**. Se descubrió porque dos mensajes reales estaban atrapados en el store mientras el
+listado los daba por inexistentes. Corregido codificando segmento a segmento y conservando las
+barras; el drenaje lista ambos prefijos para rescatar lo escrito por la versión con el fallo.
+
+**3. Con Postgres caído, las alertas también se pierden.** `alertar()` escribe en Postgres, así
+que durante el incidente que más importa no queda rastro. No es un fallo del diseño —el camino
+primario de alertas siempre fue externo— pero confirma por qué el vigilante externo no es
+opcional.
+
+#### Crones activos
+
+| Trabajo | Frecuencia | Para qué |
+|---|---|---|
+| `kavea-drenar-blobs` | cada minuto | Vacía el amortiguador cuando la base vuelve |
+| `kavea-segar-cola` | cada 5 min | Devuelve a pendiente lo reclamado por un consumidor muerto |
+| `kavea-detectar-silencio` | cada 15 min | La desuscripción de Meta es silenciosa: solo la detecta la ausencia de tráfico |
+
+Verificado que `pg_cron` los ejecuta de verdad, no solo que están programados.
+
+---
+
 ### 2026-08-02 · El middleware de Netlify no propaga cabeceras al servidor
 
 Se cumplió el riesgo que el plan de la fase 0 marcaba como verificación empírica pendiente, y

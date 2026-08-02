@@ -110,8 +110,18 @@ export async function guardarEnAmortiguador(
   const token = Deno.env.get('NETLIFY_BLOBS_TOKEN')!
   const store = 'ingesta-emergencia'
 
-  const url =
-    `https://api.netlify.com/api/v1/blobs/${sitio}/${store}/${encodeURIComponent(clave)}`
+  // La clave va SIN encodeURIComponent.
+  //
+  // encodeURIComponent convierte la barra en %2F, y Netlify la guarda así:
+  // literalmente `crudo%2F2026-...` en lugar de `crudo/2026-...`. El objeto se
+  // escribe bien, pero el filtro por prefijo `crudo/` deja de encontrarlo y el
+  // drenaje no ve nada. Se descubrió con dos mensajes reales atrapados en el
+  // amortiguador que el listado daba por inexistentes.
+  //
+  // Los segmentos sí se codifican, para que un identificador raro no rompa la
+  // ruta, pero las barras se conservan.
+  const rutaClave = clave.split('/').map(encodeURIComponent).join('/')
+  const url = `https://api.netlify.com/api/v1/blobs/${sitio}/${store}/${rutaClave}`
 
   const r = await conTimeout(
     fetch(url, {
