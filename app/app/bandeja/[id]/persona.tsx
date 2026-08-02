@@ -40,6 +40,16 @@ export function Persona({
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
+  async function desvincular(identidadId: string, etiqueta: string) {
+    if (!confirm(`Quitar ${etiqueta} de esta persona.`)) return
+    setOcupado(true); setError(null)
+    const supabase = crearClienteNavegador()
+    const { error } = await supabase.rpc('desvincular_identidad', { p_identidad: identidadId })
+    setOcupado(false)
+    if (error) { setError(error.message); return }
+    router.refresh()
+  }
+
   return (
     <div style={{ marginTop: 6 }}>
       <div className="canales">
@@ -49,6 +59,24 @@ export function Persona({
             <>
               {etiquetaCanal(c.canal)}
               <span style={{ color: 'var(--k-text-2)' }}>{c.etiqueta}</span>
+              {/* Solo las manuales se quitan. Las de Meta enrutan los mensajes
+                  entrantes: quitarlas los dejaría sin destino, y el RPC las
+                  rechaza igualmente. No se ofrece un botón que va a fallar. */}
+              {c.origen === 'manual' ? (
+                <button
+                  type="button"
+                  onClick={() => desvincular(c.identidad_id, c.etiqueta)}
+                  disabled={ocupado}
+                  title={`Quitar ${etiquetaCanal(c.canal)} de esta persona`}
+                  aria-label={`Quitar ${etiquetaCanal(c.canal)} ${c.etiqueta}`}
+                  style={{
+                    border: 0, background: 'transparent', cursor: 'pointer',
+                    color: 'var(--k-text-2)', font: 'inherit', padding: '0 0 0 2px', lineHeight: 1,
+                  }}
+                >
+                  ×
+                </button>
+              ) : null}
             </>
           )
           return c.conversacion_abierta && !esActual ? (
@@ -119,8 +147,13 @@ export function Persona({
             setError={setError}
             alTerminar={() => { setAbierto(false); router.refresh() }}
           />
-          {error ? <p className="error" role="alert">{error}</p> : null}
         </div>
+      ) : null}
+
+      {/* Fuera del panel: quitar un canal se hace con el panel cerrado, y un
+          error que solo se pinta dentro sería un error que nadie ve. */}
+      {error ? (
+        <p className="error" role="alert" style={{ marginTop: 8, maxWidth: 520 }}>{error}</p>
       ) : null}
     </div>
   )
