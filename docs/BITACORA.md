@@ -912,6 +912,43 @@ las actualizaciones del sistema.
 
 ---
 
+### 2026-08-02 · Actividad global y contactos. Los seis módulos, cerrados
+
+**«Absolutamente todo» se verificó, no se supuso.** Se auditaron las 41
+funciones públicas: las 30 que cambian algo registran actividad; las 11 restantes
+son mecánica de colas, estado de lectura o funciones de extensiones.
+
+Y apareció un hueco real: **`contacts` se edita con un PATCH directo**. Las
+columnas `nombre`, `username` y `profile_pic_url` están concedidas desde 0026
+para que la ficha funcione, así que la edición no pasaba por ninguna función y
+**cambiar el nombre de un contacto no dejaba rastro**. Cerrado con trigger, no
+obligando a un RPC, por lo mismo que el estado de la tarjeta: depender de que
+cada ruta se acuerde de registrar es garantizar que alguna no lo haga.
+
+El registro se pagina por **cursor** sobre `created_at`, no por offset: con
+offset, una actividad nueva desplaza todo y la página 2 repite lo que ya se vio
+en la 1. Y se filtra por familia, no por tipo: cuarenta y ocho tipos no son un
+menú.
+
+**Duplicados: se proponen, nunca se unen solos.** Cada pareja lleva la fuerza de
+la señal a la vista. Comprobado con datos sembrados:
+
+| Fuerza | Pareja | Motivo |
+|---|---|---|
+| Fuerte | Pedro Ruiz ↔ P. Ruiz | Mismo teléfono |
+| Débil | Maria Gonzalez ↔ María González | Mismo nombre |
+
+El primero es el que justifica el módulo: por nombre esos dos **nunca** se
+habrían cruzado. El segundo es literalmente el ejemplo que el documento 02 usa
+para explicar por qué no se une automáticamente — pueden ser dos personas, y
+una unión errónea muestra la conversación de un cliente bajo el nombre de otro.
+
+Lo que directamente no puede ocurrir ya estaba prevenido: dos contactos con la
+misma identidad de canal lo impide el índice único de `contact_identities` desde
+0006. La prevención vale más que cualquier detección.
+
+---
+
 ## 3. Pendiente, por orden de urgencia
 
 ### Bloquea la fase 0
