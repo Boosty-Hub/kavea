@@ -70,10 +70,10 @@ ingesta.
 
 | # | Precondición | Cómo se verifica |
 |---|---|---|
-| 1 | `kavea.ai` en GoDaddy (`ns35`/`ns36.domaincontrol.com`), con acceso al panel DNS | Se puede crear un registro TXT arbitrario |
+| 1 | `kavea.ai` **delegado a Netlify DNS** (`dns1`…`dns4.p05.nsone.net`). Hecho y verificado el 2-ago | SOA responde `dns1.p01.nsone.net` |
 | 2 | Organización de GitHub `Boosty-Hub`, con 2FA obligatorio | Ajustes de la organización |
 | 3 | Cuenta de Netlify con acceso a `Boosty-Hub` y con el sitio público ya conectado | Se ve el sitio de `kavea.ai` en el panel |
-| 4 | Cuenta de Cloudflare con Workers, Queues y R2 habilitados | `wrangler whoami` responde |
+| 4 | Token de acceso personal de Netlify y `siteID` del sitio que aloje el store de Blobs | `getStore` responde desde fuera del runtime |
 | 5 | Proyecto Supabase `sdazqohyjzzylwbkvovx`, con la contraseña de base de datos | `supabase link` termina sin error |
 | 6 | Postgres 15 o superior en ese proyecto | `show server_version` |
 | 7 | Docker en marcha en local | `docker ps` responde |
@@ -261,7 +261,7 @@ fichero leyó**: la resolución de configuración con `base` fijada tiene matice
 darla por supuesta.
 
 `.gitignore` desde el primer commit: `.env`, `.env.local`, `.env*.local`, `.netlify`,
-`.next`, `node_modules`, `supabase/.temp`, `supabase/.branches`, `.wrangler`.
+`.next`, `node_modules`, `supabase/.temp`, `supabase/.branches`.
 
 **Criterio de aceptación.** `git clone` en máquina limpia + `pnpm install` + `pnpm -r build`
 termina en cero. El sitio público sirve sin interrupción durante toda la operación.
@@ -316,8 +316,9 @@ contenido que antes de la operación.
 ### T3 — Cadena de herramientas y entorno local
 
 Versiones fijadas, no "la última": Node 22.x en `.nvmrc` y en `engines`; pnpm en
-`packageManager`; CLI de Supabase fijado a una versión concreta en CI; `wrangler` fijado en
-`workers/package.json`; `@netlify/plugin-nextjs` fijado en `app/`.
+`packageManager`; CLI de Supabase fijado a una versión concreta en CI;
+`@netlify/plugin-nextjs` fijado en `app/`; y la versión de Deno de las Edge Functions anotada,
+porque la fija Supabase y puede cambiar bajo los pies.
 
 `supabase init`, `supabase start`, `supabase link --project-ref sdazqohyjzzylwbkvovx`.
 
@@ -1687,16 +1688,21 @@ desincronizarse. Se mitiga con un test que compare ambos entornos, no con discip
 
 Entregables:
 
-1. Cuenta de Cloudflare con Workers, Queues y R2 habilitados. Bucket de R2 creado para media
-   **saliente**; queda vacío.
-2. `workers/` con `wrangler.toml` y un Worker que solo responde al handshake de verificación de
-   webhooks (`GET` con `hub.mode`, `hub.challenge`, `hub.verify_token`, devolviendo el
-   challenge crudo). No procesa `POST`. Sirve para validar despliegue, almacén de secretos y
-   DNS, no para recibir eventos.
-3. Secretos del Worker con `wrangler secret put`: `META_APP_SECRET`, `META_VERIFY_TOKEN`,
-   `GRAPH_API_VERSION`. Vacíos o de prueba mientras el trámite de Meta no termine.
-4. **Prueba de coherencia entre proveedores.** Un paso de CI que lee `GRAPH_API_VERSION` de la
-   configuración de Netlify y de la de Cloudflare y falla si difieren. El App Secret no se
+1. Bucket de Supabase Storage creado para media **saliente**; queda vacío. La media entrante
+   no se almacena nunca, solo su URL.
+2. `supabase/functions/meta-webhook/` con una Edge Function que solo responde al handshake de
+   verificación (`GET` con `hub.mode`, `hub.challenge`, `hub.verify_token`, devolviendo el
+   challenge crudo). No procesa `POST`. Sirve para validar despliegue, secretos y URL, no para
+   recibir eventos.
+3. **`verify_jwt = false` para esa función, fijado en `config.toml`**, no en la bandera de
+   despliegue. Meta no manda bearer token: con la verificación activa devuelve 401 y a la hora
+   hay desuscripción silenciosa. Criterio de aceptación: un `GET` sin cabeceras llega al código
+   de la función, y se distingue su 403 propio del 401 de la plataforma.
+4. Secretos del proyecto con `supabase secrets set`: `META_APP_SECRET`, `META_VERIFY_TOKEN`,
+   `GRAPH_API_VERSION`, `NETLIFY_BLOBS_TOKEN`, `NETLIFY_BLOBS_SITE_ID`. Vacíos o de prueba
+   mientras el trámite de Meta no termine.
+5. **Prueba de coherencia entre proveedores.** Un paso de CI que lee `GRAPH_API_VERSION` de la
+   configuración de Netlify y de la de Supabase y falla si difieren. El App Secret no se
    compara en claro: se comparan huellas SHA-256.
 
 ```ts

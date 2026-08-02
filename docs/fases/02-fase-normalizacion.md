@@ -104,9 +104,10 @@ calibrar el troceado de la tarea 3.
 
 ### 2.1 Dos documentos que esta fase contradice, y hay que corregir en origen
 
-**`01-fase-ingesta.md` está escrito contra Cloudflare Workers y Cloudflare Queues y se está
-rehaciendo en paralelo.** Mientras no se rehaga, contradice a este documento en la plataforma del
-receptor, en la existencia de `meta_raw` y en la ubicación de los crones.
+**Resuelto el 2-ago-2026.** `01-fase-ingesta.md` se rehízo en paralelo y ya está sobre la misma
+arquitectura: receptor en Supabase Edge Function, cola en `webhook_events`, amortiguador en
+Netlify Blobs y crones con `pg_cron`. Los seis contratos C1–C6 de la sección 8 siguen siendo
+la referencia para verificar que ambos documentos encajan.
 
 **`06-arquitectura-plataforma.md` §1.1 también queda desfasado.** Su tabla de decisiones sitúa la
 ingesta, la cola y los crones en Netlify Functions y Scheduled Functions, y el amortiguador en
@@ -2123,9 +2124,9 @@ en Netlify Blobs y la cola en Postgres. Hay que corregir:
 
 ### 8.3 En el índice de fases
 
-`fases/README.md` §3 lista "Ingesta, cola, crones: Cloudflare Workers, Queues y Cron Triggers" y
-"Media saliente: Cloudflare R2", y §7 da por errata lo de `webhook_events` con forma de cola.
-Los tres puntos cambian. La verificación número 12 de su §5 —TTL de las URLs de `lookaside`— sigue
+**Corregido el 2-ago-2026.** `fases/README.md` §3 ya lista la arquitectura de dos proveedores y
+§7 recoge las erratas vigentes del `02`, incluidas las claves foráneas compuestas, el índice
+único parcial y el nombrado de la tabla `media`. La verificación número 12 de su §5 —TTL de las URLs de `lookaside`— sigue
 en pie y sigue siendo de esta fase y de la 3.
 
 ---
