@@ -91,7 +91,12 @@ function retroceso(intentos: number): string {
 Deno.serve(async (): Promise<Response> => {
   const t0 = Date.now()
   const quien = crypto.randomUUID().slice(0, 8)
-  const resumen = { reclamadas: 0, completadas: 0, cedidas: 0, fallidas: 0, efectos: 0 }
+  // `sinEfectos` cuenta los cuerpos que el adaptador no entiende. No es un
+  // error, pero si crece hay una forma de payload nueva que Kavea está tirando
+  // a la basura sin enterarse: es la métrica que lo delata.
+  const resumen = {
+    reclamadas: 0, completadas: 0, cedidas: 0, fallidas: 0, efectos: 0, sinEfectos: 0,
+  }
 
   try {
     const filas = await rest<Fila[]>('rpc/webhook_events_reclamar', {
@@ -105,6 +110,39 @@ Deno.serve(async (): Promise<Response> => {
         const cuerpo = JSON.parse(f.cuerpo_crudo) as unknown
         const updates = aplanar(cuerpo)
         const total = updates.length
+
+        /**
+         * UN CUERPO QUE NO PRODUCE NADA TAMBIÉN TERMINA.
+         *
+         * El bucle de abajo es `while (i < total)`. Con `total = 0` no se
+         * ejecuta ni una vez, así que `ingerir_tramo` nunca se llama con
+         * `p_final` y la fila se queda en `en_proceso` PARA SIEMPRE: el segador
+         * la devuelve a pendiente cada diez minutos, el normalizador la vuelve a
+         * reclamar, y así indefinidamente. Una fuga lenta y silenciosa.
+         *
+         * Cuándo pasa: cualquier payload cuya forma `aplanar` no entienda. Hasta
+         * hoy no ocurría porque solo llegaban `messaging[]` y `standby[]`. Al
+         * suscribir `feed` para sondear los comentarios empezaron a entrar
+         * cuerpos con `changes[]`, que producen cero updates, y el fallo se hizo
+         * alcanzable.
+         *
+         * El invariante del docs/03 dice que un tipo desconocido va a fallback y
+         * nunca tumba el lote. Eso estaba resuelto para un ADJUNTO desconocido;
+         * para un CUERPO entero desconocido, no. Aquí se cierra: se marca
+         * procesado, el cuerpo crudo se conserva, y queda constancia de que no
+         * se aplicó nada.
+         */
+        if (total === 0) {
+          await rest('rpc/ingerir_tramo', {
+            method: 'POST',
+            body: JSON.stringify({
+              p_evento: f.id, p_efectos: [], p_cursor: 0, p_total: 0, p_final: true,
+            }),
+          })
+          resumen.completadas++
+          resumen.sinEfectos++
+          continue
+        }
 
         // Cachés locales a esta fila: el mismo asset se repite en todo el lote.
         const rutas = new Map<string, { org: string; conexion: string } | null>()

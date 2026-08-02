@@ -50,6 +50,17 @@ const CAMPOS_MESSENGER = [
   'feed',
 ]
 
+// PROBADO Y DESCARTADO, 2 de agosto de 2026: `comments` NO es un campo válido
+// de `subscribed_apps` de una Página. Meta rechaza el POST entero con él en la
+// lista. Se comprobó en vivo y la suscripción existente quedó intacta —el POST
+// es atómico—, pero mientras estuvo puesto el reconciliador reportaba fallo
+// cada quince minutos.
+//
+// Consecuencia: los comentarios de Instagram no se pueden habilitar solo con
+// `pages_manage_metadata`. Necesitan `instagram_manage_comments` en Advanced
+// Access, es decir, otra ronda de App Review. No se añade antes del envío
+// principal: pedir scopes de más es causa documentada de rechazo.
+
 function claveServicio(): string {
   const c = Deno.env.get('KAVEA_SUPABASE_SECRET')
   if (!c) throw new Error('Falta KAVEA_SUPABASE_SECRET')
