@@ -309,7 +309,10 @@ function Entrada({
 }
 
 function describir(x: EntradaHilo): string {
-  const d = x.detalle as Record<string, string>
+  // El detalle es jsonb: trae cadenas, números y booleanos. Tiparlo como
+  // Record<string,string> mentía, y la mentira solo se notó al comparar
+  // `d.enviable === false` y ver que TypeScript decía que nunca coincidirían.
+  const d = x.detalle as Record<string, string | number | boolean | null | undefined>
   switch (x.tipo) {
     case 'evento.read': return 'leyó la conversación'
     case 'evento.reaction': return `reaccionó ${d.emoji ?? ''}`.trim()
@@ -327,9 +330,9 @@ function describir(x: EntradaHilo): string {
     case 'nota.añadida': return `añadió una nota: ${d.texto ?? ''}`
     case 'breakglass.abierto': return 'abrió un acceso temporal al contenido'
     case 'identidad.vinculada':
-      return `vinculó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) a esta persona`
+      return `vinculó ${etiquetaCanal(String(d.canal ?? ''))} (${d.etiqueta ?? ''}) a esta persona`
     case 'identidad.desvinculada':
-      return `quitó ${etiquetaCanal(d.canal ?? '')} (${d.etiqueta ?? ''}) de esta persona`
+      return `quitó ${etiquetaCanal(String(d.canal ?? ''))} (${d.etiqueta ?? ''}) de esta persona`
     case 'tarjetas.unidas':
       return `unió otra tarjeta con esta · ${d.motivo ?? ''}`
     case 'tarjetas.separadas': return 'deshizo la unión de tarjetas'
