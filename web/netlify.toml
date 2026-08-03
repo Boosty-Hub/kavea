@@ -28,7 +28,15 @@
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=(), interest-cohort=()"
-    Content-Security-Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    # `connect-src` se declara explícitamente porque el formulario de /demo habla
+    # con Postgres desde el navegador. Sin esta línea heredaría `default-src
+    # 'self'` y el envío fallaría en silencio: el sitio es estático y no hay
+    # servidor propio al que enviarlo.
+    #
+    # Se nombra el proyecto entero y no una ruta: la CSP no distingue rutas. Lo
+    # que NO se hace es abrir `script-src` a 'unsafe-inline'; el script del
+    # formulario se empaqueta como fichero y se sirve desde el propio sitio.
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self' https://sdazqohyjzzylwbkvovx.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 [[headers]]
   for = "/_astro/*"
