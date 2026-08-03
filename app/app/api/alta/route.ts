@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
 import { esStaff, superficieActual, usuarioActual } from '@/lib/organizacion'
+import { mandarCorreo } from '@/lib/correo'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,7 +43,13 @@ export async function POST(req: Request) {
   let correoEnviado = false
   let motivo: string | undefined
   if (correo && enlace) {
-    const r = await mandarCorreo(correo, String(nombre), enlace)
+    const r = await mandarCorreo(
+      correo,
+      `Tu espacio de Kavea: ${nombre}`,
+      `Ya tienes tu espacio de Kavea listo.\n\n`
+      + `Entra aquí para crear tu contraseña y empezar:\n${enlace}\n\n`
+      + `El enlace vale siete días. Si caduca, pídenos otro.\n`,
+    )
     correoEnviado = r.ok
     motivo = r.motivo
   }
@@ -56,33 +63,4 @@ export async function POST(req: Request) {
     motivo,
     enlace: correoEnviado ? undefined : enlace,
   })
-}
-
-async function mandarCorreo(
-  destino: string, organizacion: string, enlace: string,
-): Promise<{ ok: boolean; motivo?: string }> {
-  const clave = process.env.RESEND_API_KEY
-  const remite = process.env.CORREO_REMITENTE
-  if (!clave || !remite) return { ok: false, motivo: 'no hay correo configurado' }
-
-  try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: remite,
-        to: destino,
-        subject: `Tu espacio de Kavea: ${organizacion}`,
-        text:
-          `Ya tienes tu espacio de Kavea listo.\n\n`
-          + `Entra aquí para crear tu contraseña y empezar:\n${enlace}\n\n`
-          + `El enlace vale siete días. Si caduca, pídenos otro.\n`,
-      }),
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!r.ok) return { ok: false, motivo: `el proveedor devolvió ${r.status}` }
-    return { ok: true }
-  } catch {
-    return { ok: false, motivo: 'no hubo respuesta del proveedor de correo' }
-  }
 }
