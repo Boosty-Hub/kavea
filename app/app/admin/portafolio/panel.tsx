@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { crearClienteNavegador } from '@/lib/supabase/navegador'
 
 type Pagina = {
   id: string
@@ -174,23 +173,32 @@ function Alta({
   const [nombre, setNombre] = useState(pagina.nombre)
   const [slug, setSlug] = useState(sugerirSlug(pagina.nombre))
   const [huso, setHuso] = useState('America/Caracas')
+  const [correo, setCorreo] = useState('')
   const [destino, setDestino] = useState(espacios[0]?.id ?? '')
   const [paso, setPaso] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   async function conectar(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    const supabase = crearClienteNavegador()
+    setError(null); setAviso(null)
 
     let org = destino
     if (modo === 'nuevo') {
-      setPaso('Creando el espacio…')
-      const { data, error } = await supabase.rpc('crear_espacio', {
-        p_nombre: nombre, p_slug: slug, p_huso: huso,
+      setPaso('Creando el espacio e invitando al propietario…')
+      // Por el servidor, no por el RPC directo: devuelve el token de invitación
+      // en claro y ese token abre una cuenta de propietario.
+      const r = await fetch('/api/alta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, slug, huso, correo }),
       })
-      if (error) { setPaso(null); setError(error.message); return }
-      org = data as string
+      const j = await r.json()
+      if (!r.ok || j.error) { setPaso(null); setError(j.error ?? 'No se pudo crear el espacio.'); return }
+      org = j.organizacion as string
+      if (correo && !j.correoEnviado) {
+        setAviso(`El espacio está creado pero el correo no salió (${j.motivo}). Pásale este enlace: ${j.enlace}`)
+      }
     }
 
     setPaso('Conectando la Página y suscribiendo los webhooks…')
@@ -259,6 +267,22 @@ function Alta({
             <span className="ficha__ayuda">
               Quedará en <code>{slug || '…'}.kavea.ai</code>. No se puede cambiar después sin
               romper los enlaces que ya estén repartidos.
+            </span>
+          </div>
+          <div>
+            <label className="label" htmlFor={`c-${pagina.id}`}>Correo del propietario</label>
+            <input
+              id={`c-${pagina.id}`} className="campo" type="email" value={correo} required
+              onChange={(e) => setCorreo(e.target.value)}
+              style={{ marginTop: 6 }}
+            />
+            {/* Obligatorio, y no por trámite. Un espacio sin invitación es un
+                espacio al que no puede entrar nadie: el staff de Boosty no es
+                miembro de las organizaciones de sus clientes, así que después no
+                hay forma de invitar desde dentro. */}
+            <span className="ficha__ayuda">
+              Recibe un enlace para poner su contraseña y entra como propietario. Sin esto, el
+              espacio queda creado y no puede abrirlo nadie.
             </span>
           </div>
           <div>

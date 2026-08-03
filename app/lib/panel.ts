@@ -91,7 +91,21 @@ async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T[]> 
   return (data ?? []) as T[]
 }
 
+export type FilaConexion = {
+  meta_connection_id: string
+  organization_id: string
+  page_name: string | null
+  page_id: string
+  ig_username: string | null
+  en_verde: number
+  en_rojo: number
+  sin_saber: number
+  bloqueada: boolean
+  ultima_pasada: string | null
+}
+
 export const salud = cache(() => rpc<FilaSalud>('panel_salud'))
+export const conexiones = cache(() => rpc<FilaConexion>('panel_conexiones'))
 export const ingesta = cache(() => rpc<FilaIngesta>('panel_ingesta'))
 export const espacios = cache(() => rpc<FilaEspacio>('panel_espacios'))
 export const accesos = cache(() => rpc<FilaAcceso>('panel_accesos'))

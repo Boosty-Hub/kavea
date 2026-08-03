@@ -1,5 +1,6 @@
 import { fecha, fechaHora } from '@/lib/fechas'
-import { espacios } from '@/lib/panel'
+import { espacios, conexiones } from '@/lib/panel'
+import { Conexiones } from './conexiones'
 import { soloStaff } from '../guardia'
 import { NavAdmin } from '../nav'
 
@@ -18,7 +19,7 @@ export const dynamic = 'force-dynamic'
  */
 export default async function Espacios() {
   await soloStaff()
-  const filas = await espacios()
+  const [filas, conex] = await Promise.all([espacios(), conexiones()])
 
   return (
     <main className="pagina">
@@ -51,7 +52,9 @@ export default async function Espacios() {
                     <code>{e.slug}</code> · {e.zona_horaria ?? 'sin huso'}
                   </div>
                 </td>
-                <td style={td}>{e.canales || <Vacio>ninguno</Vacio>}</td>
+                <td style={td}>
+                  <Conexiones lista={conex.filter((c) => c.organization_id === e.organization_id)} />
+                </td>
                 <td style={td}>
                   {e.personas}
                   {e.invitaciones > 0 ? (

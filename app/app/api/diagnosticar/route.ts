@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { organizacionActual, usuarioActual } from '@/lib/organizacion'
+import { esStaff, organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
 
 export const dynamic = 'force-dynamic'
@@ -22,16 +22,36 @@ export async function POST(req: Request) {
   if (!(await usuarioActual())) {
     return NextResponse.json({ error: 'sin sesión' }, { status: 401 })
   }
-  const org = await organizacionActual()
-  if (!org) return NextResponse.json({ error: 'sin organización' }, { status: 403 })
 
   const { conexion } = await req.json().catch(() => ({ conexion: '' })) as { conexion?: string }
   if (!conexion) return NextResponse.json({ error: 'falta la conexión' }, { status: 400 })
 
-  const supabase = await crearClienteServidor()
-  const { data: suya } = await supabase
-    .from('meta_connections').select('id').eq('id', conexion).maybeSingle()
-  if (!suya) return NextResponse.json({ error: 'esa conexión no existe' }, { status: 404 })
+  /**
+   * Dos caminos, y el segundo no es un rodeo del primero.
+   *
+   * Desde el subdominio de un cliente, la conexión tiene que ser suya y lo
+   * decide RLS, no una condición escrita a mano que algún día se olvide.
+   *
+   * Desde el panel interno, el staff comprueba conexiones de CUALQUIER espacio,
+   * y hace falta: Salud enseña que algo está en rojo y el panel de canales vive
+   * en el subdominio del cliente, donde el staff no entra. Enseñar un problema
+   * sin ofrecer el gesto que lo arregla es media herramienta.
+   *
+   * Volver a comprobar no lee nada de nadie: pregunta a Meta por el estado de
+   * una Página. No hace falta break-glass porque no hay contenido de por medio.
+   */
+  const admin = (await superficieActual()) === 'admin'
+  if (admin) {
+    if (!(await esStaff())) return NextResponse.json({ error: 'no encontrado' }, { status: 404 })
+  } else {
+    const org = await organizacionActual()
+    if (!org) return NextResponse.json({ error: 'sin organización' }, { status: 403 })
+
+    const supabase = await crearClienteServidor()
+    const { data: suya } = await supabase
+      .from('meta_connections').select('id').eq('id', conexion).maybeSingle()
+    if (!suya) return NextResponse.json({ error: 'esa conexión no existe' }, { status: 404 })
+  }
 
   const url = process.env.KAVEA_FUNCTIONS_URL
   const clave = process.env.SUPABASE_SECRET_KEY
