@@ -8,11 +8,11 @@ import Link from 'next/link'
  * cosas que se miran una vez al mes.
  */
 const SECCIONES = [
-  { clave: 'salud', href: '/', etiqueta: 'Salud' },
-  { clave: 'espacios', href: '/espacios', etiqueta: 'Espacios' },
-  { clave: 'portafolio', href: '/portafolio', etiqueta: 'Portafolio' },
-  { clave: 'accesos', href: '/accesos', etiqueta: 'Accesos' },
-  { clave: 'uso', href: '/uso', etiqueta: 'Uso' },
+  { clave: 'salud', href: '/admin', etiqueta: 'Salud' },
+  { clave: 'espacios', href: '/admin/espacios', etiqueta: 'Espacios' },
+  { clave: 'portafolio', href: '/admin/portafolio', etiqueta: 'Portafolio' },
+  { clave: 'accesos', href: '/admin/accesos', etiqueta: 'Accesos' },
+  { clave: 'uso', href: '/admin/uso', etiqueta: 'Uso' },
 ] as const
 
 export type SeccionAdmin = (typeof SECCIONES)[number]['clave']

@@ -121,7 +121,7 @@ function Espacio({ f }: { f: FilaSalud }) {
           ? <>comprobado<br />{fechaHora(f.ultima_pasada, 'UTC')}</>
           : 'sin comprobar'}
         <div style={{ marginTop: 6 }}>
-          <Link href={`/espacios#${f.slug}`} style={{ color: 'var(--k-accent)' }}>Ver espacio</Link>
+          <Link href={`/admin/espacios#${f.slug}`} style={{ color: 'var(--k-accent)' }}>Ver espacio</Link>
         </div>
       </div>
     </div>
