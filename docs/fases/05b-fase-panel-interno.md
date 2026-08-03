@@ -161,6 +161,40 @@ A1–A5 no dependen de nada. B1–B4 dependen del token de portafolio.
 | El token de portafolio se filtra | 28 Páginas escribibles por un tercero | §6, y rotación documentada |
 | La salud se mira solo cuando algo falla | Un panel de salud que nadie abre no avisa | La señal grave sale por el mismo canal de alertas que ya existe |
 
+## 8b. Añadido el 2 de agosto: la puerta de entrada
+
+**Decisión: no hay cuenta gratuita todavía.** Un registro público no puede conectar
+un canal —App Review sin enviar, y sin Tech Provider solo conectan las Páginas
+asignadas al Business Manager de Boosty—. Una cuenta free hoy sería una bandeja
+vacía con un botón de «conectar Instagram» que no funciona, y eso no se lee como
+«todavía no»: se lee como «esto está roto».
+
+En su lugar, `kavea.ai/demo` pide una demo, y lo dice en la misma página. La
+cuenta gratuita se monta cuando llegue Tech Provider; entonces vuelve la
+discusión de qué limita el plan.
+
+Es la primera superficie de Kavea que **acepta escritura sin sesión**, y las
+consecuencias se asumen contadas:
+
+| | |
+|---|---|
+| Escribir | Sí, por un único RPC con permiso para `anon`, con validación y tope |
+| Leer | **Nunca.** Cero políticas en la tabla: una lista de solicitudes es una lista de negocios con sus correos |
+| Cambiar | Solo el staff, por RPC |
+
+Tres frenos. El primero importa más de lo que parece: **la trampa para bots
+devuelve éxito, no error.** Decirle a un bot que ha fallado es enseñarle a
+arreglarlo. Los otros dos son un envío por correo cada diez minutos —pulsar dos
+veces no puede crear dos negocios donde hay uno— y un tope global por hora, que
+sin IP a mano dentro de la base es lo que evita que una tarde de bots deje la
+tabla inservible.
+
+**Lo que costó:** dos bloqueos de la CSP encadenados y los dos silenciosos. El
+script inline lo descartaba el navegador, y `connect-src` sin declarar heredaba
+`default-src 'self'` y habría matado el fetch igual. Se arreglan los dos sin
+tocar `unsafe-inline`: el script se va a `public/demo.js` y `connect-src` nombra
+exactamente el proyecto de Supabase.
+
 ## 9. Preguntas abiertas
 
 | # | Qué | Por qué no se decide aquí |
