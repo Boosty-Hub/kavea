@@ -10,27 +10,133 @@ verificado, no se escribe como hecho.
 
 ## 1. Estado actual
 
+> Al día del **2 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
+> mantiene al día: los documentos de `docs/fases/` describen lo planeado y **no se actualizan al
+> ejecutar**, así que contradicen a la realidad. Está anotado como deuda en §3.4.
+
 | Pieza | Estado | Verificado |
 |---|---|---|
-| Sitio público `kavea.ai` | ✅ En producción | HTTP 200, contenido comprobado |
+| Sitio público `kavea.ai` | ✅ En producción, con `/demo` | Formulario probado de extremo a extremo |
 | Páginas legales | ✅ Publicadas | Rastreables por Meta, sin bloqueo de bots |
-| Correo `support@kavea.ai` | ✅ Recibe y envía | Prueba de extremo a extremo |
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, en modo desarrollo | `compliant`, sin violaciones |
-| Plan de construcción | ✅ 8 fases, 8.000 líneas | `docs/fases/` |
 | Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 13 migraciones aplicadas | 15 tablas, 20 políticas, verificado en `pg_catalog` |
-| Aislamiento entre tenants | ✅ 16 de 16 comprobaciones | Validado rompiendo una política a propósito |
-| Aplicación Next.js | ✅ Desplegada | `boosty.kavea.ai` y `admin.kavea.ai` sirviendo |
-| Usuario de Boosty | ✅ Sembrado | Owner de la organización y staff |
-| Integración continua | ✅ 5 trabajos en verde | Validada provocando una regresión |
-| Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias. Ver más abajo |
+| Esquema de base de datos | ✅ 60 migraciones aplicadas | Verificado en `pg_catalog` |
+| Aislamiento entre tenants | ✅ 61 de 61 comprobaciones | Validado rompiendo una política a propósito |
+| Ingesta y normalización | ✅ En producción | Mensajes reales entrando, 8 crones vivos |
+| Bandeja, tarjetas y embudos | ✅ En producción | Un contacto con varios canales en un solo hilo |
+| Ficha, agenda y reparto | ✅ En producción | Reparto por turnos verificado con dos personas |
+| Envío por Instagram | ✅ Texto, imagen, GIF y corazón | Envíos reales, echo en ≤6 s, contacto confirmando |
+| Diagnóstico de conexiones | ✅ V1–V7, cron diario | Primera pasada: 5 verde, 0 rojo, 2 sin saber |
+| Panel interno | ✅ Cinco pantallas | Salud, espacios, portafolio, accesos y uso |
+| Alta de cliente desde el panel | ⚠️ Construida, **sin ejecutar** | Falta el primer cliente real |
+| Envío por Messenger | ⚠️ Construido, **sin probar** | No hay contacto vivo por esa vía |
+| Correo saliente | ⚠️ **No funciona** | DNS de `kavea.ai` sin verificar en Resend |
+| Tech Provider / App Review | ⛔ `NO_SUBMISSION` | Camino crítico de todo lo demás |
+| WhatsApp | ⛔ Sin empezar | Un tercio del producto, sin investigar |
+| Agentes | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
+| Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias |
 
-**La fase 0 está terminada.** Lo que queda del bloque —el comodín— no bloquea el dogfooding.
+**Las fases 0 a 4 están operativas y la 5 va por su tarea 12.** Lo que decide qué se hace
+mañana no es el número de la fase: es la sección 3.
 
 ---
 
 ## 2. Entradas
+
+### 2026-08-02 · Reparto, adjuntos, diagnóstico de canales y panel interno
+
+Una tanda larga. Lo que quedó construido y verificado en producción:
+
+**Fase 3f — reparto por turnos.** Sin puntero: se elige a quien lleva más tiempo sin recibir
+una. Un round robin con cursor se rompe en cuanto la lista cambia, y «quien lleva más sin
+recibir» se arregla solo cuando eso pasa. Las asignaciones a mano también mueven el reloj, o el
+reparto repartiría por igual sobre una carga ya torcida. Sin responsable, la conversación **la
+tiene el sistema** y se reclama de un clic desde el hilo: buscarse a uno mismo en un desplegable
+de doce nombres acaba en que nadie reclama nada.
+
+**Fase 4, T11 — enviar adjuntos.** La URL que lee Meta se firma **en el despacho**, no al
+encolar: entre pulsar y llamar pueden pasar quince minutos de bloqueo por límites y una firma
+hecha antes llegaría caducada. Efecto secundario que importa: no queda ninguna URL firmada
+escrita en una tabla que los miembros leen. Hay una comprobación que falla si algún día aparece
+un `https://` en el cuerpo encolado.
+
+Envío real el mismo día: PNG de 232 KB por Instagram, `message_id` devuelto, echo a los **seis
+segundos**, y el contacto confirmando. Después un GIF y un corazón, los dos aceptados.
+
+**Fase 5, T12 — diagnóstico de conexiones.** Siete comprobaciones, cada una con su resultado y
+su causa escrita como acción. `no_verificable` es un resultado de primera clase y se pinta en
+gris, no en rojo: el toggle de «permitir acceso a mensajes» no lo expone ninguna API, y fingir
+un fallo manda a alguien a arreglar lo que no está roto. Primera pasada real: 5 en verde, 0 en
+rojo, 2 sin saber.
+
+**Fase 5b — panel interno.** Cinco pantallas, cinco preguntas: qué cliente está roto, qué
+distingue a cada espacio, a qué Página crearle cuenta, quién ha mirado datos de quién, y qué
+cliente se va a ir. Ninguna devuelve contenido: el break-glass sigue siendo el único camino a lo
+que un cliente escribió, y esa protección no es la política de la base, es la fricción
+deliberada.
+
+**`kavea.ai/demo`.** Decisión de Gabriel: nada de cuenta gratuita hasta tener Tech Provider. Una
+cuenta free hoy sería una bandeja vacía con un botón que no funciona, y eso no se lee como
+«todavía no» sino como «esto está roto».
+
+**Un solo reloj.** Había dos: los componentes de servidor pintaban en UTC —el hilo de una
+conversación de Caracas enseñaba cada mensaje cuatro horas en el futuro— y los de cliente en el
+huso del navegador. Ahora todo va por `organizations.zona_horaria`, que además por fin se puede
+editar.
+
+#### Nueve invariantes de Meta, medidos y no leídos
+
+Todos del 2 de agosto, con método anotado en `docs/03-invariantes-meta.md`:
+
+1. `subscribed_fields` literales: **plural** en `messaging_referrals` y `messaging_handovers`, y
+   **`message_reactions`**. Cierra el incierto C3.
+2. `messaging_feature_status` en una Página que funciona:
+   `{hop_v2: true, ig_multi_app: false, msgr_multi_app: false}`. No establece cuál significa
+   «default application designada»: eso exige el diff antes/después.
+3. **`tasks` no existe en el nodo de la Página.** Pedirlo devuelve error 100.
+4. **Un campo de más en una lista de `fields` ANULA la respuesta entera.** No la degrada.
+5. El Page Access Token derivado **no caduca** (`expires_at: 0`).
+6. **El GIF se puede enviar** como `image` — la restricción «solo PNG y JPEG» era nuestra,
+   disfrazada de restricción de Meta.
+7. Meta **transcodifica el GIF saliente**, al menos en el echo: el asset es un JPEG fijo.
+8. El único sticker enviable es el corazón, y **su echo vuelve como texto** con `❤`.
+9. **La media entrante no siempre viene de un CDN de Meta**: el selector de GIF de Instagram
+   sirve desde `media4.giphy.com`.
+
+#### Los fallos que costaron, y lo que enseñan
+
+- **Tres decisiones razonables encadenadas pierden datos en silencio.** Los GIF que mandó el
+  contacto no se guardaban: allowlist de hosts correcta en intención y corta en alcance, CHECK de
+  coherencia correcto por separado, y un `exception when others` que protege el mensaje. Ninguna
+  es el error; el error es que no quedaba rastro. El comentario decía que el adjunto «se pierde
+  con métrica» y **no había métrica**.
+- **Vacío y roto no pueden verse igual.** `panel_salud` fallaba por un `sum()` que devuelve
+  `numeric` declarado `bigint`, y el cargador se tragaba el error: la pantalla decía «no hay
+  espacios» teniendo uno. Un panel de salud que miente diciendo que todo está bien es peor que no
+  tenerlo.
+- **Un espacio sin dueño no está a medias: es inútil.** El alta creaba la organización y nadie
+  podía entrar, porque el staff de Boosty no es miembro de las organizaciones de sus clientes y
+  `invitar_miembro` exige pertenencia. Y el alta decía «hecho».
+- **Dos bloqueos de CSP encadenados y los dos mudos.** El formulario de demo no hacía nada: el
+  script inline descartado, y `connect-src` sin declarar habría matado el fetch igual. Arreglar
+  solo el primero habría dado la sensación de haberlo arreglado.
+- **El guardián tenía un punto ciego.** Una migración registraba actividad con un `insert`
+  directo y `comprobar-actividades.mjs` solo mira las llamadas a `registrar_actividad`: el
+  guardián que existe porque cuatro veces llegó a producción un identificador sin traducir se
+  habría callado.
+- **Dos nombres para el mismo secreto.** La ruta de alta pedía `CORREO_REMITENTE`, que no existe;
+  la de invitar lo tiene escrito a mano. El correo del alta no se habría enviado nunca y nada
+  habría fallado visiblemente.
+- **Playwright diciendo «clicking the checkbox did not change its state» era un bug real**, no un
+  problema de la prueba: el control no se movía hasta que contestaba el servidor.
+
+#### Una propiedad que el sistema perdió, a conciencia
+
+Hasta hoy Kavea **solo podía descifrar**. Un compromiso de la aplicación permitía leer
+credenciales existentes pero no fabricar ninguna nueva. Añadir `cifrar` era necesario para dar de
+alta clientes sin SQL, y el intercambio está escrito en `docs/fases/05b` §6. No ocurrió por
+descuido.
 
 ### 2026-08-02 · Boosty conectada y el amortiguador probado con mensajes reales
 
@@ -951,82 +1057,131 @@ misma identidad de canal lo impide el índice único de `contact_identities` des
 
 ## 3. Pendiente, por orden de urgencia
 
-### Bloquea la fase 0
+> Revisado de arriba abajo el 2 de agosto de 2026. Agrupado por **qué lo bloquea**, no por
+> fase: lo que decide en qué se trabaja mañana no es el número de la fase, es si hace falta
+> que alguien de fuera haga algo primero.
 
-| Qué | Quién |
-|---|---|
-| ~~Cambiar nameservers en GoDaddy~~ — **hecho y verificado** | ✅ |
-| ~~Ingesta en Cloudflare o Netlify~~ — **decidido: Netlify** | ✅ |
-| ~~Contraste de colores semánticos~~ — **decidido: dos tokens por estado** | ✅ |
-| ~~Tres o cuatro estados~~ — **decidido: cuatro** | ✅ |
-| Rehacer las fases 1 y 2 sobre Netlify. Están escritas contra Cloudflare | Claude |
+### 3.1 Bloqueado por Meta — nada de esto avanza sin el trámite
 
-**Nada bloquea ya la fase 0 por parte de Gabriel.** Lo único pendiente antes de arrancar es
-rehacer los planes de las fases 1 y 2, que no bloquean el bloque 0.
-
-### Bloquea el App Review
+**Tech Provider y App Review.** Estado real: `NO_SUBMISSION`. Es la llave de todo lo demás y
+tiene semanas de latencia, así que es el camino crítico aunque no lo parezca. Antes de poder
+enviarlo:
 
 | Qué | Estado |
 |---|---|
-| Rellenar ajustes básicos de la app: URLs, ícono, categoría, descripciones | Contenido listo en `05-checklist-tech-provider.md` |
-| Verificar el correo de contacto de la app | `contact_email_verified: false` |
-| Confirmar que la app está reclamada por el portafolio | No visible por API |
-| Enviar la Access Verification (Tech Provider) | Requisitos cumplidos |
+| Ajustes básicos de la app: icono, categoría, las tres URLs, descripciones | Contenido listo en `05-checklist-tech-provider.md`, campos en `null` |
+| Correo de contacto de la app verificado | `contact_email_verified: false` |
+| **DNS de `kavea.ai` verificado en Resend** | ⚠️ Pendiente. **Hoy Kavea no puede enviar un solo correo**: ni invitaciones ni altas de cliente. Las dos rutas degradan y devuelven el enlace para pasarlo a mano |
+| Un screencast por cada permiso | Sin grabar |
+| Use cases depurados a los ocho permisos exactos, sin `instagram_business_*` | Sin depurar |
 
-El App Review propiamente dicho **no se puede enviar todavía**: exige al menos una llamada
-exitosa por permiso en los 30 días previos, un screencast por permiso y un tenant demo
-funcionando. Se envía al cerrar la fase 4.
+**Los tres callbacks que Meta exige y no existen.** Son código, no dependen de nadie, y sin
+ellos no hay App Review:
 
-### Bloquea la fase 6
+- `deauthorize` — el cliente revoca desde Meta. Desconecta y avisa; **no borra datos**.
+- `data deletion` — devolviendo exactamente `{url, confirmation_code}` y su página de estado.
+- Verificación del `signed_request` (HMAC-SHA256 sobre la base64 **sin decodificar**).
 
-| Qué | Quién |
+**WhatsApp, entero.** Es un tercio del producto y probablemente el canal de más volumen en
+Venezuela, República Dominicana y México, y **no hay ni una línea**. Sin investigar: la forma
+del webhook —una cuarta forma de payload incompatible con las tres de Messaging—, categorías y
+aprobación de plantillas, precio por conversación, quality rating, verificación de número,
+Display Name approval y Embedded Signup.
+
+### 3.2 Bloqueado por una decisión de Gabriel
+
+| Qué | Por qué está parado |
 |---|---|
-| **Clave de la API de Anthropic** en los secretos de Supabase. No hay ninguna, y sin ella el trabajador del agente no se puede escribir ni probar | Gabriel |
-| Decidir si el carril de acuse sub-30 s se enciende. Auto-responde a **todo** entrante y es una decisión de producto, no técnica. Solo hace falta cuando el agente esté activo | Gabriel |
+| **Fase 6, agentes** | Aparcada por decisión, y además **no hay `ANTHROPIC_API_KEY`** en los secretos. Sin ella el trabajador no se puede escribir ni probar. Sí se puede avanzar en `agent_runs`, el catálogo de intenciones y el motor de escalamiento |
+| Carril de acuse sub-30 s | Auto-responde a **todo** entrante. Es decisión de producto |
+| Comentarios de Instagram y Facebook | Aparcados. Instagram exige otra ronda de App Review con `instagram_manage_comments` |
+| Cuenta gratuita pública | Decidida para cuando llegue Tech Provider. Los límites, sin decidir |
+| Facturación | Se mide el uso, no se cobra. Tarifas, liquidación y márgenes sin empezar |
+| ¿Se puede cambiar el subdominio de un cliente? | Hoy bloqueado, sin decisión explícita. Cambiarlo rompe los enlaces repartidos |
+| Impersonación con registro | La herramienta de soporte que de verdad hace falta, y la que más puede doler |
 
-Lo que sí se puede hacer sin la clave: el modelo de datos de `agent_runs`, el
-catálogo de intenciones y el motor de escalamiento determinista, que es
-justamente la mitad que mantiene al modelo fuera de la ruta crítica.
+### 3.3 Sin bloqueo: es trabajo
 
-### Comentarios: cerrado con hallazgo
+**Fase 5 — lo que queda del autoservicio (24 de 26 tareas).** El código se puede escribir hoy;
+probarlo necesita los dos `config_id` que se crean en el App Dashboard.
 
-Los comentarios siguen fuera de v1. Comprobado en vivo el 2 de agosto:
+- Las dos configuraciones de Facebook Login for Business, separadas por canal
+- `GET /api/meta/oauth/start` y `/callback` con sus siete pasos en orden
+- Token BISU, rotación perezosa por `kid`, cron diario de `debug_token`, botón de reconectar
+- Enlace de conexión firmado, un solo uso, 72 h, sin sesión de Kavea
+- Máquina de estados por `(organización, canal)` con `degradado`, `desconectado`, `suspendido`
+- Conversation Routing: `primary_receiver`, los seis endpoints de thread control, `thread_owner`
+- Árbol de diagnóstico diferencial hasta la hoja «causa residual»
+- Pantalla de expectativas de WhatsApp
 
-- **Instagram está bloqueado por permiso.** `comments` NO es un campo válido de
-  `subscribed_apps` de una Página: Meta rechaza el POST entero. Exige
-  `instagram_manage_comments` en Advanced Access, o sea otra ronda de App Review.
-- **Facebook debería llegar.** `feed` está suscrito en los dos niveles y el
-  transporte está probado con el webhook de prueba de Meta. Los comentarios
-  reales de la prueba no llegaron; lo más probable es que se hicieran desde la
-  propia Página o desde una cuenta administradora, para las que Meta no emite.
+**Fase 4 — lo que quedó suelto:**
 
-### Visto de paso, sin tocar
+- **Messenger nunca se ha probado de extremo a extremo.** No hay contacto vivo por esa vía;
+  Instagram sí, varias veces
+- Circuit breaker de límites a `call_count > 80`. Hoy se reacciona al error, no se previene
+- Corte de texto de Instagram por 1000 bytes **respetando grafemas**. Hoy se rechaza, no se corta
+- Guardarraíles de repositorio en CI: tags muertos, hosts prohibidos, versión literal
+- Del GIF saliente: confirmar en el aparato del destinatario si le llega animado
 
-**`private.avisar_bandeja` abre una subtransacción por cada mensaje insertado.** El bloque
-`exception when others` que protege la ingesta de un fallo de Realtime es, en PL/pgSQL, una
-subtransacción. El aplicador tiene el lote topado en 64 justamente por el caché de
-subtransacciones de Postgres, que también es 64 y que al desbordarse degrada el clúster
-entero, no solo la sesión. Con este trigger, un lote de 64 mensajes gasta 64 subtransacciones
-solo aquí, más las que consuman `aplicar_efecto` y `aplicar_adjuntos`. No se ha medido si el
-total pasa del umbral y no se ha tocado nada: queda anotado porque el día que se note será en
-forma de lentitud general del clúster, que es lo más difícil de atribuir a su causa.
+**Panel interno — lo que falta:**
 
-Medirlo con `pg_stat_slru` y, si hace falta, sustituir el `exception` por una escritura a una
-tabla de salidas fallidas o bajar el tope del lote.
+- **Pedir** un break-glass desde el panel. Se puede cortar, no abrir: hoy sigue siendo SQL
+- Las alertas no tienen superficie. `alertar()` escribe y nadie lo lee
+- Ficha por espacio. Todo son agregados
+- **El alta de cliente y la conexión de una Página están construidas y nunca ejecutadas contra
+  un cliente real.** Es la prueba que falta
 
-### Decisiones sin fecha límite
+**Fase 7:** kill-switches (global, por tenant, por canal), drenaje de la cola marcando
+**caducados** los mensajes que perdieron la ventana en vez de tirarlos en silencio,
+`GET /api/estado` con banner en menos de 30 s, tenants canario en producción, y el documento de
+límites que el cliente firma antes de que se le cree la organización.
+
+### 3.4 Deuda que va a doler si se deja
+
+- **Rotar todos los tokens que pasaron por el chat.** El **de portafolio va primero**: escribe
+  en nombre de 28 Páginas. Después el PAT de Supabase, Resend, Netlify, la clave secreta y la
+  contraseña.
+- **Los documentos de fase mienten.** `04` dice «plan, sin código escrito» y hay envíos reales;
+  el README dice «ninguna fase ejecutada». En todo `docs/fases/` hay **dos** marcas de «hecho».
+  Una auditoría automática contra los documentos devuelve un inventario inservible justo por
+  esto. Cuesta una tarde reconciliarlos y evita que dentro de un mes nadie sepa qué falta.
+- **`private.avisar_bandeja` abre una subtransacción por mensaje.** El `exception when others`
+  que protege la ingesta de un fallo de Realtime es, en PL/pgSQL, una subtransacción. El lote
+  está topado en 64 justamente por el caché de subtransacciones de Postgres, que también es 64
+  y que al desbordarse degrada el clúster entero. Sin medir. Se notará como lentitud general,
+  que es lo más difícil de atribuir a su causa.
+
+### 3.5 Inciertos de Meta que siguen abiertos
+
+Sin resolver por lectura: son contradicciones entre páginas oficiales o cosas que Meta no
+publica.
+
+- Si `RESPONSE` / `UPDATE` / `MESSAGE_TAG` son los literales correctos
+- La forma exacta del cuerpo con `HUMAN_AGENT` en Instagram
+- TTL real de las URLs de `lookaside.fbsbx.com`
+- 100/s o 300/s en el Send API de Instagram
+- Suelo de la fórmula `4800 × impresiones` para cuentas nuevas
+- Disponibilidad regional en VE, RD y MX de Human Agent, private replies y Conversation Routing
+- **C1, C2, C4, C5, C7 y C8** de `docs/fases/05` §10: todas exigen un portafolio de prueba
+  ajeno a Boosty y completar el diálogo de Facebook Login. **C3 y C6 se cerraron** el 2 de
+  agosto con medición.
+
+### 3.6 Decisiones sin fecha límite
 
 Retención de `webhook_events` · presupuesto de latencia p95 del normalizador · nivel de PITR
-del proyecto de producción.
+del proyecto de producción · retención tras la baja de un cliente.
 
-~~Quién paga a Meta el consumo de WhatsApp~~ — **decidido: cada cliente con su propio método
-de pago.**
+~~Quién paga a Meta el consumo de WhatsApp~~ — **decidido: cada cliente con su propio método de
+pago.**
 
-### Verificaciones contra Meta
+### 3.7 Lo siguiente que yo haría, en este orden
 
-Quince, listadas en `docs/fases/README.md` §5. Siete bloquean construcción. Ninguna se
-resuelve leyendo documentación: son contradicciones entre páginas oficiales de Meta o cosas
-que Meta no publica.
+1. **Verificar el DNS de Resend.** Hoy Kavea no puede mandar un correo, y eso rompe el alta de
+   clientes que ya está construida.
+2. **Dar de alta un cliente real desde el panel** y recorrer el camino entero: espacio,
+   invitación, Página conectada, webhooks, diagnóstico y primer mensaje.
+3. **Empezar los ajustes básicos de la app de Meta**, en paralelo, porque App Review es el
+   camino crítico de todo lo demás.
 
 ---
 
