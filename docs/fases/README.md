@@ -43,6 +43,7 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 | 3f | [Reparto](03f-fase-reparto.md) | 110 | Las conversaciones que entran se reparten por turnos |
 | 4 | [Envío](04-fase-envio.md) | 511 | Se responde y el compositor se bloquea fuera de ventana |
 | 5 | [Configuración](05-fase-configuracion.md) | 975 | Un canal se conecta desde la interfaz, sin tocar la base |
+| 5b | [Panel interno](05b-fase-panel-interno.md) | 160 | Boosty ve qué cliente está roto y da de alta un espacio sin SQL |
 | 6 | [Agentes](06-fase-agentes.md) | 730 | El agente propone, una persona aprueba, queda en `agent_runs` |
 | 7 | [Multi-tenant](07-fase-multitenant.md) | 689 | Entra el primer cliente, un mes después del dogfooding |
 
@@ -51,8 +52,12 @@ contradijo en seis puntos; lleva tabla de erratas en su sección 0.
 ```
 0 ──► 1 ──► 2 ──► 3 ──► 3b ──► 3c ──► 3d ──► 3e ──► 3f ──► 4 ──► 6
                   │                           │
-                  └──► 5 ─────────────────────┴──► 7  (+ Tech Provider + App Review)
+                  └──► 5 ──► 5b ──────────────┴──► 7  (+ Tech Provider + App Review)
 ```
+
+- **5b adelanta trabajo de la 7** (sus entregables 1 y 8). El panel interno no depende de App
+  Review, y dejarlo dentro de la 7 significaba no tenerlo durante todo el mes de dogfooding, que
+  es justo cuando más falta hace: es cuando se rompen cosas que nadie ha visto romperse todavía.
 
 - **1 y 2 antes que 3, sin excepción.** No hay bandeja sin ingesta.
 - **3b antes que 4, y esto no es negociable.** La 4 construye el compositor, y si la unidad de

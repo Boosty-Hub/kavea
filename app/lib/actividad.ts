@@ -80,6 +80,13 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'tarjeta.titulo': return `cambió el título a "${d.a ?? ''}"`
     case 'nota.añadida': return `añadió una nota: ${d.texto ?? ''}`
     case 'breakglass.abierto': return 'abrió un acceso temporal al contenido'
+    // Se registra en el hilo DEL CLIENTE, no solo en el nuestro: la
+    // transparencia del break-glass es hacia quien tiene los datos.
+    case 'breakglass.revocado':
+      return `cortó un acceso temporal antes de que caducara${d.motivo ? ` · ${d.motivo}` : ''}`
+    case 'espacio.creado': return `creó este espacio (${d.slug})`
+    case 'canal.conectado':
+      return `conectó la Página ${d.pagina}${d.instagram ? ` y @${d.instagram}` : ''}`
 
     // --- La persona y sus canales ---
     case 'identidad.vinculada':
