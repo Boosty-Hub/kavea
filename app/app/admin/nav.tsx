@@ -9,6 +9,7 @@ import Link from 'next/link'
  */
 const SECCIONES = [
   { clave: 'salud', href: '/admin', etiqueta: 'Salud' },
+  { clave: 'solicitudes', href: '/admin/solicitudes', etiqueta: 'Solicitudes' },
   { clave: 'espacios', href: '/admin/espacios', etiqueta: 'Espacios' },
   { clave: 'portafolio', href: '/admin/portafolio', etiqueta: 'Portafolio' },
   { clave: 'accesos', href: '/admin/accesos', etiqueta: 'Accesos' },

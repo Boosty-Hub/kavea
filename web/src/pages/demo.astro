@@ -1,0 +1,195 @@
+---
+import Base from '../layouts/Base.astro'
+import { legal } from '../data/legal'
+
+/**
+ * Pedir una demo.
+ *
+ * POR QUÉ UNA DEMO Y NO UNA CUENTA GRATUITA
+ *
+ * Kavea todavía no puede conectar el canal de alguien que llega por su cuenta:
+ * hace falta la aprobación de Meta como proveedor tecnológico, y está en
+ * trámite. Una cuenta gratuita hoy sería una bandeja vacía con un botón de
+ * «conectar Instagram» que no funciona, y eso no se lee como «todavía no»: se
+ * lee como «esto está roto».
+ *
+ * Así que se pide lo que sí se puede dar —una demo con una persona— y se dice
+ * por qué. Prometer de menos y cumplir es la única forma de empezar.
+ *
+ * El sitio es ESTÁTICO, sin servidor. El formulario habla directamente con
+ * Postgres a través de un único procedimiento con permiso público, que valida,
+ * limita y no deja leer nada. La clave que viaja aquí es publicable a
+ * propósito: sin sesión no abre absolutamente nada más.
+ */
+const CANALES = [
+  { v: 'whatsapp', n: 'WhatsApp' },
+  { v: 'instagram', n: 'Instagram' },
+  { v: 'messenger', n: 'Messenger' },
+]
+
+const url = import.meta.env.PUBLIC_SUPABASE_URL ?? ''
+const clave = import.meta.env.PUBLIC_SUPABASE_ANON ?? ''
+---
+
+<Base
+  title="Pide una demo"
+  description="Kavea unifica WhatsApp, Instagram y Messenger en una sola bandeja. Pide una demo y te la enseñamos con tus canales."
+  path="/demo"
+>
+  <section class="section">
+    <div class="page" style="max-width: 640px;">
+      <p class="label">Empezar</p>
+      <h1>Pide tu demo</h1>
+      <p class="lead">
+        Te la enseñamos con tus propios canales, no con una cuenta de ejemplo. Media hora, y sales
+        sabiendo si Kavea te sirve.
+      </p>
+
+      {/* Se dice lo que hay, y aquí. Enterarse después de rellenar un formulario
+          de que «todavía no hay autoservicio» es peor que leerlo antes. */}
+      <p class="muted" style="margin-top: 24px;">
+        Todavía no abrimos el registro por tu cuenta: conectar un canal de Meta exige una
+        aprobación que está en trámite. Mientras tanto lo conectamos nosotros contigo, que además
+        es cómo se descubren la mitad de las cosas raras de cada negocio.
+      </p>
+
+      <form id="demo" class="formulario" novalidate>
+        <div>
+          <label class="label" for="nombre">Tu nombre</label>
+          <input id="nombre" name="nombre" class="campo" required maxlength="80" autocomplete="name" />
+        </div>
+
+        <div>
+          <label class="label" for="correo">Correo</label>
+          <input id="correo" name="correo" class="campo" type="email" required autocomplete="email" />
+        </div>
+
+        <div class="formulario__par">
+          <div>
+            <label class="label" for="negocio">Negocio</label>
+            <input id="negocio" name="negocio" class="campo" maxlength="120" autocomplete="organization" />
+          </div>
+          <div>
+            <label class="label" for="telefono">Teléfono <span class="opcional">opcional</span></label>
+            <input id="telefono" name="telefono" class="campo" maxlength="40" autocomplete="tel" />
+          </div>
+        </div>
+
+        <fieldset class="formulario__canales">
+          <legend class="label">¿Por dónde te escriben hoy?</legend>
+          {CANALES.map((c) => (
+            <label class="casilla">
+              <input type="checkbox" name="canales" value={c.v} />
+              {c.n}
+            </label>
+          ))}
+        </fieldset>
+
+        <div>
+          <label class="label" for="mensaje">
+            Cuéntanos <span class="opcional">opcional</span>
+          </label>
+          <textarea id="mensaje" name="mensaje" class="campo" rows="3" maxlength="1000"
+            placeholder="Cuántos mensajes al día, cuánta gente atiende, qué se te está escapando."></textarea>
+        </div>
+
+        {/* La trampa. Invisible y fuera del recorrido del tabulador: una persona
+            no la ve ni la puede enfocar; un bot que rellena todo lo que
+            encuentra, sí. */}
+        <div class="trampa" aria-hidden="true">
+          <label for="empresa-web">No rellenar</label>
+          <input id="empresa-web" name="empresa_web" tabindex="-1" autocomplete="off" />
+        </div>
+
+        <button class="btn btn--primary" type="submit">Pedir la demo</button>
+        <p id="aviso" class="formulario__aviso" role="status" aria-live="polite"></p>
+      </form>
+
+      <p class="muted" style="margin-top: 28px; font-size: 14px;">
+        Solo usamos estos datos para responderte. Ni listas, ni terceros, ni publicidad.
+        Lo dice también la <a href="/privacidad">política de privacidad</a>.
+        Si prefieres el correo directo: <a href={`mailto:${legal.contacto}`}>{legal.contacto}</a>.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .formulario { display: grid; gap: 18px; margin-top: 28px; }
+  .formulario__par { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 520px) { .formulario__par { grid-template-columns: 1fr; } }
+  .formulario__canales { border: 0; padding: 0; margin: 0; display: grid; gap: 8px; }
+  .casilla { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+  .opcional { font-weight: 400; text-transform: none; letter-spacing: 0; opacity: 0.6; }
+  .formulario__aviso:empty { display: none; }
+  .formulario__aviso { margin: 0; font-size: 14px; }
+  .formulario__aviso[data-mal] { color: var(--k-escalada-fg, #a33); }
+
+  /* Fuera de la pantalla, no `display:none`: algunos bots ignoran lo que está
+     oculto con display y rellenan el resto. Así el campo existe de verdad. */
+  .trampa {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+</style>
+
+<script define:vars={{ url, clave }}>
+  const form = document.getElementById('demo')
+  const aviso = document.getElementById('aviso')
+  const boton = form.querySelector('button[type=submit]')
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault()
+    const d = new FormData(form)
+
+    // Validación mínima en el navegador, la de verdad está en la base. Aquí solo
+    // para no hacer viajar un formulario que ya sabemos incompleto.
+    if (!String(d.get('nombre') ?? '').trim() || !String(d.get('correo') ?? '').includes('@')) {
+      aviso.textContent = 'Hacen falta al menos tu nombre y un correo.'
+      aviso.dataset.mal = ''
+      return
+    }
+
+    boton.disabled = true
+    aviso.removeAttribute('data-mal')
+    aviso.textContent = 'Enviando…'
+
+    try {
+      const r = await fetch(`${url}/rest/v1/rpc/pedir_demo`, {
+        method: 'POST',
+        headers: { apikey: clave, Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          p_nombre: d.get('nombre'),
+          p_correo: d.get('correo'),
+          p_negocio: d.get('negocio') || null,
+          p_telefono: d.get('telefono') || null,
+          p_canales: d.getAll('canales'),
+          p_mensaje: d.get('mensaje') || null,
+          p_origen: document.referrer ? new URL(document.referrer).hostname : 'directo',
+          p_trampa: d.get('empresa_web') || null,
+        }),
+      })
+
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}))
+        throw new Error(j.message ?? `error ${r.status}`)
+      }
+
+      // Se sustituye el formulario entero. Dejarlo en pantalla con un «gracias»
+      // encima invita a pulsar otra vez, y la segunda pulsación no hace nada
+      // —hay tope por correo— con lo que parecería que la primera falló.
+      form.innerHTML =
+        '<p class="lead" style="margin:0">Recibido. Te escribimos hoy o mañana temprano,'
+        + ' desde una dirección de kavea.ai.</p>'
+    } catch (err) {
+      aviso.dataset.mal = ''
+      aviso.textContent =
+        `No se pudo enviar (${String(err.message).slice(0, 120)}). `
+        + 'Escríbenos directamente y lo resolvemos.'
+      boton.disabled = false
+    }
+  })
+</script>

@@ -104,7 +104,23 @@ export type FilaConexion = {
   ultima_pasada: string | null
 }
 
+export type FilaSolicitud = {
+  id: string
+  nombre: string
+  correo: string
+  negocio: string | null
+  telefono: string | null
+  canales: string[]
+  mensaje: string | null
+  origen: string | null
+  estado: string
+  nota: string | null
+  atendida_en: string | null
+  created_at: string
+}
+
 export const salud = cache(() => rpc<FilaSalud>('panel_salud'))
+export const solicitudes = cache(() => rpc<FilaSolicitud>('panel_solicitudes'))
 export const conexiones = cache(() => rpc<FilaConexion>('panel_conexiones'))
 export const ingesta = cache(() => rpc<FilaIngesta>('panel_ingesta'))
 export const espacios = cache(() => rpc<FilaEspacio>('panel_espacios'))
