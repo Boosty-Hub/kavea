@@ -71,13 +71,23 @@ export type FilaUso = {
   salientes: number
 }
 
+/**
+ * VACÍO Y ROTO NO PUEDEN VERSE IGUAL.
+ *
+ * La primera versión devolvía `[]` cuando la consulta fallaba, con el argumento
+ * de que un error aquí «casi siempre es no eres staff». No lo era: `panel_salud`
+ * tenía un `sum()` que devuelve `numeric` declarado como `bigint`, Postgres lo
+ * rechazaba, y la pantalla decía «No hay espacios todavía» teniendo uno. Un
+ * panel de salud que miente diciendo que todo está bien es peor que no tener
+ * panel.
+ *
+ * Ahora el error sube. Que reviente la pantalla es lo correcto: alguien lo
+ * arregla el mismo día en vez de confiar en un cero durante semanas.
+ */
 async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T[]> {
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase.rpc(fn, args ?? {})
-  // Un error aquí casi siempre es «no eres staff», y la página ya lo comprobó
-  // antes de llegar. Se devuelve vacío en vez de reventar la pantalla entera por
-  // una de cinco consultas.
-  if (error) return []
+  if (error) throw new Error(`${fn}: ${error.message}`)
   return (data ?? []) as T[]
 }
 
