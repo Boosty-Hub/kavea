@@ -83,18 +83,29 @@ values ('00000000-0000-4000-8000-0000000000a4',
         '00000000-0000-4000-8000-0000000000a1',
         '00000000-0000-4000-8000-0000000000a3', 'messenger', 'Canal A');
 
-insert into public.conversations (organization_id, channel_id, canal, contact_id, estado)
+-- Desde 0027, una conversación SIEMPRE cuelga de una tarjeta: `tarjeta_id` es NOT
+-- NULL y no tiene valor por defecto. Esta prueba insertaba sin ella y llevaba
+-- días tumbando el job de esquema, escondida detrás de los canarios C2, C4 y C5:
+-- cada `ON_ERROR_STOP` tapa lo que viene después.
+insert into public.tarjetas (id, organization_id, contact_id)
+values ('00000000-0000-4000-8000-0000000000a5',
+        '00000000-0000-4000-8000-0000000000a1',
+        '00000000-0000-4000-8000-0000000000a2');
+
+insert into public.conversations (organization_id, channel_id, canal, contact_id, estado, tarjeta_id)
 values ('00000000-0000-4000-8000-0000000000a1',
         '00000000-0000-4000-8000-0000000000a4', 'messenger',
-        '00000000-0000-4000-8000-0000000000a2', 'esperando');
+        '00000000-0000-4000-8000-0000000000a2', 'esperando',
+        '00000000-0000-4000-8000-0000000000a5');
 
 do $$
 begin
   begin
-    insert into public.conversations (organization_id, channel_id, canal, contact_id, estado)
+    insert into public.conversations (organization_id, channel_id, canal, contact_id, estado, tarjeta_id)
     values ('00000000-0000-4000-8000-0000000000a1',
             '00000000-0000-4000-8000-0000000000a4', 'messenger',
-            '00000000-0000-4000-8000-0000000000a2', 'nueva');
+            '00000000-0000-4000-8000-0000000000a2', 'nueva',
+            '00000000-0000-4000-8000-0000000000a5');
     raise exception 'A4: se creo una segunda conversacion no cerrada para el mismo contacto';
   exception
     when unique_violation then null;
