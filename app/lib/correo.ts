@@ -10,10 +10,16 @@ import 'server-only'
  * visible. Dos remitentes distintos para el mismo producto, uno de ellos roto y
  * callado.
  *
- * PENDIENTE Y CONOCIDO: el DNS de `kavea.ai` en Resend no está verificado
- * todavía, así que hoy ninguno de los dos correos sale. Las dos rutas lo tratan
- * igual —la invitación EXISTE y se devuelve el enlace para pasarlo a mano— y eso
- * es lo correcto hasta que el dominio esté.
+ * EL DNS YA ESTÁ. Comprobado por API el 3 de agosto de 2026: `kavea.ai` está
+ * `verified` en Resend desde el 2 de agosto a las 05:39 UTC, con `sending` y
+ * `receiving` habilitados, y la invitación a gmontiel+kavea@spatiumgroup.com se
+ * entregó ese mismo día a las 19:55. Este comentario decía lo contrario y se
+ * quedó desactualizado: si el correo falla hoy, la causa es otra.
+ *
+ * Aun así las dos rutas siguen degradando con elegancia —la invitación EXISTE y
+ * se devuelve el enlace para pasarlo a mano—, y eso no se toca: Resend puede
+ * fallar cualquier martes y una invitación creada en silencio es lo peor de los
+ * dos mundos.
  */
 export const REMITENTE = 'Kavea <support@kavea.ai>'
 

@@ -11,8 +11,8 @@
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
-    "db:push": "tsx scripts/aplicar-migraciones.ts",
-    "db:verify": "tsx scripts/verificar-esquema.ts"
+    "db:push": "pwsh -NoProfile -File scripts/aplicar-migraciones.ps1",
+    "db:estado": "pwsh -NoProfile -File scripts/aplicar-migraciones.ps1 -DryRun"
   },
   "devDependencies": {
     "tsx": "^4.19.2",

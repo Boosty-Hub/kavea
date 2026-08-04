@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { mandarCorreo } from '@/lib/correo'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
 import { organizacionActual, usuarioActual } from '@/lib/organizacion'
 
@@ -42,7 +43,19 @@ export async function POST(req: Request) {
   if (!fila) return NextResponse.json({ error: 'No se pudo crear la invitación.' }, { status: 500 })
 
   const enlace = `https://${org.slug}.${process.env.NEXT_PUBLIC_DOMINIO_RAIZ}/invitacion/${fila.token}`
-  const envio = await mandarCorreo(correo, org.nombre, enlace, usuario.email ?? '')
+
+  // El remitente y el cliente de Resend viven en `lib/correo`. Esta ruta tenía su
+  // propia copia escrita a mano: `lib/correo` se creó justo para unificarla y esta
+  // ruta nunca se migró, así que había dos remitentes para el mismo producto y
+  // solo uno se actualizaba cuando algo cambiaba.
+  const envio = await mandarCorreo(
+    correo,
+    `Te han invitado a ${org.nombre} en Kavea`,
+    `${usuario.email ?? ''} te ha invitado a ${org.nombre} en Kavea.\n\n` +
+      `Entra aquí para crear tu acceso:\n${enlace}\n\n` +
+      `El enlace vale durante siete días y solo se puede usar una vez.\n` +
+      `Si no esperabas esto, ignóralo: sin abrirlo no ocurre nada.\n`,
+  )
 
   // La invitación EXISTE aunque el correo falle. Se dice, y se devuelve el
   // enlace para que quien invita lo pueda pasar por otro medio: dejar la
@@ -55,31 +68,3 @@ export async function POST(req: Request) {
   })
 }
 
-async function mandarCorreo(
-  destino: string, organizacion: string, enlace: string, quien: string,
-): Promise<{ ok: boolean; motivo?: string }> {
-  const clave = process.env.RESEND_API_KEY
-  if (!clave) return { ok: false, motivo: 'No hay clave de Resend configurada.' }
-
-  try {
-    const r = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'Kavea <support@kavea.ai>',
-        to: [destino],
-        subject: `Te han invitado a ${organizacion} en Kavea`,
-        text:
-          `${quien} te ha invitado a ${organizacion} en Kavea.\n\n` +
-          `Entra aquí para crear tu acceso:\n${enlace}\n\n` +
-          `El enlace vale durante siete días y solo se puede usar una vez.\n` +
-          `Si no esperabas esto, ignóralo: sin abrirlo no ocurre nada.\n`,
-      }),
-      signal: AbortSignal.timeout(12_000),
-    })
-    if (!r.ok) return { ok: false, motivo: `Resend respondió ${r.status}.` }
-    return { ok: true }
-  } catch {
-    return { ok: false, motivo: 'No se pudo contactar con Resend.' }
-  }
-}
