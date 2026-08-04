@@ -5,6 +5,11 @@ dist/
 .next/
 out/
 
+# Caché incremental de TypeScript. Estaba versionada y aparecía modificada en
+# cada `git status` después de cualquier typecheck, o sea ruido en todos los
+# diffs por un fichero que solo vale en la máquina que lo generó.
+*.tsbuildinfo
+
 # Proveedores
 .netlify/
 .vercel/
