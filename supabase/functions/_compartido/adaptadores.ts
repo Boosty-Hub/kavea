@@ -193,6 +193,28 @@ export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
     // `emisor` distingue en la bandeja quién habló de verdad. Un echo con
     // nuestro app_id es el agente o la ruta de envío de Kavea; un echo sin él
     // es alguien del cliente respondiendo desde el móvil o Business Suite.
+    //
+    // ESTO NO FUNCIONA EN INSTAGRAM, y no es un fallo de configuración. Medido el
+    // 3 de agosto de 2026: los echoes de Instagram NO traen `app_id`. Se enviaron
+    // dos mensajes por el Send API con el token de esta misma app y los dos
+    // volvieron sin el campo, así que caen a 'humano'. Lo que Kavea manda por
+    // Instagram es hoy indistinguible de lo que el cliente escribe desde el móvil.
+    //
+    // Tampoco se arregla suscribiéndose a nada: el topic `instagram` NO TIENE
+    // `message_echoes` entre sus campos —el de `page` sí—, y los echoes llegan por
+    // `messages` con `is_echo: true`. Verificado contra la lista de topics de la
+    // app el 3 de agosto de 2026.
+    //
+    // LA ALTERNATIVA ESTÁ MEDIDA Y NO SE IMPLEMENTA AQUÍ: el `mid` del echo es
+    // exactamente el `message_id` que devolvió el Send API. Se comprobó carácter a
+    // carácter contra el acuse de lectura del mismo mensaje. Kavea ya guarda ese
+    // valor en `send_api_message_id`, así que lo propio se reconoce cruzando el
+    // `mid`, sin `app_id`.
+    //
+    // Por qué no se cambia en este fichero: los adaptadores son una función pura
+    // sobre el cuerpo del webhook y no tocan la base. La comparación tiene que
+    // vivir donde hay consulta, es decir en el aplicador. Cambiarlo afecta al
+    // bucle del agente de IA, así que va como tarea propia y no de pasada.
     let emisor: 'contacto' | 'humano' | 'agente' = 'contacto'
     if (esEcho) emisor = APP_ID && String(msg.app_id ?? '') === APP_ID ? 'agente' : 'humano'
 
