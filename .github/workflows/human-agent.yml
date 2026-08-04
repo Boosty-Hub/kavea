@@ -1,0 +1,66 @@
+name: human-agent
+
+# Provoca la llamada que el App Review exige para la feature Human Agent.
+#
+# POR QUÉ ES UN WORKFLOW Y NO UN RECORDATORIO
+#
+# El tag HUMAN_AGENT solo es válido entre las 24 horas y los 7 días desde el
+# último mensaje entrante. Ese es el único requisito del App Review que no se
+# puede cumplir cuando uno se acuerda: hay que estar ahí en la ventana. Un cron
+# está; una nota en el calendario, según el día.
+#
+# EL CRON CORRE TODOS LOS DÍAS Y CASI SIEMPRE NO HACE NADA
+#
+# El script solo envía si han pasado entre 24 y 36 horas desde la marca de
+# `META_ULTIMO_ENTRANTE`. Fuera de eso sale en verde sin tocar la API. Así una
+# sola ejecución cae dentro de la ventana y no hace falta guardar estado para
+# evitar mandar un mensaje al día durante una semana.
+#
+# LO QUE ESTE JOB NO HACE
+#
+# El screencast. Meta pide ver el producto haciendo la cosa, y grabar la pantalla
+# de Kavea no lo puede hacer un runner. Esto cubre la llamada, no la grabación.
+
+on:
+  schedule:
+    # 03:15 UTC. La ventana del entrante del 4 de agosto abre a las 02:32 UTC, así
+    # que la primera ejecución que cualifica es la del día 5.
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: 'Saltarse la comprobación de la ventana de 24-36 h'
+        type: boolean
+        default: false
+      ultimo_entrante:
+        description: 'ISO del último entrante de la conversación'
+        required: false
+        default: '2026-08-04T02:32:08.787Z'
+
+concurrency:
+  group: human-agent
+  cancel-in-progress: false
+
+jobs:
+  probar:
+    name: Enviar con tag HUMAN_AGENT
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      # Sin `pnpm install`: el script usa solo `fetch` y `node:fs`. Instalar el
+      # árbol de dependencias entero para esto sería un minuto de runner por nada.
+      - name: Probar Human Agent
+        run: node scripts/probar-human-agent.mjs
+        env:
+          # OJO: tiene que ser un token de SYSTEM USER con caducidad `Never`. Un
+          # user token caduca en semanas y este job empezaría a fallar solo,
+          # justo cuando nadie lo está mirando.
+          META_TOKEN_SISTEMA: ${{ secrets.META_TOKEN_SISTEMA }}
+          META_ULTIMO_ENTRANTE: ${{ inputs.ultimo_entrante || '2026-08-04T02:32:08.787Z' }}
+          FORZAR: ${{ inputs.forzar || false }}
+          GRAPH_API_VERSION: v26.0
