@@ -33,20 +33,24 @@ const CAMPOS_MESSENGER = [
 
   // SONDA DE COMENTARIOS, 2 de agosto de 2026.
   //
-  // Los comentarios están FUERA DE V1 por decisión del docs/03: no tienen
-  // ventana de 24 h, no tienen conversación, no traen PSID ni IGSID sino
-  // comment_id, y su ciclo de vida es público. Kavea no los procesa: `aplanar`
-  // solo lee messaging[] y standby[], así que un `changes[]` se guarda crudo en
-  // `webhook_events` y produce cero efectos.
+  // Los comentarios ENTRAN EN V1 desde el 3 de agosto de 2026 por decisión de
+  // Gabriel, recogida en docs/03. Kavea todavía no los procesa: `aplanar` solo
+  // lee messaging[] y standby[], así que un `changes[]` se guarda crudo en
+  // `webhook_events` y produce cero efectos. Eso es lo correcto mientras nada
+  // los consuma.
+  //
+  // Lo que sigue vigente del análisis original es la forma del dato, y es la
+  // razón de que la ingesta de comentarios sea un camino aparte y no un caso
+  // más: no tienen ventana de 24 h, no tienen conversación, y traen comment_id
+  // en vez de PSID o IGSID.
   //
   // Se suscriben igualmente para PODER MEDIR si llegan y con qué forma exacta.
   // Suscribirse a un campo usa `pages_manage_metadata`, que ya tenemos, y NO
   // añade ningún permiso al App Review pendiente: eso importa, porque pedir
   // scopes de más es causa documentada de rechazo.
   //
-  // Si la sonda confirma que llegan, la fase de comentarios arranca con la
-  // forma real del payload en la mano en vez de con dos páginas de Meta
-  // contradiciéndose.
+  // La fase de comentarios arranca con la forma real del payload en la mano en
+  // vez de con dos páginas de Meta contradiciéndose.
   'feed',
 ]
 
@@ -56,10 +60,18 @@ const CAMPOS_MESSENGER = [
 // es atómico—, pero mientras estuvo puesto el reconciliador reportaba fallo
 // cada quince minutos.
 //
+// OJO CON LA CAPA, verificado por API el 3 de agosto de 2026: a nivel de APP el
+// topic `instagram` sí lleva `comments` entre sus campos suscritos. Lo que Meta
+// rechaza es el `comments` POR PÁGINA en subscribed_apps. Son dos suscripciones
+// distintas y confundirlas hace perder una tarde.
+//
 // Consecuencia: los comentarios de Instagram no se pueden habilitar solo con
 // `pages_manage_metadata`. Necesitan `instagram_manage_comments` en Advanced
-// Access, es decir, otra ronda de App Review. No se añade antes del envío
-// principal: pedir scopes de más es causa documentada de rechazo.
+// Access, es decir, otra ronda de App Review. Y aunque los comentarios ya están
+// DENTRO de v1 desde el 3 de agosto de 2026, el permiso NO se añade al envío
+// antes de que la ingesta exista: Meta exige una llamada exitosa por permiso en
+// los 30 días previos y un screencast del permiso funcionando. Hoy no hay ni
+// una ni otro, y pedir scopes de más es causa documentada de rechazo.
 
 function claveServicio(): string {
   const c = Deno.env.get('KAVEA_SUPABASE_SECRET')

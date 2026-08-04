@@ -1094,7 +1094,7 @@ Display Name approval y Embedded Signup.
 |---|---|
 | **Fase 6, agentes** | Aparcada por decisión, y además **no hay `ANTHROPIC_API_KEY`** en los secretos. Sin ella el trabajador no se puede escribir ni probar. Sí se puede avanzar en `agent_runs`, el catálogo de intenciones y el motor de escalamiento |
 | Carril de acuse sub-30 s | Auto-responde a **todo** entrante. Es decisión de producto |
-| Comentarios de Instagram y Facebook | Aparcados. Instagram exige otra ronda de App Review con `instagram_manage_comments` |
+| ~~Comentarios de Instagram y Facebook~~ | **Desbloqueados el 3 de agosto de 2026.** Entran en v1 por decisión de Gabriel. Ya no es un bloqueo de decisión sino trabajo pendiente: modelo de datos propio con su RLS, ingesta de `changes[]`, y `instagram_manage_comments` en Advanced Access. El permiso no se envía antes de que la ingesta exista, porque Meta pide una llamada exitosa y un screencast por permiso |
 | Cuenta gratuita pública | Decidida para cuando llegue Tech Provider. Los límites, sin decidir |
 | Facturación | Se mide el uso, no se cobra. Tarifas, liquidación y márgenes sin empezar |
 | ¿Se puede cambiar el subdominio de un cliente? | Hoy bloqueado, sin decisión explícita. Cambiarlo rompe los enlaces repartidos |

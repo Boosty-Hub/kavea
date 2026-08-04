@@ -671,7 +671,7 @@ El objeto raíz de `messaging[]` no siempre es `message`. Puede ser `reaction`, 
 
 Además del array `messaging[]`, el parser lee `standby[]`. Cuando la bandeja de Meta Business Suite se apropia del hilo —al mover la conversación a Main o al responder un agente—, Kavea deja de recibir en `messaging[]` y pasa a `standby[]`. Los postbacks entregados por standby **no incluyen** el campo `payload`: cualquier lógica que dependa de `postback.payload` falla en silencio al perder la propiedad del hilo.
 
-Existe una tercera forma, `entry[].changes[]` con `{field, value}`, para eventos de contenido (comentarios, menciones). Los comentarios están fuera de v1: el handler los registra y los descarta sin lanzar excepción, nunca los ignora reventando el lote.
+Existe una tercera forma, `entry[].changes[]` con `{field, value}`, para eventos de contenido (comentarios, menciones). Los comentarios entran en v1 desde el 3 de agosto de 2026, pero su ingesta está pendiente: hasta que exista, el handler los registra y los descarta sin lanzar excepción, nunca los ignora reventando el lote. Ese comportamiento sigue siendo el correcto mientras nada los consuma.
 
 | | Messenger | Instagram |
 |---|---|---|
@@ -1302,7 +1302,7 @@ Qué abre o reabre la ventana, según la lista de la página de Send Messages:
 - Pulsa un enlace `m.me` o `ig.me` con parámetro `ref` **hacia una conversación existente**.
 - Reacciona a un mensaje.
 
-Hay dos disparadores en disputa entre páginas oficiales de Meta: *comentar una publicación* y *publicar una entrada de visitante en la Página* aparecen en la página de Send Messages y no aparecen en la página de Policy. Dos verificadores abrieron cada uno su página. Como en v1 no se suscriben comentarios, el punto es discutible: la regla de diseño es no mover el reloj por nada que Kavea no reciba como evento en `messaging[]`.
+Hay dos disparadores en disputa entre páginas oficiales de Meta: *comentar una publicación* y *publicar una entrada de visitante en la Página* aparecen en la página de Send Messages y no aparecen en la página de Policy. Dos verificadores abrieron cada uno su página. Con los comentarios dentro de v1 desde el 3 de agosto de 2026 el punto deja de ser discutible y hay que medirlo con el payload real. La regla de diseño se mantiene intacta y lo resuelve igual: no mover el reloj por nada que Kavea no reciba como evento en `messaging[]`, y un comentario llega en `changes[]`.
 
 **El enlace `ig.me` con `?ref=` resetea la ventana de Instagram.** Verbatim: *"This action resets the 24-hour window for standard messaging, allowing the app to reply after getting the webhook event with the ref parameter."* Formato `https://ig.me/m/<USERNAME>?ref=<REF_PARAM>`, máximo 2.083 caracteres, solo alfanuméricos y `-` `_` `=`. Llega con `"referral":{"ref":"...","source":"SHORTLINKS","type":"OPEN_THREAD"}` y exige suscripción al webhook de referral. Ojo con el nombre exacto del campo en `subscribed_fields`: hay discrepancia entre páginas (`messaging_referral` vs `messaging_referrals`) — sin confirmar, verificar en consola antes de escribir la llamada de suscripción.
 

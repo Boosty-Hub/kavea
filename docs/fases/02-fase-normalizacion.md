@@ -1161,8 +1161,11 @@ produce un efecto `desconocido.registrar` con el sub-payload íntegro, una métr
 excepción.
 
 `entry[].changes[]` también existe en Messenger e Instagram, para eventos de contenido
-(comentarios, menciones). Los comentarios están fuera de v1: se registran y se descartan sin
-lanzar nada.
+(comentarios, menciones). Los comentarios entran en v1 desde el 3 de agosto de 2026 y su
+normalización está pendiente: hasta que exista, se registran y se descartan sin lanzar nada.
+Un comentario no encaja en el aplanado de mensajes —no trae PSID ni IGSID sino comment_id, y
+no pertenece a una conversación—, así que su normalización es un camino aparte, no un caso más
+del despacho por clave raíz.
 
 **Restricción nueva que impone el presupuesto de CPU.** Los adaptadores no pueden hacer trabajo
 superlineal sobre el tamaño del cuerpo. Nada de buscar en `entry[]` desde dentro del bucle de

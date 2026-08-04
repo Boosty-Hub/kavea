@@ -299,8 +299,10 @@ Seis reglas que se derivan de las fuentes:
    *"Reabierta por una reacción a las 11:52"*.
 3. **Regla de diseño del documento 02, literal: no mover el reloj por nada que Kavea no reciba
    como evento en `messaging[]`.** Comentar una publicación y publicar en la Página aparecen
-   como disparadores en una página oficial y no en otra; en v1 no se suscriben comentarios, así
-   que no se implementan.
+   como disparadores en una página oficial y no en otra. Los comentarios entran en v1 desde el
+   3 de agosto de 2026, así que el punto deja de ser discutible y hay que medirlo. La regla se
+   mantiene intacta: un comentario llega en `changes[]`, no en `messaging[]`, así que por sí
+   solo no reabre la ventana.
 4. **El tramo de 24 h a 7 días depende de una feature que aún no está aprobada.** HUMAN_AGENT
    se somete a App Review por separado, con su propio screencast, y exige verificación de
    negocio. Mientras no esté concedida, la etiqueta se muestra como informativa y con matiz:

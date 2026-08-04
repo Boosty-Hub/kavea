@@ -1038,8 +1038,12 @@ que la fase 2 va a consumir y nada más:
 | `whatsapp_business_account` | `messages` como mínimo; `message_template_status_update`, `account_update` y `phone_number_quality_update` a evaluar | Sin verificar. Ver abajo |
 
 Fuera de v1 y con motivo: `message_deliveries` (un evento por entrega, volumen alto, sin consumidor en
-el modelo de datos), `messaging_optins`, `messaging_handovers`, y todo lo de comentarios, que `03` deja
-explícitamente fuera de v1.
+el modelo de datos), `messaging_optins` y `messaging_handovers`.
+
+Los comentarios ya NO están fuera de v1: `03` los incluye desde el 3 de agosto de 2026. Su suscripción
+tiene un obstáculo medido el 2 de agosto: `comments` no es un campo válido de `subscribed_apps` de una
+Página y Meta rechaza el POST entero con él en la lista. Necesitan `instagram_manage_comments` en
+Advanced Access. Mientras tanto se sondea con `feed`, que sí es válido y no añade ningún permiso.
 
 #### Lo que aquí no se puede dar por hecho
 

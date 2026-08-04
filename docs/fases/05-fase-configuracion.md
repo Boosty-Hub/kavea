@@ -1028,8 +1028,13 @@ pages_show_list                          (raíz, sin dependencias propias)
   Prohibidos: son de la vía Instagram Login, descartada por app y de forma irreversible.
   Si aparecen en una configuración, esa configuración está mezclando las dos vías.
 - **`page_utility_messaging`**, **`ads_management`**, **`pages_manage_ads`**,
-  **`instagram_manage_comments`**, **`instagram_manage_insights`**,
-  **`instagram_content_publish`**, **`instagram_manage_engagement`.** Fuera de v1.
+  **`instagram_manage_insights`**, **`instagram_content_publish`**,
+  **`instagram_manage_engagement`.** Fuera de v1.
+- **`instagram_manage_comments`.** Entra en v1 desde el 3 de agosto de 2026, pero **todavía no
+  en ninguna configuración de login**. El orden lo impone Meta: primero la ingesta de
+  comentarios, luego la llamada exitosa y el screencast, luego el App Review, y solo con el
+  Advanced Access concedido tiene sentido pedirlo en el diálogo de autorización. Añadirlo antes
+  a una configuración pediría un scope sin aprobar a cada cliente que conecte.
 - **`whatsapp_business_messaging`, `whatsapp_business_management`.** Otro trámite, otro
   sentido de la verificación. No se piden en v1.
 
