@@ -1313,7 +1313,10 @@ misma identidad de canal lo impide el índice único de `contact_identities` des
 > fase: lo que decide en qué se trabaja mañana no es el número de la fase, es si hace falta
 > que alguien de fuera haga algo primero.
 
-### 3.1 Bloqueado por Meta — nada de esto avanza sin el trámite
+### 3.1 Bloqueado por Meta — el trámite YA no bloquea, desde el 4-ago
+
+> Tech Provider quedó verificado el 4 de agosto de 2026. Lo que sigue bloqueado por Meta es
+> solo el App Review, y su lista real, pantalla por pantalla, está en §3.7.
 
 **Tech Provider y App Review.** Reverificado el 3 de agosto, y **casi todo lo que esta tabla
 decía había dejado de ser cierto**. El bloqueo tampoco era el que se creía: no es que no se
@@ -1452,14 +1455,81 @@ del proyecto de producción · retención tras la baja de un cliente.
 ~~Quién paga a Meta el consumo de WhatsApp~~ — **decidido: cada cliente con su propio método de
 pago.**
 
-### 3.7 Lo siguiente que yo haría, en este orden
+### 3.7 El panel de Meta, mirado pantalla por pantalla el 4 de agosto de 2026
 
-1. **Verificar el DNS de Resend.** Hoy Kavea no puede mandar un correo, y eso rompe el alta de
-   clientes que ya está construida.
-2. **Dar de alta un cliente real desde el panel** y recorrer el camino entero: espacio,
-   invitación, Página conectada, webhooks, diagnóstico y primer mensaje.
-3. **Empezar los ajustes básicos de la app de Meta**, en paralelo, porque App Review es el
-   camino crítico de todo lo demás.
+Estado real del App Dashboard de la app `kavea` (`1623464799201071`), portafolio
+`2167414613399354`. Esto es lo que hay que abrir para retomar.
+
+| Fila del Dashboard | Estado |
+|---|---|
+| Use case *Connect with customers through WhatsApp* | ✅ verde |
+| Use case *Manage messaging & content on Instagram* | ✅ verde |
+| Use case *Engage with customers on Messenger* | ✅ verde |
+| **Facebook Login for Business** | ⛔ **cero configuraciones creadas** |
+| *Review and complete testing requirements* | ✅ verde |
+| **Business and access verification** | ✅ **Tech Provider verificado** |
+| **App Review** | ⛔ `submissions: []`, nunca enviado |
+| **Publish** | ⛔ `app_status: dev_mode`, `is_live: false` |
+
+**Facebook Login for Business es el bloqueo más caro y el menos visible.** La página de
+*Configurations* está **vacía**: cero `config_id`. Y en *Settings*, `Use Strict Mode for
+redirect URIs` está en **Yes** con la lista de **Valid OAuth Redirect URIs vacía**, así que
+Meta rechaza cualquier callback. Los toggles de OAuth están bien puestos —`Client OAuth`,
+`Web OAuth` y `Enforce HTTPS` en Yes, JS SDK y devices en No—, y eso es lo que hace que
+*parezca* configurado. La API lo confirma: `oauth_redirect_uris: null`.
+
+Decisión pendiente que no está en ningún documento: **qué host lleva el callback**. Con
+Strict Mode la coincidencia es exacta, así que no puede variar por tenant —`boosty.kavea.ai`
+obligaría a una entrada por cliente y Netlify recomienda no pasar de 50 alias—. El `state`
+firmado ya lleva `organization_id`, así que un host fijo basta. Con la salvedad de que el
+enlace de conexión es *sin sesión de Kavea* y `admin.kavea.ai` devuelve 404 a los no staff:
+esa ruta tendría que quedar exenta.
+
+**Lo que falta del App Review, permiso a permiso:** `data_use_checkup` en **13 de 13**,
+`screencast` en 12, `use_case` en 12, `api_precheck` en 9, y `test_page` en `pages_messaging`.
+Sigue dentro `pages_utility_messaging` con 0 llamadas y fuera de v1.
+
+**Las alertas del panel eran las dos de la Access Verification** —enviada y verificada—, nada
+más. `compliance` da `compliant`, cero violaciones, cero acciones requeridas. `v26.0` es la
+última versión de plataforma y no hay deprecaciones.
+
+**Y tres límites con fecha que no estaban escritos:** Embedded Signup v2 **se deprecia el 15
+de octubre de 2026** y hay que ir a v4; el onboarding está topado en **10 clientes nuevos por
+cada 7 días** y sube a 200 al completar Business Verification, App Review y Access
+Verification; y sin ser Solution Partner **el cliente debe añadir método de pago antes de
+poder enviar**, que coincide con la decisión ya tomada.
+
+### 3.8 Por dónde empezar la próxima sesión
+
+**Lo que no depende de nadie y desbloquea un vídeo:**
+
+1. **La pantalla de comentarios.** El modelo (0066) y la ingesta (0067) están en producción;
+   falta la interfaz para leer y responder. Sin ella no hay screencast de
+   `instagram_manage_comments`, y ese permiso ya está en la solicitud con 20 llamadas.
+2. **Confirmar la forma real del payload de comentario.** Lo implementado viene de la
+   documentación de Meta, no de una medición: la sonda solo ha capturado el Test del panel,
+   que es un `feed` con `item: "status"`. Hay que comparar en cuanto entre uno real.
+3. **Cablear las plantillas de WhatsApp.** El modelo ya cubre el ciclo completo; falta
+   enviarlas con `POST /{WABA_ID}/message_templates`, consumir
+   `message_template_status_update` —ya suscrito—, un CHECK en `categoria`, e **importar las
+   25 aprobadas** que Kavea no sabe que existen.
+4. **Guarda de tipos en CI para las Edge Functions.** Nadie las typechequea, y habría cazado
+   dos de las tres regresiones del 4 de agosto.
+
+**Lo que necesita una acción de Gabriel:**
+
+| Acción | Por qué no puede esperar |
+|---|---|
+| Screencast de **Human Agent** | La ventana cierra el **11 de agosto** y es el único que no se puede grabar cuando uno quiera |
+| **Data Use Checkup** | Bloquea los trece permisos y no depende de nadie más |
+| Crear las dos configuraciones de Facebook Login y rellenar los redirect URIs | Bloquea toda la fase 5 y el alta de clientes |
+| Los dos vídeos de WhatsApp | Requieren su sesión de Facebook. Meta acepta el cURL de *API Setup* y WhatsApp Manager como alternativa oficial |
+| **Rotar** contraseña, token de portafolio y PAT de Supabase | Pasaron por el chat del 4 de agosto |
+
+**Y una cosa que hay que tener presente mientras:** Kavea recibe el tráfico real de WhatsApp
+de Boosty por la doble suscripción, con conversaciones de clientes que hoy atiende Kommo. Es
+correcto y deliberado, pero **hay gente escribiendo a una bandeja que nadie mira desde
+Kavea**. El corte de Kommo se hace cuando la ingesta lleve tiempo probada, no antes.
 
 ---
 
