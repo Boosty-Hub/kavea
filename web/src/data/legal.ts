@@ -4,10 +4,22 @@
  * Fuente única de verdad: las páginas legales leen de aquí, así que corregir
  * un dato es corregir un archivo y no cuatro documentos.
  *
- * ⚠ CAMPOS MARCADOS CON `porConfirmar` — se rellenaron con el valor más probable
- * para no dejar la web con huecos, pero hay que confirmarlos antes de enviar la
- * app a App Review. Meta rastrea estas páginas y los datos societarios tienen
- * que coincidir con los del portafolio de negocio verificado.
+ * `jurisdiccion` y `domicilio` CONFIRMADOS POR GABRIEL el 3 de agosto de 2026.
+ * Antes eran una estimación —Orlando, Capri Place— que nunca fue real. No se
+ * vuelven a tocar sin una fuente societaria delante.
+ *
+ * Por qué importa tanto y antes de lo que parecía: la Access Verification, que
+ * va antes del App Review, pregunta por la web de la empresa y dice literal que
+ * debe mostrar «details of the business providing the service». Meta entra y
+ * compara lo que ve con el portafolio verificado. Un domicilio inventado se le
+ * está entregando para que lo contraste.
+ *
+ * ⚠ DISCREPANCIA DETECTADA EL 3 DE AGOSTO DE 2026: el pie de boosty.digital
+ * decía «© 2026 Boosty International LLC», con *International* y no *Digital*.
+ * El portafolio verificado es Boosty Digital LLC, ID 2167414613399354. Las dos
+ * webs y el portafolio tienen que decir lo mismo: una razón social que no
+ * coincide es motivo de rechazo en una verificación cuyo objeto es justamente
+ * confirmar la identidad de la empresa.
  */
 
 export const legal = {
@@ -22,7 +34,7 @@ export const legal = {
   jurisdiccion: 'Estado de Florida, Estados Unidos de América',
 
   /** Domicilio que se publica en las páginas legales. */
-  domicilio: '4702 Capri Place, Orlando, Florida 32811, Estados Unidos de América',
+  domicilio: '4937 SW 135th Ave, Miramar, Florida 33027, Estados Unidos de América',
 
   /**
    * Dirección única de contacto para todo: soporte, privacidad, asuntos legales
