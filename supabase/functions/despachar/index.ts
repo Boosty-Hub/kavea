@@ -405,16 +405,31 @@ Deno.serve(async (): Promise<Response> => {
 
         const j = await r.json().catch(() => ({})) as {
           message_id?: string
+          // WhatsApp devuelve el id AQUÍ, no en `message_id`.
+          messages?: Array<{ id?: string }>
           error?: { code?: number; message?: string; error_subcode?: number }
         }
 
         const codigo = j.error?.code
         const espera = await anotarUso(e, r, r.status, codigo)
 
-        if (r.ok && j.message_id && !j.error) {
+        // EL ID DEL ENVÍO ESTÁ EN UN SITIO DISTINTO SEGÚN EL CANAL.
+        //
+        // Messenger e Instagram devuelven `message_id` en la raíz. WhatsApp
+        // devuelve `messages: [{ id: "wamid..." }]` y NO trae `message_id`.
+        //
+        // Costó un envío real el 4 de agosto de 2026: Meta respondió 200, el
+        // mensaje llegó, se entregó y el destinatario lo leyó, y Kavea lo marcó
+        // `fallido` con `error_mensaje: "HTTP 200"` porque buscaba el campo
+        // equivocado. Es la peor forma de fallo de esta función: un FALSO
+        // NEGATIVO. La bandeja dice que no se envió algo que el cliente está
+        // leyendo, y quien atiende lo reescribe.
+        const idDevuelto = j.message_id ?? j.messages?.[0]?.id ?? null
+
+        if (r.ok && idDevuelto && !j.error) {
           await marcar(e.id, {
             estado: 'enviado',
-            mid_devuelto: j.message_id,
+            mid_devuelto: idDevuelto,
             sent_at: new Date().toISOString(),
             error_codigo: null,
             error_mensaje: null,
