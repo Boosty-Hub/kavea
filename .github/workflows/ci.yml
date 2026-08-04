@@ -79,16 +79,31 @@ jobs:
 
       # Cero JavaScript en cliente no es una preferencia estética: es lo que
       # garantiza que la página se lea entera sin ejecutar nada.
-      - name: Cero JavaScript en el sitio público
+      #
+      # LA EXCEPCIÓN ESTÁ NOMBRADA, NO ABIERTA. `/demo` carga un script porque el
+      # formulario habla con Postgres, y tuvo que ser un fichero y no inline
+      # porque la CSP del sitio es `script-src 'self'`. Esta comprobación llevaba
+      # desde el 3 de agosto en rojo, desde el commit que arregló el formulario:
+      # nadie actualizó el invariante y el job se volvió ruido que se ignora.
+      #
+      # La lista blanca es de UNA entrada, y solo en la página que la necesita.
+      # Cualquier otro script, o una isla hidratada que se cuele, sigue tumbando
+      # el build. Y de paso se comprueba que `demo.js` EXISTE: ese formulario ya
+      # estuvo roto una vez sin dar un solo error, y desplegarlo sin su script es
+      # exactamente cómo vuelve a pasar.
+      - name: Sin JavaScript salvo el formulario de demo
         working-directory: web
         run: |
-          if find dist -name '*.js' | grep -q .; then
-            echo "El sitio publico emitio JavaScript:"; find dist -name '*.js'; exit 1
+          js=$(find dist -name '*.js' | sed 's|^dist/||' | grep -vx 'demo.js' || true)
+          if [ -n "$js" ]; then
+            echo "JavaScript no esperado en el sitio publico:"; echo "$js"; exit 1
           fi
-          if grep -rl '<script' dist --include='*.html' | grep -q .; then
-            echo "Hay etiquetas script en el HTML:"; grep -rl '<script' dist --include='*.html'; exit 1
+          html=$(grep -rl '<script' dist --include='*.html' | sed 's|^dist/||' | grep -vx 'demo/index.html' || true)
+          if [ -n "$html" ]; then
+            echo "Etiquetas script en HTML donde no debe haberlas:"; echo "$html"; exit 1
           fi
-          echo "Sin JavaScript y sin etiquetas script."
+          test -f dist/demo.js || { echo "Falta dist/demo.js: el formulario de demo no haria nada."; exit 1; }
+          echo "Sin JavaScript salvo dist/demo.js, y solo /demo lo carga."
 
   base-de-datos:
     name: Esquema desde cero y aislamiento
