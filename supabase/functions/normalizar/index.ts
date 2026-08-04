@@ -165,26 +165,38 @@ Deno.serve(async (): Promise<Response> => {
           if (!rutas.has(u.assetId)) rutas.set(u.assetId, await resolver(u.assetId))
           const r = rutas.get(u.assetId)!
 
+          // UN DESCARTE NO PUEDE SALTARSE EL VACIADO, y por eso esto es un
+          // if/else y no dos `continue`.
+          //
+          // Los dos caminos de descarte hacían `i++; continue`, y el `continue`
+          // salta por encima del bloque de vaciado de abajo. Con eso, si el
+          // ÚLTIMO update de un cuerpo se descartaba, `ingerir_tramo` nunca se
+          // llamaba con `p_final` y la fila se quedaba en `en_proceso` para
+          // siempre: el segador la devolvía a pendiente cada cinco minutos y el
+          // normalizador la volvía a reclamar. Una fuga lenta y silenciosa.
+          //
+          // Es la MISMA fuga que este fichero ya documenta para `total === 0`,
+          // por otra puerta: aquí `total` es mayor que cero y lo que queda vacío
+          // es el lote. Se hizo alcanzable al empezar a aplanar `changes[]`, que
+          // trae cuerpos cuyo `entry.id` puede no estar enrutado —el Test del
+          // panel de Meta manda `"0"`— y se vio reprocesando ese Test el 4 de
+          // agosto de 2026.
           if (!r) {
             // Un entry[].id que no resuelve se registra y se descarta. NUNCA se
             // adivina: escribir en el tenant equivocado es el peor fallo posible.
             await alertar('tenant_no_resuelto', 'p1', { asset_id: u.assetId, evento: f.id })
-            i++
-            continue
+          } else {
+            const ck = `${r.conexion}|${u.canal}`
+            if (!canales.has(ck)) canales.set(ck, await canalDe(r.conexion, u.canal))
+            const canalId = canales.get(ck)
+            if (!canalId) {
+              await alertar('canal_no_encontrado', 'p2', {
+                conexion: r.conexion, canal: u.canal, evento: f.id,
+              })
+            } else {
+              lote.push(...aEfectos(u, r.org, canalId))
+            }
           }
-
-          const ck = `${r.conexion}|${u.canal}`
-          if (!canales.has(ck)) canales.set(ck, await canalDe(r.conexion, u.canal))
-          const canalId = canales.get(ck)
-          if (!canalId) {
-            await alertar('canal_no_encontrado', 'p2', {
-              conexion: r.conexion, canal: u.canal, evento: f.id,
-            })
-            i++
-            continue
-          }
-
-          lote.push(...aEfectos(u, r.org, canalId))
           i++
 
           if (lote.length >= EFECTOS_POR_LOTE || i >= total) {

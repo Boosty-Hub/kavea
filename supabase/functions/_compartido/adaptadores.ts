@@ -31,6 +31,13 @@ export type Update = {
    *   pierde, y es el dato que en Instagram cuesta una llamada por contacto.
    */
   wa?: { clase: 'mensaje' | 'estado'; perfil: string | null; nuestroNumero: string }
+  /**
+   * El `field` del `changes[]` del que salió, cuando la unidad NO es un mensaje.
+   * `comments` en Instagram, `feed` en Página. Su presencia es lo que distingue
+   * un comentario de un mensaje, y no se deduce del contenido: un `feed` puede
+   * traer una publicación, una reacción o un comentario, y solo `item` lo dice.
+   */
+  cambio?: 'comments' | 'feed'
 }
 
 /**
@@ -70,6 +77,24 @@ export function aplanar(cuerpo: unknown): Update[] {
     // silencio al perder la propiedad del hilo.
     for (const m of Array.isArray(entry.standby) ? entry.standby : []) {
       out.push({ assetId, canal, standby: true, m: m as Record<string, any> })
+    }
+
+    // changes[] VA AL FINAL, y es donde llegan los comentarios.
+    //
+    // Un mismo `entry` puede traer `messaging[]` y `changes[]` a la vez, así que
+    // el orden importa: el cursor de troceado es un índice sobre esta secuencia y
+    // dos aplanados del mismo cuerpo tienen que dar exactamente lo mismo.
+    //
+    // Hasta hoy estos cuerpos producían cero updates y se guardaban crudos. Eso
+    // era correcto mientras nada los consumiera; ahora se leen.
+    for (const c of Array.isArray((entry as { changes?: unknown[] }).changes) ? (entry as { changes: unknown[] }).changes : []) {
+      const cambio = c as { field?: string; value?: Record<string, any> }
+      const campo = String(cambio?.field ?? '')
+      if (!cambio?.value) continue
+      // Solo `comments` (Instagram) y `feed` (Página). Cualquier otro campo que
+      // se suscriba mañana cae al camino de guardado crudo, que ya está probado.
+      if (campo !== 'comments' && campo !== 'feed') continue
+      out.push({ assetId, canal, standby: false, m: cambio.value, cambio: campo })
     }
   }
   return out
@@ -263,6 +288,7 @@ export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
   // `recipient`, y el timestamp está en otra unidad. Compartir este cuerpo
   // obligaría a un `if` por cada campo y a que el más olvidado fallara callado.
   if (u.canal === 'whatsapp') return aEfectosWhatsapp(u, org, channelId)
+  if (u.cambio) return aEfectosComentario(u, org, channelId)
 
   const m = u.m
   const base = {
@@ -534,6 +560,73 @@ function aEfectosWhatsapp(u: Update, org: string, channelId: string): Efecto[] {
     is_unsupported: String(m.type ?? '') === 'unsupported',
     adjuntos: adjuntosDeWhatsapp(m),
     ...base,
+  }]
+}
+
+/**
+ * Comentarios → efectos.
+ *
+ * ADVERTENCIA DE PROCEDENCIA: la forma de estos dos payloads viene de la
+ * DOCUMENTACIÓN de Meta, no de una medición. La sonda lleva suscrita desde el
+ * 2 de agosto y a día 4 solo ha capturado el Test del panel, que es un `feed` con
+ * `item: "status"` —una publicación, no un comentario—. En cuanto entre uno real
+ * hay que comparar y corregir aquí. Todo lo que no se reconozca cae a
+ * `desconocido`, que se guarda y no aplica nada, así que equivocarse en la forma
+ * no pierde el dato: lo deja sin procesar y con el cuerpo crudo entero.
+ *
+ * DOS FORMAS DISTINTAS, sin unificar:
+ *
+ *   · `comments` de Instagram: el id del comentario está en `value.id`, el autor
+ *     en `value.from.{id,username}` y el texto en `value.text`.
+ *   · `feed` de Página: el id está en `value.comment_id`, el autor en
+ *     `value.from.{id,name}` y el texto en `value.message`. Y ADEMÁS trae cosas
+ *     que no son comentarios —publicaciones, reacciones, compartidos— que se
+ *     distinguen solo por `value.item`.
+ */
+function aEfectosComentario(u: Update, org: string, channelId: string): Efecto[] {
+  const v = u.m
+  const esInstagram = u.cambio === 'comments'
+
+  // `feed` trae de todo. Si no es un comentario, se descarta explícitamente en
+  // vez de fabricar una fila con campos vacíos: una publicación guardada como
+  // comentario sin texto es peor que no guardarla.
+  if (!esInstagram && String(v.item ?? '') !== 'comment') {
+    return [{
+      tipo: 'desconocido',
+      evento_tipo: `feed:${String(v.item ?? 'sin_item')}`,
+      organization_id: org, canal: u.canal, channel_id: channelId,
+      llego_por_standby: false, meta_timestamp_ms: Date.now(), raw: v,
+    }]
+  }
+
+  // `verb` distingue crear de editar y de borrar. Un `remove` que se tratara como
+  // alta dejaría en la bandeja un comentario que ya no existe en Instagram, y
+  // alguien le respondería.
+  const verbo = String(v.verb ?? 'add')
+
+  const commentId = String((esInstagram ? v.id : v.comment_id) ?? '')
+  const segundos = Number(v.created_time ?? v.timestamp ?? 0)
+
+  return [{
+    tipo: 'comentario.upsert',
+    organization_id: org,
+    canal: u.canal,
+    channel_id: channelId,
+    asset_id: u.assetId,
+    comment_id: commentId,
+    parent_id: v.parent_id ? String(v.parent_id) : null,
+    post_id: String((esInstagram ? v.media?.id : v.post_id) ?? '') || null,
+    autor_id: v.from?.id ? String(v.from.id) : null,
+    autor_username: esInstagram ? (v.from?.username ?? null) : (v.from?.name ?? null),
+    texto: (esInstagram ? v.text : v.message) ?? null,
+    // `remove` no borra la fila: la marca. Un comentario que existió y se borró es
+    // información, y borrarlo de la base perdería el rastro de lo que se dijo.
+    borrado: verbo === 'remove',
+    verbo,
+    // Igual que en WhatsApp: `created_time` viene en SEGUNDOS.
+    meta_timestamp_ms: Number.isFinite(segundos) && segundos > 0 ? segundos * 1000 : Date.now(),
+    llego_por_standby: false,
+    raw: v,
   }]
 }
 

@@ -167,6 +167,25 @@ bandeja.
 **Evidencia:** menú de 216 px expandido y 60 colapsado, la preferencia sobrevive al
 recargado, el activo legible en oscuro (`rgb(237,234,227)`), y en móvil 60 px de 390.
 
+#### La fuga que reabrí, y la puerta por la que entró
+
+Al empezar a aplanar `changes[]` para los comentarios, un cuerpo que antes producía cero
+updates pasó a producir uno. Y los dos caminos de descarte del normalizador —asset sin ruta,
+canal sin encontrar— hacían `i++; continue`, y ese `continue` **salta por encima del bloque
+de vaciado**. Con eso, si el último update de un cuerpo se descartaba, `ingerir_tramo` nunca
+se llamaba con `p_final`: la fila se quedaba en `en_proceso`, el segador la devolvía a
+pendiente cada cinco minutos y el normalizador la volvía a reclamar. Indefinidamente y sin
+que nada se pusiera rojo.
+
+Es **la misma fuga que este documento ya daba por cerrada** para `total === 0`, por otra
+puerta: aquí `total` es mayor que cero y lo que queda vacío es el lote. Convertido en
+`if/else` para que el vaciado siempre se alcance. Se vio reprocesando el Test del panel de
+Meta, que manda `entry.id: "0"` y por tanto nunca resuelve tenant.
+
+La lección no es la del `continue`: es que **cerrar una fuga en un caso no la cierra en los
+demás**, y que el único motivo por el que esta se encontró es que se probó ejecutando en vez
+de leer el diff.
+
 #### Comentarios: el modelo, con RLS
 
 Cero tablas de comentarios existían. Camino aparte de `messages` porque no tienen ventana ni
