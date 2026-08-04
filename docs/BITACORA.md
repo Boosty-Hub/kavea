@@ -1121,23 +1121,28 @@ misma identidad de canal lo impide el índice único de `contact_identities` des
 
 ## 3. Pendiente, por orden de urgencia
 
-> Revisado de arriba abajo el 2 de agosto de 2026. Agrupado por **qué lo bloquea**, no por
+> Revisado de arriba abajo el **3 de agosto de 2026**. Agrupado por **qué lo bloquea**, no por
 > fase: lo que decide en qué se trabaja mañana no es el número de la fase, es si hace falta
 > que alguien de fuera haga algo primero.
 
 ### 3.1 Bloqueado por Meta — nada de esto avanza sin el trámite
 
-**Tech Provider y App Review.** Estado real: `NO_SUBMISSION`. Es la llave de todo lo demás y
-tiene semanas de latencia, así que es el camino crítico aunque no lo parezca. Antes de poder
-enviarlo:
+**Tech Provider y App Review.** Reverificado el 3 de agosto, y **casi todo lo que esta tabla
+decía había dejado de ser cierto**. El bloqueo tampoco era el que se creía: no es que no se
+pueda enviar el App Review, es que **no se puede ni añadir un permiso sin ser Tech Provider**.
+Y hay plazo: la Access Verification debe completarse antes del **2 de octubre de 2026** o Meta
+restringe **dos** apps del portafolio.
 
 | Qué | Estado |
 |---|---|
-| Ajustes básicos de la app: icono, categoría, las tres URLs, descripciones | Contenido listo en `05-checklist-tech-provider.md`, campos en `null` |
-| Correo de contacto de la app verificado | `contact_email_verified: false` |
-| **DNS de `kavea.ai` verificado en Resend** | ⚠️ Pendiente. **Hoy Kavea no puede enviar un solo correo**: ni invitaciones ni altas de cliente. Las dos rutas degradan y devuelven el enlace para pasarlo a mano |
-| Un screencast por cada permiso | Sin grabar |
-| Use cases depurados a los ocho permisos exactos, sin `instagram_business_*` | Sin depurar |
+| Ajustes básicos: icono, categoría, las tres URLs | ✅ Completos. Meta dice *"All required app settings are complete"* |
+| Correo de contacto de la app verificado | ✅ Verificado. La API devolvía `contact_email_verified: false`, y el dashboard dice lo contrario: manda el dashboard |
+| DNS de `kavea.ai` en Resend | ✅ `verified` desde el 2-ago 05:39 UTC, con `sending` y `receiving`. La invitación del 2-ago se entregó a las 19:55. Este documento afirmaba que Kavea no podía enviar ni un correo |
+| Al menos una llamada exitosa por permiso | ✅ Los diez con tráfico. Detalle en la entrada del 3-ago y en `05` §6 |
+| Use cases sin `instagram_business_*` | ✅ Los dos que estaban, fuera. Queda quitar `pages_utility_messaging`, que tiene 0 llamadas y está fuera de v1 |
+| Un screencast por cada permiso | ⬜ **Sin grabar. Es lo único que queda del requisito de evidencia**, y no lo puede hacer un cron |
+| Un tenant demo al que el revisor entre | ⬜ Sin montar |
+| **Access Verification (Tech Provider)** | ⬜ Formulario abierto y respondido sobre el papel, sin enviar. Ver `05` |
 
 **Los tres callbacks que Meta exige y no existen.** Son código, no dependen de nadie, y sin
 ellos no hay App Review:
@@ -1200,6 +1205,20 @@ probarlo necesita los dos `config_id` que se crean en el App Dashboard.
 `GET /api/estado` con banner en menos de 30 s, tenants canario en producción, y el documento de
 límites que el cliente firma antes de que se le cree la organización.
 
+**Dos trabajos nuevos que salieron de medir, el 3 de agosto.**
+
+- **Reconocer lo propio por `mid` y no por `app_id`.** En Instagram los echoes no traen
+  `app_id` y no hay forma de conseguirlo: el topic no tiene `message_echoes`. Hoy todo lo que
+  Kavea envía por Instagram se clasifica como `humano` y es indistinguible de lo que el cliente
+  escribe desde el móvil, lo que deja sin defensa el bucle del agente de IA. La alternativa está
+  medida: el `mid` del echo es el `message_id` que devolvió el Send API, y ya se persiste en
+  `send_api_message_id`. La comparación va en el aplicador, que consulta la base, no en los
+  adaptadores, que son función pura.
+- **Enriquecer el contacto con nombre y foto.** `contacts.nombre` está en `null` y la bandeja
+  muestra tarjetas sin nombre. `GET /{igsid}?fields=name,username,profile_pic` devuelve las tres
+  cosas con `instagram_manage_messages`, que ya se tiene: no hace falta pedir ningún permiso
+  nuevo. Es una llamada por contacto nuevo.
+
 ### 3.4 Deuda que va a doler si se deja
 
 - **Rotar todos los tokens que pasaron por el chat.** El **de portafolio va primero**: escribe
@@ -1220,8 +1239,15 @@ límites que el cliente firma antes de que se le cree la organización.
 Sin resolver por lectura: son contradicciones entre páginas oficiales o cosas que Meta no
 publica.
 
-- Si `RESPONSE` / `UPDATE` / `MESSAGE_TAG` son los literales correctos
-- La forma exacta del cuerpo con `HUMAN_AGENT` en Instagram
+- ~~Si `RESPONSE` / `UPDATE` / `MESSAGE_TAG` son los literales correctos~~ — **cerrado el 3 de
+  agosto** para dos de los tres: se envió con `messaging_type=RESPONSE` y con
+  `messaging_type=MESSAGE_TAG` + `tag=HUMAN_AGENT`, y Meta devolvió `message_id` en ambos.
+  `UPDATE` sigue sin probar.
+- ~~La forma exacta del cuerpo con `HUMAN_AGENT` en Instagram~~ — **cerrado el 3 de agosto**:
+  `POST /me/messages` con el Page Access Token y cuerpo `application/x-www-form-urlencoded`
+  con `recipient`, `message`, `messaging_type=MESSAGE_TAG` y `tag=HUMAN_AGENT`. Y el negativo,
+  que vale igual: `POST /{ig-user-id}/messages` devuelve error #3 *"Application does not have
+  the capability to make this API call"*. Solo `/me/messages`.
 - TTL real de las URLs de `lookaside.fbsbx.com`
 - 100/s o 300/s en el Send API de Instagram
 - Suelo de la fórmula `4800 × impresiones` para cuentas nuevas

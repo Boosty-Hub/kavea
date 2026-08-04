@@ -20,6 +20,12 @@ out/
 .env.*
 !.env.example
 
+# Carpeta de credenciales de trabajo. Se ignora entera y por dos vías —el
+# directorio y cualquier cosa dentro— porque una sola regla mal escrita aquí
+# publica las llaves de todos los tenants.
+secrets/
+secrets/**
+
 # Sistema y registros
 .DS_Store
 Thumbs.db
