@@ -62,9 +62,21 @@ function salir(codigo, lineas) {
   process.exit(codigo)
 }
 
-if (!TOKEN) {
-  salir(1, ['## Human Agent', '', 'Falta el secreto `META_TOKEN_SISTEMA`.'])
-}
+// EL TOKEN SE EXIGE DESPUÉS DE LA VENTANA, NO ANTES.
+//
+// La primera versión lo comprobaba primero y salía en rojo. Contradecía su propio
+// razonamiento: si un job rojo cada día entrena a ignorarlo, entonces faltar el
+// secreto no puede pintar de rojo los días en los que además NO TOCABA enviar
+// nada. Se vio en la primera ejecución real, el 4 de agosto de 2026: rojo por el
+// secreto cuando la ventana no llevaba ni cuatro horas abierta.
+//
+// Ahora: fuera de la ventana avisa y sale en verde; dentro de la ventana, que es
+// cuando el secreto hace falta de verdad, falla en rojo. La configuración sigue
+// siendo visible todos los días, sin gastar la señal de alarma.
+const avisoToken = TOKEN
+  ? []
+  : ['', '> ⚠ Falta el secreto `META_TOKEN_SISTEMA`. Hoy no hacía falta, pero el día',
+     '> que la ventana se abra este job va a fallar. Añádelo antes.']
 
 const desde = new Date(ENTRANTE)
 if (Number.isNaN(desde.getTime())) {
@@ -90,6 +102,7 @@ if (!FORZAR) {
       '',
       `Han pasado ${horas.toFixed(1)} h desde el último entrante (${ENTRANTE}).`,
       'El tag solo es válido a partir de las 24 h. No se envía nada.',
+      ...avisoToken,
     ])
   }
   if (horas > 24 * 7) {
@@ -102,6 +115,7 @@ if (!FORZAR) {
       'Para reintentar hace falta un mensaje entrante NUEVO. Manda un DM a',
       'Boosty.digital, espera 24 h y actualiza `META_ULTIMO_ENTRANTE`. Y si la',
       'feature ya está verificada, borra este workflow.',
+      ...avisoToken,
     ])
   }
   if (horas >= 36) {
@@ -111,8 +125,21 @@ if (!FORZAR) {
       `Han pasado ${horas.toFixed(1)} h. El script solo envía entre las 24 y las 36 h`,
       'para no mandar un mensaje al día durante toda la semana. Si hay que',
       'reintentar dentro de la ventana, lanza el workflow a mano con `forzar: true`.',
+      ...avisoToken,
     ])
   }
+}
+
+// Llegados aquí toca enviar de verdad, así que ahora sí es obligatorio.
+if (!TOKEN) {
+  salir(1, [
+    '## Human Agent — falta el secreto y hoy SÍ tocaba',
+    '',
+    `Han pasado ${horas.toFixed(1)} h desde el último entrante: la ventana está abierta`,
+    'y el envío se ha perdido. Añade `META_TOKEN_SISTEMA` en los secretos del',
+    'repositorio, de un system user con caducidad `Never`, y relanza el workflow a',
+    'mano con `forzar: true` mientras la ventana siga abierta.',
+  ])
 }
 
 const pt = await fetch(`https://graph.facebook.com/${V}/${PAGE_ID}?fields=access_token`, {
