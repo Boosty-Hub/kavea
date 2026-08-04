@@ -10,7 +10,7 @@ verificado, no se escribe como hecho.
 
 ## 1. Estado actual
 
-> Al día del **3 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
+> Al día del **4 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
 > mantiene al día: los documentos de `docs/fases/` describen lo planeado y **no se actualizan al
 > ejecutar**, así que contradicen a la realidad. Está anotado como deuda en §3.4.
 
@@ -33,8 +33,13 @@ verificado, no se escribe como hecho.
 | Alta de cliente desde el panel | ⚠️ Construida, **sin ejecutar** | Falta el primer cliente real |
 | Envío por Messenger | ⚠️ Construido, **sin probar** | No hay contacto vivo por esa vía |
 | Correo saliente | ⚠️ **No funciona** | DNS de `kavea.ai` sin verificar en Resend |
-| Tech Provider / App Review | ⛔ `NO_SUBMISSION` | Camino crítico de todo lo demás |
-| WhatsApp | ⛔ Sin empezar | Un tercio del producto, sin investigar |
+| **Tech Provider** | ✅ **Verificado el 4-ago** | `Submitted → Reviewed → Verified`. Doce horas de trámite |
+| App Review | ⛔ Sin enviar nunca | `submissions: []`. Falta Data Use Checkup en 13 de 13 y screencast en 12 |
+| **WhatsApp entrante** | ✅ **En la bandeja** | 6 mensajes reales, con nombre y acuses de entrega y lectura |
+| WhatsApp saliente | ✅ Ida y vuelta completa | Enviado, entregado, leído y contestado. Falso negativo del `mid` corregido |
+| Plantillas de WhatsApp | ⛔ Sin cablear con Meta | El modelo existe; nada las envía a revisión y las 25 aprobadas no están en la tabla |
+| Comentarios | ⚠️ Modelo con RLS, **sin ingesta ni pantalla** | `changes[]` se guarda crudo y no aplica nada |
+| Navegación | ✅ Sidebar colapsable | 216/60 px, persiste, y colapsa solo bajo 860 px |
 | Agentes | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias |
 
@@ -44,6 +49,148 @@ mañana no es el número de la fase: es la sección 3.
 ---
 
 ## 2. Entradas
+
+### 2026-08-04 · Tech Provider aprobado, WhatsApp entra en la bandeja, y la navegación existe
+
+**Boosty Digital LLC es Tech Provider.** Enviada el 3-ago a las 22:30, verificada el
+4-ago sobre las 15:00 UTC: unas doce horas. Eso cierra el bloqueo que este documento
+llamaba «camino crítico de todo lo demás» y **retira la amenaza del 3 de octubre** de que
+Meta restringiera dos apps del portafolio. La fecha real que muestra Meta es el 3, no el 2
+que decía el §3.1.
+
+**El App Review sigue sin enviar, y ahora se sabe por qué de verdad.** El historial devuelve
+`submissions: []` y `has_been_previously_reviewed: false`: no ha habido ni un envío. Eso
+resuelve dos cosas que parecían malas y no lo son. El `grant_status: REJECTED` de los 20
+permisos **no es una denegación** —no puede serlo sin revisión— sino el estado por defecto de
+«no concedido». Y el `can_submit: false` con motivo *«a previous submission is in review»*
+es definitivamente falso, como ya se sospechaba el 3-ago.
+
+Lo que falta del envío, permiso a permiso: `data_use_checkup` en **13 de 13**, `screencast`
+en 12, `use_case` en 12, `api_precheck` en 9, y `test_page` en `pages_messaging`. El **Data
+Use Checkup no aparecía en ningún documento** y bloquea los trece.
+
+**Y una conclusión que hay que retirar del 3-ago:** la columna «API Calls» del dashboard
+**no es acumulativa**. `whatsapp_business_messaging` pasó de 5 a 0 en un día mientras los de
+Messenger subían. Es una ventana de actividad reciente, así que no sirve como prueba del
+requisito de «una llamada en los 30 días previos». Los contadores de Messenger e Instagram
+sí están altos y en *Ready for testing*: `pages_manage_metadata` 337, `pages_read_engagement`
+333, `pages_show_list` 279, `pages_messaging` 277.
+
+**Los tres callbacks no bloquean el App Review**, contra lo que decía el §3.1. Tres pruebas:
+la API de requisitos no lista ningún paso de callback para ninguno de los 13 permisos; el FAQ
+de Meta dice que basta *«either a data deletion callback instruction URL or a callback URL»* y
+`data_deletion_url` ya apunta a `kavea.ai/eliminacion-de-datos`; y el deauthorize está
+documentado como opcional. Siguen siendo trabajo de la fase 7, pero no son lo que impide
+enviar.
+
+#### WhatsApp: de «ni una línea» a mensajes reales en la bandeja
+
+El §3.1 decía «sin empezar, sin investigar». La infraestructura llevaba tiempo viva: WABA
+`1415042803155441`, número **+1 829-954-3803** dominicano, `CONNECTED` en Cloud API, calidad
+`GREEN`, y **25 plantillas de marketing aprobadas**. Todo operando por la app de **Kommo**,
+que es justo lo que Kavea nace para reemplazar. Ninguna WABA estaba suscrita a Kavea, y eso
+explicaba por sí solo el 0 de `whatsapp_business_messaging`.
+
+**Kavea suscrita junto a Kommo, sin desconectar nada.** Cierra un incierto: **una WABA admite
+varias apps suscritas a la vez** y las dos reciben los mismos webhooks. El corte de Kommo se
+deja para cuando la ingesta esté probada, para no dejar una ventana ciega.
+
+**La cuarta forma de payload, medida con tráfico real.** Cuatro diferencias que rompían
+cualquier reutilización de la ruta de Messaging:
+
+1. **`entry[].id` es la WABA, no el asset de mensajería.** El asset vive en
+   `changes[].value.metadata.phone_number_id`, dos niveles más abajo. Enrutar por `entry.id`
+   deja el mensaje sin tenant.
+2. **El timestamp viene en SEGUNDOS.** Los otros dos canales mandan milisegundos y la columna
+   se llama `meta_timestamp_ms`. Sin multiplicar, cada mensaje aterriza en enero de 1970 y la
+   ventana lo da por caducado desde el primer segundo. No falla nada visiblemente.
+3. **El nombre del contacto llega gratis** en `value.contacts[].profile.name`. En Instagram
+   `contacts.nombre` está en null y rellenarlo cuesta una llamada por contacto.
+4. **WhatsApp manda un ID de media, no una URL.** Encaja sin tocar el esquema en el caso
+   `sin_servir` que el CHECK `media_origen_coherente` ya contemplaba desde la 0010.
+
+Y dos regalos: **el precio por conversación llega en cada acuse** —`pricing` con `billable`,
+modelo y categoría—, así que el §3.1 se equivocaba al listarlo como sin investigar: no hay
+que estimarlo. Y **WhatsApp sí tiene echoes por `mid`**: el id del acuse es el mismo `wamid`
+que devuelve el Send API, que es la salida que Instagram no tiene.
+
+**WhatsApp es una integración propia** (0065), no un campo más de la conexión de la Página.
+`page_id` deja de ser obligatorio y un CHECK hace las dos formas excluyentes, porque en la
+fase 5 un cliente puede traer solo WhatsApp, solo Instagram, o los dos con semanas de
+diferencia. El token va en `whatsapp_token_*`, ranura propia siguiendo el precedente de
+`bisu_token_*`: guardarlo en una columna llamada «page access token» sería otra columna que
+miente, y eso ya costó una investigación con `preview_texto`.
+
+**El cifrado ocurre en la función de borde y el token no viaja en la petición**, porque ya
+está en su entorno. Y **se comprueba contra Meta antes de guardar**: una credencial cifrada
+que no sirve falla días después en el despachador y con forma de error de Meta.
+
+**Evidencia:**
+
+| Qué | Medición |
+|---|---|
+| Mensajes en la bandeja | 6 reales, con nombre de contacto y fecha en 2026 |
+| Contactos | «Gabriel Montiel Toro» y «Super Cauchos Cia Ltda», un cliente real |
+| Acuses | `delivery` 4, `read` 4, `wa_sent` 3 en `message_events` |
+| Envío de ida y vuelta | encolado → despachador → Cloud API → `delivered` → `read` → respuesta |
+| Adaptador | 26 comprobaciones en verde contra los payloads reales de `webhook_events` |
+
+#### Tres fallos propios, y lo que enseñan
+
+- **El despachador daba por fallido un envío que Meta aceptó.** WhatsApp devuelve el id en
+  `messages[0].id`; Messenger e Instagram en `message_id`. El código solo miraba el segundo,
+  así que un envío con HTTP 200 quedaba `fallido` con `error_mensaje: "HTTP 200"`. Costó un
+  envío real: llegó, se entregó, el destinatario lo leyó, y la bandeja decía que había
+  fallado. Es un **falso negativo**, la peor forma de fallar aquí: quien atiende reescribe un
+  mensaje que el cliente ya está leyendo.
+- **El reconciliador empezó a alertar cada quince minutos.** Recorría todas las conexiones
+  exigiendo Page Access Token, y la de WhatsApp no tiene ninguno. La alerta traía
+  `page_id: null` en el detalle, y eso permitió atribuirla en un minuto: un detalle con el
+  dato que distingue vale más que tres severidades.
+- **Tres verificaciones mías mal montadas dieron falsos negativos.** Un servidor de
+  desarrollo que arrancó en el puerto 3002 mientras yo comprobaba el 3000; un selector con
+  `Módulos` mal codificado por PowerShell; y un menú «ausente» que era la página de acceso
+  haciendo lo correcto. La regla de que una prueba que no se ha visto fallar no es una prueba
+  aplica también a la prueba: **hay que verificar la comprobación antes de creerle.**
+
+#### La navegación no existía
+
+`layout.tsx` eran catorce líneas sin menú, y los módulos principales no tenían forma de
+llegar unos a otros: se llegaba escribiendo la URL. Sidebar colapsable, con la preferencia en
+`localStorage` porque es del aparato y no de la cuenta.
+
+**Un defecto que solo se vio mirando la captura:** en un viewport de 390 px el menú ocupaba
+216, el 55 % del ancho. No había barra horizontal, así que ninguna comprobación automática lo
+detectaba. Por debajo de 860 px arranca colapsado, con el mismo corte que ya usa el CSS de la
+bandeja.
+
+**Evidencia:** menú de 216 px expandido y 60 colapsado, la preferencia sobrevive al
+recargado, el activo legible en oscuro (`rgb(237,234,227)`), y en móvil 60 px de 390.
+
+#### Comentarios: el modelo, con RLS
+
+Cero tablas de comentarios existían. Camino aparte de `messages` porque no tienen ventana ni
+conversación, pero sobre todo **porque un comentario es público y un mensaje no**: responder
+en público con datos dados en privado es una fuga. `autor_id` lleva escrito en un comentario
+de columna que **no es el IGSID**, para que nadie los cruce y acabe enseñando la conversación
+privada de alguien bajo el nombre de otro. RLS con FORCE, una política de lectura y **ninguna
+de escritura**: la ingesta entra por el rol de servicio y lo que hace un operador irá por RPC.
+
+#### Cuatro cosas medidas que contradicen a Meta o al repositorio
+
+- **El aviso rojo del panel de webhooks es falso para WhatsApp.** Dice que con la app sin
+  publicar no se entrega ningún dato de producción «ni de administradores ni de
+  desarrolladores». Se envió un mensaje real desde un móvil y entró, con firma verificada.
+- **El endpoint `/database/query` de la API de gestión es transaccional.** Una migración que
+  falló en su último `insert` no dejó ni una columna aplicada. Una migración a medias no es un
+  modo de fallo posible por esa vía, cosa que el comentario de `aplicar-migraciones.ps1` daba
+  por incierta.
+- **`aplicar-migraciones.ps1` exige `pwsh` de verdad, no por preferencia.** Bajo PowerShell
+  5.1 falla de dos formas: `Get-Content -Raw` lee en ANSI y rompe los acentos, y
+  `ConvertTo-Json` envuelve la cadena en `{"value":…,"Count":1}`.
+- **Las Edge Functions no se typechequean en ninguna parte.** El job de tipos corre solo
+  `pnpm --filter @kavea/app typecheck`. Todo `supabase/functions/` es Deno y no lo mira nadie:
+  la regresión del reconciliador la habría cazado una guarda de diez líneas.
 
 ### 2026-08-03 · El trámite de Meta, la bandeja de correo y cinco cosas que este repositorio daba por ciertas
 
