@@ -31,3 +31,7 @@ secrets/**
 Thumbs.db
 *.log
 npm-debug.log*
+
+# Caché del CLI de Supabase. Cambia en cada invocación y no vale nada fuera
+# de la máquina que lo generó.
+supabase/.temp/
