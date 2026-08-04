@@ -80,7 +80,26 @@ export function Sidebar() {
 
   useEffect(() => {
     try {
-      setColapsado(window.localStorage.getItem(CLAVE) === '1')
+      const guardado = window.localStorage.getItem(CLAVE)
+      if (guardado !== null) {
+        // Una elección explícita manda siempre, también en móvil: si alguien
+        // abrió el menú a propósito en el teléfono, no se le vuelve a cerrar.
+        setColapsado(guardado === '1')
+      } else {
+        // SIN PREFERENCIA GUARDADA, EN PANTALLA ESTRECHA, ARRANCA CERRADO.
+        //
+        // Medido el 4 de agosto de 2026 con Playwright: en un viewport de 390 px
+        // el menú expandido ocupaba 216, o sea el 55 % de la pantalla, y dejaba
+        // la bandeja en la mitad restante. No rompía el layout —no había barra
+        // horizontal— y por eso no lo detectaba nada automático: solo se ve
+        // mirando la captura. Es el mismo defecto que ya salió una vez, con la
+        // lista de conversaciones a media pantalla.
+        //
+        // El corte va en 860 px, que es el mismo que ya usa el CSS de la bandeja
+        // para pasar a una columna. Dos puntos de corte distintos producirían un
+        // tramo de anchos donde el menú y el hilo se pelean por el sitio.
+        setColapsado(window.matchMedia('(max-width: 860px)').matches)
+      }
     } catch {
       // Modo privado o almacenamiento bloqueado: se queda expandido y no se
       // rompe nada. Una preferencia no vale una pantalla en blanco.
