@@ -20,22 +20,40 @@ Orden de trámites fijado en `03-invariantes-meta.md`, sección `modeloMultitena
 | 1 | Crear el business portfolio de Boosty | ✅ `2167414613399354` |
 | 2 | Completar su Business Verification | ✅ `business_verification_passes: true` |
 | 3 | Crear la app de tipo Business | ✅ `kavea`, creada el 2-ago-2026 |
-| 4 | Reclamarla desde el portfolio | ⚠ verificar visualmente |
-| 5 | **Access Verification (Tech Provider)** | ⬜ **este documento** |
-| 6 | App Review permiso a permiso | ⬜ bloqueado, ver sección 6 |
+| 4 | Reclamarla desde el portfolio | ✅ visto en pantalla el 3-ago-2026: `Boosty Digital LLC ● Verified` |
+| 5 | **Access Verification (Tech Provider)** | ⬜ **formulario abierto, sin enviar** |
+| 6 | App Review permiso a permiso | ⬜ bloqueado por el 5 |
 
-Verificado por API el 2 de agosto de 2026:
+Reverificado el 3 de agosto de 2026, y **buena parte de lo que decía este documento
+ya no era cierto**:
 
 ```
-devtools_compliance      → overall_status: compliant, 0 violaciones
-devtools_app_review      → submission_status: NO_SUBMISSION, 0 privilegios, 0 rechazos
-devtools_app             → app_status: dev_mode, is_live: false
-kavea.ai/privacidad      → 200, legible por rastreador externo
-kavea.ai/eliminacion-de-datos → 200, legible por rastreador externo
+devtools_compliance      → compliant, 0 violaciones, 0 acciones requeridas
+devtools_app             → dev_mode, is_live: false, business_verification_passes: true
+devtools_app  basic      → privacidad, términos, eliminación de datos, ícono,
+                           categoría MESSAGING y dominio kavea.ai: TODO relleno
+Publish → App settings   → "All required app settings are complete"
+devtools_webhook_list    → los TRES topics suscritos y activos contra Supabase:
+                           page (9 campos), instagram (7), whatsapp_business_account (1)
 ```
 
-Todos los campos de ajustes básicos siguen en `null`. Eso es lo que hay que resolver
-antes de enviar.
+**Los ajustes básicos ya no están en `null`**: la sección 2 de este documento
+describe un estado que se resolvió entre el 2 y el 3 de agosto. Lo que sí sigue sin
+confirmar es lo de siempre, y ahora con plazo: la Access Verification pide la web de
+la empresa y Meta compara lo que ve con el portafolio verificado.
+
+**Plazo duro descubierto el 3 de agosto**, y no estaba en ningún documento: la
+pantalla de Access Verification dice *"To avoid restrictions to 2 apps, this must be
+completed by 10/2/2026"*. El 2 de octubre de 2026, y afecta a **dos** apps del
+portafolio, no solo a `kavea`.
+
+**El bloqueo real no era el que este documento suponía.** No se puede ni AÑADIR un
+permiso al App Review sin ser Tech Provider: al pulsar `+ Add to App Review` sale un
+diálogo que lo dice y avisa de que *"this decision cannot be reversed"*. Y el
+`can_submit: false` que la API devolvía con motivo *"a previous submission is in
+review"* es un mensaje engañoso: la pantalla de submissions dice **"Not submitted"** y
+no hay ninguna cola. El `submission_id` que parecía fantasma es el identificador del
+borrador.
 
 ---
 
@@ -181,8 +199,28 @@ independiente del App Review, y es prerrequisito suyo.
 No es cautela. Son tres requisitos de Meta recogidos en `03-invariantes-meta.md` que
 hoy es imposible cumplir porque el sistema no existe:
 
-1. **Al menos una llamada exitosa por cada permiso, dentro de los 30 días previos al
-   envío.** Kavea no ha hecho ninguna llamada a la API todavía.
+1. ~~**Al menos una llamada exitosa por cada permiso, dentro de los 30 días previos al
+   envío.** Kavea no ha hecho ninguna llamada a la API todavía.~~ **CUMPLIDO el 3 de
+   agosto de 2026.** Era falso que no hubiera llamadas: el contador por permiso del
+   use case ya marcaba tráfico real, y lo que faltaba se provocó a mano.
+
+   ```
+   pages_manage_metadata       148    instagram_manage_messages    53
+   pages_read_engagement       148    instagram_basic              14
+   pages_show_list             104    whatsapp_business_messaging   5
+   pages_messaging             103    instagram_manage_comments     3  (2 lecturas + 1 escritura)
+   business_management          58    whatsapp_business_management   1
+   Human Agent                   1
+   ```
+
+   Ojo con el contador que NO sirve para esto: `devtools_api_usage call_volume`
+   devuelve `total_calls: 0` a 30 días. Ese es el volumen para límites de tasa, no el
+   contador por permiso que mira el App Review. Confundirlos cuesta una tarde.
+
+   La llamada de Human Agent salió con `messaging_type=MESSAGE_TAG&tag=HUMAN_AGENT` y
+   Meta la aceptó, pero media hora después del entrante: demuestra que el tag se
+   concede, no que funcione pasadas las 24 h. Para eso está
+   `.github/workflows/human-agent.yml`.
 
 2. **Un screencast por permiso, con descripción propia y sin copiar y pegar.** No hay
    producto que grabar. La feature Human Agent se somete aparte, con el suyo.
@@ -204,11 +242,32 @@ además a que el envío sea inmediatamente posterior, no meses después.
 
 ## 7. Qué queda pendiente después
 
-- Suscribir los webhooks de los tres canales. Bloqueado por el endpoint HTTPS: Meta
-  valida el handshake contra la URL en el momento de suscribir. Topics confirmados
-  disponibles: `whatsapp_business_account`, `page`, `instagram`.
+- ~~Suscribir los webhooks de los tres canales.~~ **HECHO.** Verificado por API el
+  3 de agosto de 2026: los tres topics activos contra
+  `sdazqohyjzzylwbkvovx.supabase.co`.
+- ~~Auditar y quitar `business_management`.~~ **NO PROCEDE.** La guía de Meta de
+  «API setup with Facebook login» lo lista como **requerido en los dos bloques**, el
+  de mensajería y el de contenido. No era contaminación del use case: es dependencia
+  declarada de la vía elegida. Zanja también la contradicción que `03` dejaba abierta
+  entre el overview de Messenger y la Permissions Reference, al menos a efectos de lo
+  que el dashboard exige.
 - Cambiar el campo de eliminación de datos de instrucciones a callback.
 - Implementar el deauthorize callback, que es distinto del anterior.
-- Configurar Facebook Login for Business y capturar el `config_id`.
-- Auditar y quitar los permisos que los use cases preseleccionaron y Kavea no usa.
-  `business_management` viene preseleccionado por el use case de Instagram.
+- Configurar Facebook Login for Business y capturar el `config_id`. Sigue pendiente y
+  ahora con un dato concreto: `devtools_app advanced_settings` devuelve
+  `oauth_redirect_uris: null` y `deauth_callback_url: null`.
+- **Quitar `pages_utility_messaging` del use case de Messenger.** Está en el borrador
+  del App Review con **0 llamadas**, y `fases/05-fase-configuracion.md` lo declara
+  fuera de v1. Se quita con `Remove` desde el use case, NO con la papelera de la
+  página de submissions: el borrador se autopobla desde los use cases, así que lo que
+  se quita solo del envío puede volver.
+- **`public_profile` en el borrador.** Su propia descripción dice que se concede
+  automáticamente a todas las apps. Pedirlo en revisión añade una fila en cero sin
+  ganar nada, pero probablemente Meta lo reinyecte en cada sincronización del
+  borrador. Vigilar, no pelear.
+- **La feature «Business Asset User Profile Access» NO hace falta.** Se creía
+  necesaria para el nombre y la foto del contacto. Medido el 3 de agosto de 2026:
+  `GET /{igsid}?fields=name,username,profile_pic` devuelve las tres cosas con el Page
+  Access Token y `instagram_manage_messages`, que ya se tiene. Un permiso menos que
+  pedir, y una tarea nueva: hoy `contacts.nombre` está en `null` y la bandeja muestra
+  tarjetas sin nombre pudiendo tenerlo.

@@ -10,7 +10,7 @@ verificado, no se escribe como hecho.
 
 ## 1. Estado actual
 
-> Al día del **2 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
+> Al día del **3 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
 > mantiene al día: los documentos de `docs/fases/` describen lo planeado y **no se actualizan al
 > ejecutar**, así que contradicen a la realidad. Está anotado como deuda en §3.4.
 
@@ -21,7 +21,8 @@ verificado, no se escribe como hecho.
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, en modo desarrollo | `compliant`, sin violaciones |
 | Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 60 migraciones aplicadas | Verificado en `pg_catalog` |
+| Esquema de base de datos | ✅ 62 migraciones aplicadas y **registradas** | 0049–0060 estaban aplicadas sin fila de control; conciliado el 3-ago |
+| Bandeja de correo interna | ✅ `/admin/correos`, leer y responder | RPC y bucket verificados; el viaje completo pide sesión de staff |
 | Aislamiento entre tenants | ✅ 61 de 61 comprobaciones | Validado rompiendo una política a propósito |
 | Ingesta y normalización | ✅ En producción | Mensajes reales entrando, 8 crones vivos |
 | Bandeja, tarjetas y embudos | ✅ En producción | Un contacto con varios canales en un solo hilo |
@@ -43,6 +44,69 @@ mañana no es el número de la fase: es la sección 3.
 ---
 
 ## 2. Entradas
+
+### 2026-08-03 · El trámite de Meta, la bandeja de correo y cinco cosas que este repositorio daba por ciertas
+
+Sesión larga de verificación contra la API y el App Dashboard. Lo que sigue está medido,
+no supuesto, y **buena parte contradice lo que los documentos afirmaban**.
+
+**El bloqueo del App Review no era el que creíamos.** No es que no se pueda enviar: no se
+puede ni AÑADIR un permiso sin ser Tech Provider. Al pulsar `+ Add to App Review` sale un
+diálogo que lo dice y avisa de que la decisión es irreversible. El `can_submit: false` que
+la API devolvía con motivo *"a previous submission is in review"* es un mensaje engañoso:
+la pantalla de submissions dice **"Not submitted"** y no hay ninguna cola.
+
+**Plazo duro que no estaba en ningún documento:** la Access Verification debe completarse
+antes del **2 de octubre de 2026** o Meta restringe **dos** apps del portafolio.
+
+**El requisito de llamadas está cumplido**, y era falso que no hubiera ninguna. El
+contador por permiso del use case ya marcaba tráfico real —`pages_manage_metadata` 148,
+`pages_read_engagement` 148, `pages_show_list` 104, `pages_messaging` 103,
+`business_management` 58, `instagram_manage_messages` 53, `instagram_basic` 14,
+`whatsapp_business_messaging` 5— y lo que faltaba se provocó a mano:
+`instagram_manage_comments` con dos lecturas y una respuesta pública real,
+`whatsapp_business_management` listando las tres WABAs, y Human Agent con un envío que
+Meta aceptó. Cuidado con `devtools_api_usage call_volume`, que devuelve `total_calls: 0` a
+30 días: ese es el volumen para límites de tasa, no el contador del App Review.
+
+**Se limpió la vía descartada.** `instagram_business_basic` e
+`instagram_business_manage_messages` estaban añadidos al use case de Instagram, prohibidos
+por `03:190`, con 0 llamadas frente a las 53 de `instagram_manage_messages`. Fuera. Y se
+añadió la feature Human Agent, que faltaba.
+
+**En Instagram no existe `app_id`.** Dos envíos por el Send API con el token de la propia
+app volvieron sin el campo, así que `adaptadores.ts` los clasifica como `humano` y lo que
+Kavea manda es indistinguible de lo que el cliente escribe desde el móvil. No se arregla
+suscribiéndose: el topic `instagram` **no tiene** `message_echoes` entre sus campos. La
+alternativa está medida: el `mid` del echo es el `message_id` que devuelve el Send API,
+comprobado carácter a carácter contra el acuse de lectura, y Kavea ya lo guarda en
+`send_api_message_id`. Pendiente de implementar en el aplicador; afecta al bucle del agente.
+
+**Tres incertidumbres cerradas.** `messaging_referral` es singular en el topic `instagram`
+y plural en `page`: no era una discrepancia documental, son dos topics.
+`pages_read_user_content` no se puede pedir —no aparece en ningún use case— y no hace
+falta: `instagram_basic` lleva 14 llamadas sin él. Y la feature *Business Asset User
+Profile Access* tampoco: `GET /{igsid}?fields=name,username,profile_pic` devuelve nombre,
+usuario y foto con lo que ya se tiene. Eso deja una tarea: hoy `contacts.nombre` está en
+`null` y la bandeja muestra tarjetas sin nombre pudiendo tenerlo.
+
+**La bandeja de correo entra en producción.** `support@kavea.ai` estaba publicado en tres
+páginas legales que Meta rastrea y nadie leía ese buzón. Ahora vive en `/admin/correos`,
+sincronizando desde Resend al abrir el módulo, con adjuntos guardados en Supabase Storage
+porque el `download_url` de Resend caduca a la hora. Migración 0061.
+
+**El registro de migraciones estaba 12 por detrás.** `schema_migrations` se detuvo en
+`0048_reparto` el 2 de agosto a las 21:15 y de la 0049 a la 0060 se aplicaron por otra vía
+sin dejar fila. El script `aplicar-migraciones.ps1` habría fallado en la 0049 en el próximo
+uso. Conciliado tras verificar **una por una** con un objeto distintivo de cada migración,
+no por parecido. Las filas rellenadas llevan la fecha de la conciliación, no la de la
+aplicación real, que se desconoce.
+
+**Y dos columnas que mentían.** `conversations.preview_texto` decía «Mensaje eliminado»
+mientras el último mensaje era «Prueba v2»: quedaron huérfanas cuando 0027 movió el
+adelanto a `tarjetas`. Costaron una investigación y casi un informe de un fallo que no
+existía. Quitadas en 0062. `conversations.no_leidos` huele igual y queda marcada como
+sospechosa, sin tocar: quitar algo por parecido es cómo se rompe una lectura.
 
 ### 2026-08-02 · Reparto, adjuntos, diagnóstico de canales y panel interno
 
