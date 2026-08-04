@@ -85,10 +85,26 @@ end $$;
 -- C4 -------------------------------------------------------------------------
 -- Tabla con RLS activo y cero políticas, fuera de las esperadas.
 --
--- webhook_events y alertas son así a propósito: deniegan todo. Una fila de
--- cualquiera de las dos puede ser ANTERIOR al enrutado y por tanto no tener
--- tenant, así que no puede quedar bajo RLS de organización. Cualquier otra
--- tabla en ese estado es un olvido que deja los datos inaccesibles.
+-- «RLS con cero políticas» es la configuración MÁS restrictiva que existe: no
+-- deniega por descuido, deniega del todo. El canario no está para prohibirla,
+-- está para que sea siempre una decisión y nunca un olvido. De ahí la lista, y
+-- de ahí que cada entrada lleve escrito su motivo.
+--
+--   webhook_events, alertas — una fila puede ser ANTERIOR al enrutado y no tener
+--     tenant, así que no puede quedar bajo RLS de organización.
+--   schema_migrations       — control del aplicador, sin dueño.
+--   rate_limit_usage        — «diagnóstico interno, ni siquiera los miembros lo
+--     leen», 0034 línea 103. Lo escribe el despachador con el rol de servicio y
+--     lo lee panel_uso, que es definer.
+--   solicitudes             — 0060 lo razona entero: entra por pedir_demo(), que
+--     es el único RPC con permiso para anon, y sale por panel_solicitudes().
+--   correos, correo_adjuntos — 0061, mismo patrón. Una bandeja de soporte tiene
+--     todo lo que la gente escribe cuando algo le va mal.
+--
+-- OJO AL LEER ESTE FICHERO: se ejecuta con ON_ERROR_STOP=1, así que **los
+-- canarios se tapan unos a otros**. Este C4 llevaba días fallando por
+-- rate_limit_usage y solicitudes sin que se viera, porque C2 abortaba antes.
+-- Arreglar un canario destapa el siguiente: no es una regresión nueva.
 do $$
 declare v_fallos text;
 begin
@@ -99,7 +115,10 @@ begin
    where n.nspname = 'public'
      and c.relkind = 'r'
      and c.relrowsecurity
-     and c.relname not in ('webhook_events', 'alertas', 'schema_migrations')
+     and c.relname not in (
+       'webhook_events', 'alertas', 'schema_migrations',
+       'rate_limit_usage', 'solicitudes', 'correos', 'correo_adjuntos'
+     )
      and not exists (select 1 from pg_policy p where p.polrelid = c.oid);
 
   if v_fallos is not null then
