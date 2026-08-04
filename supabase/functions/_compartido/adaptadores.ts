@@ -11,12 +11,26 @@
 
 export type Efecto = Record<string, unknown> & { tipo: string }
 
-/** Una unidad de trabajo: un elemento de messaging[] o standby[] de un entry. */
+/**
+ * Una unidad de trabajo: un elemento de messaging[] o standby[] de un entry, o
+ * de messages[] o statuses[] cuando el canal es WhatsApp.
+ */
 export type Update = {
   assetId: string
-  canal: 'messenger' | 'instagram'
+  canal: 'messenger' | 'instagram' | 'whatsapp'
   standby: boolean
   m: Record<string, any>
+  /**
+   * Solo WhatsApp, y por dos razones que no se pueden resolver mirando `m`:
+   *
+   * - Un elemento de `messages[]` y uno de `statuses[]` son objetos distintos
+   *   sin campo que los discrimine de forma fiable. Olfatear por la presencia
+   *   de `status` funcionaría hasta que Meta añada ese nombre a otra cosa.
+   * - El nombre del contacto vive en `value.contacts[]`, que es HERMANO de
+   *   `messages[]` y no está dentro del mensaje. Si no se transporta aquí, se
+   *   pierde, y es el dato que en Instagram cuesta una llamada por contacto.
+   */
+  wa?: { clase: 'mensaje' | 'estado'; perfil: string | null; nuestroNumero: string }
 }
 
 /**
@@ -32,6 +46,13 @@ export type Update = {
  */
 export function aplanar(cuerpo: unknown): Update[] {
   const raiz = cuerpo as { object?: string; entry?: unknown[] }
+
+  // WhatsApp no comparte NADA de la forma de los otros dos, así que se desvía
+  // antes de tocar `messaging[]`. Hasta el 4 de agosto de 2026 este cuerpo caía
+  // por el camino de abajo, se clasificaba como `messenger` —porque el ternario
+  // solo pregunta por instagram— y producía cero updates.
+  if (raiz?.object === 'whatsapp_business_account') return aplanarWhatsapp(raiz)
+
   const canal: 'messenger' | 'instagram' =
     raiz?.object === 'instagram' ? 'instagram' : 'messenger'
 
@@ -51,6 +72,81 @@ export function aplanar(cuerpo: unknown): Update[] {
       out.push({ assetId, canal, standby: true, m: m as Record<string, any> })
     }
   }
+  return out
+}
+
+/**
+ * Aplana un cuerpo de WhatsApp. La cuarta forma de payload, medida con tráfico
+ * REAL el 4 de agosto de 2026, no leída de la documentación.
+ *
+ * Tres diferencias que rompen cualquier reutilización de la ruta de Messaging:
+ *
+ * 1. **`entry[].id` es la WABA, no el asset de mensajería.** En `page` y en
+ *    `instagram` el `entry.id` ES el asset y por ahí resuelve el enrutado. Aquí
+ *    vale `1415042803155441` —la cuenta— y el asset real es
+ *    `changes[].value.metadata.phone_number_id`, dos niveles más abajo. Enrutar
+ *    por `entry.id` deja el mensaje sin tenant y dispara `tenant_no_resuelto`.
+ * 2. **El trabajo no está en `messaging[]`** sino en `value.messages[]` y
+ *    `value.statuses[]`, que son dos listas hermanas.
+ * 3. **El nombre del contacto llega gratis** en `value.contacts[]`.
+ */
+function aplanarWhatsapp(raiz: { entry?: unknown[] }): Update[] {
+  const out: Update[] = []
+
+  for (const e of Array.isArray(raiz?.entry) ? raiz.entry : []) {
+    const entry = e as { changes?: unknown[] }
+
+    for (const c of Array.isArray(entry?.changes) ? entry.changes : []) {
+      const v = (c as { value?: Record<string, any> })?.value
+      if (!v) continue
+
+      const assetId = String(v.metadata?.phone_number_id ?? '')
+      if (!assetId) continue
+
+      // `contacts[]` se indexa una vez por cambio en lugar de recorrerlo por
+      // cada mensaje: un lote de WhatsApp puede traer decenas.
+      const perfiles = new Map<string, string | null>()
+      for (const ct of Array.isArray(v.contacts) ? v.contacts : []) {
+        const p = ct as { wa_id?: string; profile?: { name?: string } }
+        if (p?.wa_id) perfiles.set(String(p.wa_id), p.profile?.name ?? null)
+      }
+
+      // Mensajes antes que acuses, y cada lista en su orden de llegada. El
+      // cursor de troceado es un índice sobre esta secuencia, así que dos
+      // aplanados del mismo cuerpo tienen que dar exactamente lo mismo o una
+      // reanudación salta o repite updates.
+      for (const msg of Array.isArray(v.messages) ? v.messages : []) {
+        const m = msg as Record<string, any>
+        out.push({
+          assetId,
+          canal: 'whatsapp',
+          standby: false,
+          m,
+          wa: {
+            clase: 'mensaje',
+            perfil: perfiles.get(String(m.from ?? '')) ?? null,
+            nuestroNumero: assetId,
+          },
+        })
+      }
+
+      for (const st of Array.isArray(v.statuses) ? v.statuses : []) {
+        const m = st as Record<string, any>
+        out.push({
+          assetId,
+          canal: 'whatsapp',
+          standby: false,
+          m,
+          wa: {
+            clase: 'estado',
+            perfil: perfiles.get(String(m.recipient_id ?? '')) ?? null,
+            nuestroNumero: assetId,
+          },
+        })
+      }
+    }
+  }
+
   return out
 }
 
@@ -163,6 +259,11 @@ export function extraerAdjuntos(msg: Record<string, any>): Adjunto[] {
 }
 
 export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
+  // WhatsApp se desvía entero: su unidad no tiene `message`, ni `sender`, ni
+  // `recipient`, y el timestamp está en otra unidad. Compartir este cuerpo
+  // obligaría a un `if` por cada campo y a que el más olvidado fallara callado.
+  if (u.canal === 'whatsapp') return aEfectosWhatsapp(u, org, channelId)
+
   const m = u.m
   const base = {
     organization_id: org,
@@ -304,6 +405,136 @@ export function aEfectos(u: Update, org: string, channelId: string): Efecto[] {
   // En Chatwoot, cada tipo nuevo de Meta tumbaba el job completo y perdía todos
   // los mensajes del lote, no solo el afectado.
   return [{ tipo: 'desconocido', evento_tipo: Object.keys(m).join('+').slice(0, 60), ...base }]
+}
+
+/**
+ * El texto de un mensaje de WhatsApp está en un sitio distinto según el tipo.
+ *
+ * Los tipos con media traen `caption`, que es texto que escribió el contacto: si
+ * no se lee, la burbuja sale vacía y lo que dijo la persona se pierde sin que
+ * nada falle. Es el mismo modo de fallo que costó los GIF el 2 de agosto.
+ */
+function textoDeWhatsapp(m: Record<string, any>): string | null {
+  if (m.text?.body) return String(m.text.body)
+  if (m.button?.text) return String(m.button.text)
+  if (m.interactive?.button_reply?.title) return String(m.interactive.button_reply.title)
+  if (m.interactive?.list_reply?.title) return String(m.interactive.list_reply.title)
+  for (const k of ['image', 'video', 'document', 'audio']) {
+    if (m[k]?.caption) return String(m[k].caption)
+  }
+  return null
+}
+
+/**
+ * WhatsApp NO manda la URL de la media: manda un id.
+ *
+ * Es la diferencia gorda con Messenger e Instagram, donde `payload.url` viene
+ * dentro del webhook y basta con validar el host. Aquí hay que pedir
+ * `GET /{media-id}` con el token para conseguir una URL, y esa URL caduca en
+ * minutos. Así que el adjunto se persiste con `cdn_url` en null, que es
+ * exactamente el caso `sin_servir` que el CHECK `media_origen_coherente` ya
+ * contempla desde la 0010. No hay que tocar el esquema.
+ *
+ * Resolver el id contra el grafo es trabajo de quien sirva la imagen, no de una
+ * función pura: aquí no hay red, y meterla convertiría los adaptadores en algo
+ * que no se puede probar en memoria.
+ */
+function adjuntosDeWhatsapp(m: Record<string, any>): Adjunto[] {
+  const out: Adjunto[] = []
+  for (const t of ['image', 'video', 'audio', 'document', 'sticker']) {
+    const a = m[t]
+    if (a && typeof a === 'object') out.push({ tipo: t, cdn_url: null, cdn_host: null, payload: a })
+  }
+  if (m.location) out.push({ tipo: 'location', cdn_url: null, cdn_host: null, payload: m.location })
+  // `contacts` dentro de un mensaje son tarjetas de contacto compartidas, y no
+  // tienen nada que ver con el `contacts[]` hermano de `messages[]`, que es el
+  // perfil de quien escribe. Dos cosas con el mismo nombre en el mismo payload.
+  for (const c of Array.isArray(m.contacts) ? m.contacts : []) {
+    out.push({ tipo: 'contact', cdn_url: null, cdn_host: null, payload: c })
+  }
+  return out
+}
+
+/**
+ * WhatsApp → efectos.
+ *
+ * EL TIMESTAMP VIENE EN SEGUNDOS, y esto es lo que más fácil se cuela. Messenger
+ * e Instagram mandan milisegundos y la columna se llama `meta_timestamp_ms`.
+ * Medido el 4 de agosto de 2026 con un mensaje real: `"1785871068"`, diez
+ * dígitos. Sin multiplicar, cada mensaje de WhatsApp aterriza en enero de 1970,
+ * la bandeja lo ordena al final para siempre y la ventana de 24 h lo da por
+ * caducado desde el primer segundo. No falla nada visiblemente.
+ */
+function aEfectosWhatsapp(u: Update, org: string, channelId: string): Efecto[] {
+  const m = u.m
+  const seg = Number(m.timestamp ?? 0)
+  const base = {
+    organization_id: org,
+    canal: u.canal,
+    channel_id: channelId,
+    // No existe standby en WhatsApp: la propiedad del hilo no se cede como en
+    // Messenger. Se manda false explícito porque la columna es NOT NULL.
+    llego_por_standby: false,
+    meta_timestamp_ms: Number.isFinite(seg) && seg > 0 ? seg * 1000 : Date.now(),
+    raw: m,
+  }
+
+  // --- acuses ---------------------------------------------------------------
+  if (u.wa?.clase === 'estado') {
+    const bruto = String(m.status ?? '')
+    // `delivered` y `read` se traducen al vocabulario que la línea de tiempo ya
+    // entiende, para no tener que enseñarle dos idiomas. `sent` y `failed` no
+    // existen en Messenger y van con prefijo propio.
+    const evento =
+      bruto === 'delivered' ? 'delivery' : bruto === 'read' ? 'read' : `wa_${bruto || 'estado'}`
+
+    return [{
+      tipo: 'evento.registrar',
+      evento_tipo: evento,
+      // EL ID DEL ACUSE ES EL WAMID DEL MENSAJE, y ese wamid es el mismo que
+      // devuelve el Send API. Aquí está la salida que Instagram no tiene: lo
+      // propio se reconoce cruzando este id contra `send_api_message_id`, sin
+      // `app_id` y sin depender de `message_echoes`, que además falló al
+      // suscribirse el 4 de agosto de 2026.
+      target_mid: m.id ? String(m.id) : null,
+      read_mid: bruto === 'read' && m.id ? String(m.id) : null,
+      actor_scoped_id: String(m.recipient_id ?? ''),
+      // Meta manda el PRECIO en cada acuse: billable, modelo y categoría. El
+      // coste por conversación no hay que estimarlo ni consultarlo, llega solo.
+      pricing: m.pricing ?? null,
+      errores: m.errors ?? null,
+      ...base,
+    }]
+  }
+
+  // --- mensaje entrante -----------------------------------------------------
+  const from = String(m.from ?? '')
+
+  return [{
+    tipo: 'mensaje.upsert',
+    mid: String(m.id ?? ''),
+    // Un entrante de WhatsApp siempre es del contacto. Lo que manda Kavea no
+    // vuelve por aquí: vuelve como acuse en `statuses[]`.
+    direccion: 'inbound',
+    emisor: 'contacto',
+    is_echo: false,
+    app_id: null,
+    metadata: null,
+    contacto_scoped_id: from,
+    // GRATIS. En Instagram `contacts.nombre` está en null y rellenarlo cuesta
+    // una llamada al grafo por cada contacto nuevo.
+    contacto_nombre: u.wa?.perfil ?? null,
+    sender_scoped_id: from,
+    recipient_scoped_id: u.wa?.nuestroNumero ?? u.assetId,
+    texto: textoDeWhatsapp(m),
+    // Una respuesta citada llega en `context.id`, no en `reply_to.mid`.
+    reply_to_mid: m.context?.id ?? null,
+    quick_reply_payload: m.interactive?.button_reply?.id ?? m.button?.payload ?? null,
+    referral: m.referral ?? null,
+    is_unsupported: String(m.type ?? '') === 'unsupported',
+    adjuntos: adjuntosDeWhatsapp(m),
+    ...base,
+  }]
 }
 
 /**

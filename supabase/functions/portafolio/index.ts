@@ -95,7 +95,7 @@ async function listarPaginas(): Promise<Pagina[]> {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  let cuerpo: { accion?: string; page_id?: string; organizacion?: string }
+  let cuerpo: { accion?: string; page_id?: string; organizacion?: string; conexion?: string }
   try {
     cuerpo = await req.json()
   } catch {
@@ -128,6 +128,71 @@ Deno.serve(async (req: Request): Promise<Response> => {
           instagram_id: p.instagram_business_account?.id ?? null,
           organizacion: porPagina.get(p.id) ?? null,
         })),
+      })
+    }
+
+    // --- credencial de WhatsApp ---------------------------------------------
+    //
+    // EL TOKEN NO VIAJA EN LA PETICIÓN, y esa es la decisión de diseño.
+    //
+    // Podría aceptarse por el cuerpo, y sería más flexible. Pero entonces el
+    // token del portafolio —el secreto más valioso del sistema, el que deriva
+    // Page Access Tokens de 28 Páginas— viajaría desde la máquina de quien da de
+    // alta, quedaría en el historial de red de su navegador o en el búfer de su
+    // terminal, y habría que rotarlo cada vez. Aquí ya está en el entorno de esta
+    // función: se cifra el que hay y ninguna copia sale de Supabase.
+    //
+    // Cuando en la fase 5 sea el cliente quien conecte su propia WABA, el token
+    // que se cifre será el suyo, obtenido del intercambio de Embedded Signup y
+    // recibido por el `code`, no por el token en claro. La forma no cambia.
+    if (cuerpo.accion === 'credencial_whatsapp') {
+      const { conexion } = cuerpo
+      if (!conexion) return json({ error: 'falta la conexión' }, 400)
+
+      const filas = await sql<Array<{ phone_number_id: string | null; waba_id: string | null }>>(
+        `meta_connections?select=phone_number_id,waba_id&id=eq.${encodeURIComponent(conexion)}`,
+      )
+      const c = filas[0]
+      if (!c) return json({ error: 'no existe esa conexión' }, 404)
+      if (!c.phone_number_id) return json({ error: 'esa conexión no es de WhatsApp' }, 400)
+
+      const token = tokenPortafolio()
+
+      // SE COMPRUEBA CONTRA META ANTES DE GUARDAR.
+      //
+      // Una credencial cifrada que no sirve es peor que no tener ninguna: el
+      // fallo no aparece aquí, aparece días después en el despachador y con
+      // forma de error de Meta, así que se investiga el sitio equivocado. Basta
+      // una lectura del número: si el token no lo alcanza, tampoco podrá enviar.
+      const r = await fetch(
+        `https://graph.facebook.com/${V}/${c.phone_number_id}` +
+          `?fields=display_phone_number,verified_name,quality_rating,platform_type` +
+          `&access_token=${encodeURIComponent(token)}`,
+      )
+      const detalle = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        return json({ error: 'el token no alcanza ese número, no se guarda nada', detalle }, 502)
+      }
+
+      const { cipher, nonce, kid } = await cifrar(token, KID)
+      await sql('rpc/guardar_credencial_whatsapp', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_conexion: conexion,
+          p_cipher: aHexPg(cipher),
+          p_nonce: aHexPg(nonce),
+          p_kid: kid,
+        }),
+      })
+
+      // Se devuelve lo que confirma que funciona, nunca el token ni el cifrado.
+      return json({
+        ok: true,
+        numero: detalle.display_phone_number ?? null,
+        nombre: detalle.verified_name ?? null,
+        calidad: detalle.quality_rating ?? null,
+        plataforma: detalle.platform_type ?? null,
+        kid,
       })
     }
 

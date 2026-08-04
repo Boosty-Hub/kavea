@@ -120,12 +120,22 @@ Deno.serve(async (): Promise<Response> => {
     // El join trae la credencial cifrada; el token en claro no sale nunca de
     // esta función.
     const conexiones = await sql<Conexion[]>(
-      'meta_connections?select=id,organization_id,page_id,meta_credentials(page_access_token_cipher,page_access_token_nonce,page_access_token_kid)&estado=neq.disconnected',
+      // SOLO CONEXIONES DE PÁGINA, y el filtro va en la consulta y no en un `if`
+      // más abajo. Desde la 0065 una conexión puede ser de WhatsApp, y esas no
+      // tienen `page_id` ni Page Access Token: tienen su propia credencial y su
+      // propia suscripción, que es `POST /{WABA_ID}/subscribed_apps` y se hace
+      // una vez, no cada quince minutos.
+      //
+      // Sin este filtro, el reconciliador las recogía, no encontraba credencial
+      // de Página y escribía una alerta p2 cada cuarto de hora. Ocurrió: la
+      // primera fue a las 20:00 del 4 de agosto de 2026, con `page_id: null` en
+      // el detalle, que es lo que permitió atribuirla en un minuto.
+      'meta_connections?select=id,organization_id,page_id,meta_credentials(page_access_token_cipher,page_access_token_nonce,page_access_token_kid)&estado=neq.disconnected&page_id=not.is.null',
     ).catch(async () => {
       // El esquema `private` no se expone por la API, así que el join anterior
       // falla. Se leen las conexiones y las credenciales van por RPC.
       return await sql<Conexion[]>(
-        'meta_connections?select=id,organization_id,page_id&estado=neq.disconnected',
+        'meta_connections?select=id,organization_id,page_id&estado=neq.disconnected&page_id=not.is.null',
       )
     })
 

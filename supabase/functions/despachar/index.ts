@@ -202,6 +202,57 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
       ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
       : { text: e.cuerpo.texto }
 
+  // --- WhatsApp -------------------------------------------------------------
+  //
+  // Tercera forma, y no se parece a las otras dos. `POST /{phone_number_id}/messages`
+  // con JSON, `messaging_product` obligatorio, el destinatario en `to` como wa_id
+  // plano —no un objeto `recipient`— y el tipo en la raíz en vez de dentro de
+  // `message`.
+  //
+  // Y NO SE MANDA `tag` NI `messaging_type`. En WhatsApp no existe HUMAN_AGENT:
+  // fuera de las 24 h la única vía es una plantilla aprobada, y mandar un tag de
+  // Messenger aquí devuelve error. La ventana ya se reevaluó más arriba con
+  // `ventana_de()`, así que si llegamos hasta aquí es que está abierta; si estaba
+  // cerrada, el envío se marcó fallido con su motivo y nunca entra en esta rama.
+  //
+  // La plantilla NO se elige automáticamente a propósito. Las 25 aprobadas de
+  // Boosty son todas MARKETING, tienen coste por conversación y usar una para
+  // contestar a alguien que escribió hace dos días es spam facturado. Que falle
+  // con un motivo legible es mejor que meter al cliente en un cargo que no pidió.
+  if (e.canal === 'whatsapp') {
+    const cuerpoWa: Record<string, unknown> = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: e.cuerpo.destinatario,
+    }
+    if (e.cuerpo.tipo === 'like_heart') {
+      // No hay sticker de corazón en Cloud API. Se manda el carácter, que es
+      // además exactamente lo que Meta devuelve en el echo de Instagram.
+      cuerpoWa.type = 'text'
+      cuerpoWa.text = { body: '❤' }
+    } else if (urlMedia) {
+      // WhatsApp acepta media por enlace, y la URL se firma en el despacho igual
+      // que para los otros canales: una firma hecha al encolar llegaría caducada.
+      cuerpoWa.type = e.cuerpo.tipo
+      cuerpoWa[e.cuerpo.tipo] = { link: urlMedia }
+    } else {
+      cuerpoWa.type = 'text'
+      // `preview_url` desactivado: una vista previa la genera Meta pidiendo la
+      // URL, y eso convierte un enlace pegado por un operador en una petición
+      // que sale de la infraestructura de Meta hacia donde diga ese enlace.
+      cuerpoWa.text = { body: e.cuerpo.texto, preview_url: false }
+    }
+
+    return {
+      url: `https://graph.facebook.com/${V}/${e.particion}/messages`,
+      init: {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(cuerpoWa),
+      },
+    }
+  }
+
   if (e.canal === 'instagram') {
     const form = new URLSearchParams()
     form.set('recipient', JSON.stringify({ id: e.cuerpo.destinatario }))
@@ -240,11 +291,37 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
 }
 
 async function tokenDe(conversacion: string): Promise<{ token: string; conexion: string }> {
-  const filas = await sql<Array<{ channels: { meta_connection_id: string } }>>(
-    `conversations?select=channels(meta_connection_id)&id=eq.${conversacion}`,
+  // El canal se lee AQUÍ y no se recibe por parámetro, para que no exista una
+  // forma de pedir el token de un canal y enviar por otro. Desde la 0065 una
+  // conexión de WhatsApp NO tiene Page Access Token: tiene el suyo en su propia
+  // ranura, y pedirle el de Página devolvería una fila con los tres campos en
+  // null que `descifrar` reventaría con un error sin relación con la causa.
+  const filas = await sql<Array<{ channels: { meta_connection_id: string; canal: string } }>>(
+    `conversations?select=channels(meta_connection_id,canal)&id=eq.${conversacion}`,
   )
   const conexion = filas?.[0]?.channels?.meta_connection_id
+  const canal = filas?.[0]?.channels?.canal
   if (!conexion) throw new Error('sin conexión para esa conversación')
+
+  if (canal === 'whatsapp') {
+    const cred = (await sql<Array<{
+      whatsapp_token_cipher: string | null
+      whatsapp_token_nonce: string | null
+      whatsapp_token_kid: string | null
+    }>>('rpc/credencial_whatsapp_de_conexion', {
+      method: 'POST',
+      body: JSON.stringify({ p_conexion: conexion }),
+    }))?.[0]
+    if (!cred?.whatsapp_token_cipher || !cred.whatsapp_token_nonce || !cred.whatsapp_token_kid) {
+      throw new Error('sin credencial de WhatsApp para esa conexión')
+    }
+    const token = await descifrar(
+      desdeHexPg(cred.whatsapp_token_cipher),
+      desdeHexPg(cred.whatsapp_token_nonce),
+      cred.whatsapp_token_kid,
+    )
+    return { token, conexion }
+  }
 
   const cred = (await sql<Array<{
     page_access_token_cipher: string
@@ -328,16 +405,31 @@ Deno.serve(async (): Promise<Response> => {
 
         const j = await r.json().catch(() => ({})) as {
           message_id?: string
+          // WhatsApp devuelve el id AQUÍ, no en `message_id`.
+          messages?: Array<{ id?: string }>
           error?: { code?: number; message?: string; error_subcode?: number }
         }
 
         const codigo = j.error?.code
         const espera = await anotarUso(e, r, r.status, codigo)
 
-        if (r.ok && j.message_id && !j.error) {
+        // EL ID DEL ENVÍO ESTÁ EN UN SITIO DISTINTO SEGÚN EL CANAL.
+        //
+        // Messenger e Instagram devuelven `message_id` en la raíz. WhatsApp
+        // devuelve `messages: [{ id: "wamid..." }]` y NO trae `message_id`.
+        //
+        // Costó un envío real el 4 de agosto de 2026: Meta respondió 200, el
+        // mensaje llegó, se entregó y el destinatario lo leyó, y Kavea lo marcó
+        // `fallido` con `error_mensaje: "HTTP 200"` porque buscaba el campo
+        // equivocado. Es la peor forma de fallo de esta función: un FALSO
+        // NEGATIVO. La bandeja dice que no se envió algo que el cliente está
+        // leyendo, y quien atiende lo reescribe.
+        const idDevuelto = j.message_id ?? j.messages?.[0]?.id ?? null
+
+        if (r.ok && idDevuelto && !j.error) {
           await marcar(e.id, {
             estado: 'enviado',
-            mid_devuelto: j.message_id,
+            mid_devuelto: idDevuelto,
             sent_at: new Date().toISOString(),
             error_codigo: null,
             error_mensaje: null,

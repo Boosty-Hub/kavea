@@ -15,6 +15,7 @@
     "db:estado": "pwsh -NoProfile -File scripts/aplicar-migraciones.ps1 -DryRun"
   },
   "devDependencies": {
+    "playwright": "^1.62.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
