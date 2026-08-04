@@ -102,6 +102,28 @@ uso. Conciliado tras verificar **una por una** con un objeto distintivo de cada 
 no por parecido. Las filas rellenadas llevan la fecha de la conciliación, no la de la
 aplicación real, que se desconoce.
 
+**CI estaba en rojo y no era un fallo, eran cuatro apilados.** El job de esquema llevaba desde
+el 3 de agosto en rojo, y cada paso corre con `ON_ERROR_STOP`, así que aborta y **tapa lo que
+viene detrás**. Al arreglar el primero apareció el segundo, y así hasta el cuarto:
+
+1. **`Sitio público`** exigía cero JavaScript, y era falso desde el commit que arregló el
+   formulario de demo: ese formulario necesita un script, y tuvo que ser un fichero porque la
+   CSP es `script-src 'self'`. La excepción ahora está nombrada y es de una entrada, más la
+   comprobación contraria de que `demo.js` exista.
+2. **Canario C2** — `rate_limit_usage` y `notificaciones` sin índice que empiece por
+   `organization_id`. Añadidos compuestos, que sirven además a consultas reales (0063).
+3. **Canario C4** — cuatro tablas con RLS y cero políticas. Las cuatro deliberadas, con el
+   motivo en su migración; la lista blanca del canario estaba incompleta desde la 0034.
+4. **Canario C5** — `notificaciones_tarea_id_fkey` era de una sola columna, y **eso sí era un
+   agujero**: la integridad referencial de Postgres salta RLS, así que una notificación de un
+   cliente podía apuntar a la tarea de otro. Compuesta en 0064. Era un olvido, no una decisión:
+   en la misma tabla `tarjeta_id` sí estaba compuesta y `tareas` ya tenía el UNIQUE que hace
+   falta para apuntarla.
+5. Y detrás de todo, **`aislamiento.sql` insertaba conversaciones sin `tarjeta_id`**, que es NOT
+   NULL desde la 0027.
+
+Los cinco jobs en verde. En los cuarenta runs anteriores no había ni uno.
+
 **Y dos columnas que mentían.** `conversations.preview_texto` decía «Mensaje eliminado»
 mientras el último mensaje era «Prueba v2»: quedaron huérfanas cuando 0027 movió el
 adelanto a `tarjetas`. Costaron una investigación y casi un informe de un fallo que no
