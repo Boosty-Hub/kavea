@@ -44,7 +44,25 @@ type Pendiente = {
   organization_id: string
   scoped_id: string
   meta_connection_id: string
+  canal: 'instagram' | 'messenger'
 }
+
+/**
+ * Qué se le pide a Meta según el canal, y qué se hace con la respuesta.
+ *
+ * NO ES EL MISMO DATO. Instagram devuelve `username`, que es un IDENTIFICADOR
+ * —`@fulanito`— y se guarda como tal, dejando `nombre` en null: `nombre`
+ * significa «alguien nombró a esta persona» y un handle no lo es.
+ *
+ * Messenger no tiene handle. Devuelve `first_name` y `last_name`, que sí son un
+ * nombre de persona, igual que el `profile.name` de WhatsApp que se guarda en
+ * `nombre` desde el primer día. Ahí sí se escribe `nombre`, y es coherente: se
+ * guarda en `nombre` lo que es un nombre.
+ */
+const CAMPOS = {
+  instagram: 'username,profile_pic',
+  messenger: 'first_name,last_name,profile_pic',
+} as const
 
 function claveServicio(): string {
   const c = Deno.env.get('KAVEA_SUPABASE_SECRET')
@@ -167,13 +185,15 @@ Deno.serve(async (): Promise<Response> => {
       try {
         const token = await tokenDe(p.meta_connection_id, tokens)
 
+        const campos = CAMPOS[p.canal] ?? CAMPOS.instagram
         const r = await fetch(
-          `https://graph.facebook.com/${V}/${encodeURIComponent(p.scoped_id)}` +
-            `?fields=username,profile_pic`,
+          `https://graph.facebook.com/${V}/${encodeURIComponent(p.scoped_id)}?fields=${campos}`,
           { headers: { Authorization: `Bearer ${token}` } },
         )
         const j = await r.json() as {
           username?: string
+          first_name?: string
+          last_name?: string
           profile_pic?: string
           error?: { code?: number; message?: string }
         }
@@ -199,17 +219,20 @@ Deno.serve(async (): Promise<Response> => {
           ? await copiarFoto(p.organization_id, p.contact_id, j.profile_pic).catch(() => null)
           : null
 
+        const nombre = [j.first_name, j.last_name].filter(Boolean).join(' ').trim() || null
+
         await sql('rpc/guardar_perfil_instagram', {
           method: 'POST',
           body: JSON.stringify({
             p_contact: p.contact_id,
             p_username: j.username ?? null,
             p_foto_ruta: ruta,
+            p_nombre: nombre,
           }),
         })
 
         if (ruta) resumen.con_foto++
-        if (j.username) resumen.resueltos++
+        if (j.username || nombre) resumen.resueltos++
         else resumen.sin_handle++
       } catch (e) {
         // Un contacto que falla no puede llevarse por delante a los otros

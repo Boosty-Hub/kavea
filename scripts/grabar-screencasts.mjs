@@ -23,9 +23,8 @@
  * ffmpeg`—, y por eso el script avisa al final en vez de dejarlo por descubrir el
  * día de la entrega.
  *
- * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y no es por falta de código:
- *
- *   · pages_messaging — necesita una conversación viva de Messenger, y no hay.
+ * LO QUE ESTE SCRIPT NO PUEDE GRABAR: nada, desde el 6 de agosto de 2026. Los
+ * doce permisos que necesitan vídeo tienen recorrido.
  *
  * LO QUE SÍ SE PUEDE DESDE EL 6 DE AGOSTO, y antes no:
  *
@@ -173,6 +172,9 @@ console.log('\nGrabando:')
  */
 const TARJETA_WA = process.env.TARJETA_WHATSAPP ?? ''
 
+/** La tarjeta con la conversación viva de Messenger. Misma regla que la de WhatsApp. */
+const TARJETA_MSG = process.env.TARJETA_MESSENGER ?? ''
+
 /**
  * ESTE VÍDEO MANDA UN MENSAJE DE VERDAD.
  *
@@ -273,6 +275,43 @@ if (TARJETA_WA) {
     await p.locator('button[type="submit"]').first().click()
     await p.waitForTimeout(9000)
   })
+}
+
+/**
+ * Messenger: recibir y responder desde la bandeja compartida.
+ *
+ * Idéntico al de WhatsApp a propósito. El revisor de `pages_messaging` quiere ver
+ * exactamente esto —una conversación de Messenger entrando y una respuesta
+ * saliendo desde el producto— y no un recorrido distinto que le obligue a
+ * traducir. Lo único que cambia es la conversación.
+ */
+if (TARJETA_MSG) {
+  await grabar('pages_messaging', async (p) => {
+    await ver(p, `${BASE}/bandeja`, 3000)
+    await ver(p, `${BASE}/bandeja/${TARJETA_MSG}`, 3200)
+
+    const hilo = p.locator('.hilo__cuerpo').first()
+    const caja0 = await hilo.boundingBox()
+    if (caja0) await p.mouse.move(caja0.x + caja0.width / 2, caja0.y + caja0.height / 2)
+    await p.mouse.wheel(0, -600); await p.waitForTimeout(1800)
+    await p.mouse.wheel(0, 600); await p.waitForTimeout(1500)
+
+    const caja = p.locator('textarea[aria-label="Mensaje"]').first()
+    if (!(await caja.count())) {
+      console.log('     no encuentro el compositor: el vídeo queda sin envío')
+      return
+    }
+    await caja.click()
+    await caja.pressSequentially(
+      'Hola, gracias por escribirnos por Messenger. Le atiende el equipo de Boosty.',
+      { delay: 55 },
+    )
+    await p.waitForTimeout(1200)
+    await p.locator('button[type="submit"]').first().click()
+    await p.waitForTimeout(9000)
+  })
+} else {
+  console.log('  pages_messaging              OMITIDO: falta TARJETA_MESSENGER')
 }
 
 /**
