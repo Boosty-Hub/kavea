@@ -26,9 +26,6 @@
  * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y no es por falta de código:
  *
  *   · instagram_manage_comments — no existe la interfaz de comentarios.
- *   · pages_utility_messaging — no existe en Kavea. Entró en v1 el 6 de agosto
- *     por decisión de Gabriel, así que ahora es trabajo pendiente y no un
- *     descarte: hace falta construirlo y provocar su llamada.
  *   · pages_messaging — necesita una conversación viva de Messenger, y no hay.
  *
  * LO QUE SÍ SE PUEDE DESDE EL 6 DE AGOSTO, y antes no:
@@ -285,6 +282,54 @@ if (TARJETA_WA) {
 await grabar('whatsapp_business_management', async (p) => {
   await ver(p, `${BASE}/ajustes/canales`, 5000)
   await p.mouse.wheel(0, 400); await p.waitForTimeout(2500)
+})
+
+/**
+ * Plantillas de utilidad de Messenger.
+ *
+ * La pantalla lee de Meta EN VIVO al abrirse, así que el vídeo no enseña una
+ * lista guardada: enseña la respuesta de la Graph API pintada. Por eso la pausa
+ * inicial es larga —hay una ida y vuelta a Meta antes de que aparezca nada— y
+ * por eso conviene que haya al menos una plantilla aprobada y una rechazada: la
+ * columna de estado solo significa algo si tiene dos valores distintos.
+ */
+await grabar('pages_utility_messaging', async (p) => {
+  await ver(p, `${BASE}/ajustes/plantillas`, 3000)
+
+  // Hasta el final de la página, que es donde vive la sección.
+  const seccion = p.getByRole('heading', { name: /utilidad/i }).first()
+  if (await seccion.count()) {
+    await seccion.scrollIntoViewIfNeeded()
+  } else {
+    await p.mouse.wheel(0, 1200)
+  }
+  // La lista tarda: la pantalla pregunta a Meta al montarse.
+  await p.waitForTimeout(5000)
+
+  // Y el formulario, que es la mitad que demuestra «manage»: no solo leer.
+  const nueva = p.getByRole('button', { name: /nueva plantilla de utilidad/i }).first()
+  if (await nueva.count()) {
+    await nueva.click()
+    await p.waitForTimeout(1500)
+    await p.getByPlaceholder('aviso_de_pedido').fill('recordatorio_de_cita')
+    await p.waitForTimeout(800)
+    await p.getByPlaceholder(/Hola \{\{1\}\}/).fill(
+      'Hola {{1}}, le recordamos su cita del {{2}}. Si no puede asistir, respondanos por aqui.',
+    )
+    // Los campos de ejemplo aparecen SOLOS al detectar los huecos. Que se vea:
+    // es la parte que explica por qué Meta rechaza una plantilla sin ellos.
+    await p.waitForTimeout(2500)
+    const ej = p.locator('form input.campo')
+    await ej.nth(1).fill('Maria')
+    await ej.nth(2).fill('martes 11 a las 10:00')
+    await p.waitForTimeout(1200)
+
+    // Y se envía de verdad. Un formulario relleno sin pulsar no demuestra el
+    // permiso: la plantilla tiene que aparecer en la lista con el estado que
+    // Meta le haya dado, que es lo que este permiso concede.
+    await p.getByRole('button', { name: /crear y enviar a meta/i }).click()
+    await p.waitForTimeout(7000)
+  }
 })
 
 await grabar('pages_show_list', async (p) => {

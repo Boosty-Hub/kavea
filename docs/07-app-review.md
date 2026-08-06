@@ -92,7 +92,7 @@ se hizo.
 | `whatsapp_business_messaging` | ⏳ 0 de 1, en las 24 h | ✅ | ✅ | Dos envíos correctos el 6-ago |
 | `pages_show_list` | — no la pide | ✅ | ✅ | |
 | `pages_manage_metadata` | ✅ Completed | ✅ | ✅ | |
-| `pages_utility_messaging` | ⛔ cero | ⛔ | ⛔ | **No existe en Kavea.** Ver §4 |
+| `pages_utility_messaging` | ✅ hecha el 6-ago | ✅ | ✅ | Construido el 6-ago. Ver §3 |
 | `instagram_manage_comments` | ✅ Completed | ⛔ | ⛔ | Falta la pantalla de comentarios |
 | `pages_messaging` | ✅ Completed | ⛔ | ⛔ | Sin conversación viva de Messenger |
 | `business_management` | ✅ Completed | ✅ | ⛔ | |
@@ -214,6 +214,34 @@ El último párrafo está puesto a propósito: el abuso de tags es causa documen
 de restricción de la mensajería de una Página, y al revisor le importa leer que el
 límite está en el código.
 
+### `pages_utility_messaging`
+
+**Meta:** *«allows an app to access a Page's utility messaging templates. The
+allowed usage for this permission is to manage a Page's utility messaging
+templates and send a Page's utility messages through Messenger.»*
+
+Ojo al alcance: **no es «mandar mensajes de utilidad» en general, es gestionar
+las plantillas.** Se leyó mal al principio y por eso se creía que no había nada
+que construir.
+
+**Kavea responde:**
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_utility_messaging to manage the utility message templates of our user's Page: order updates, appointment reminders and account notices that the business needs to send outside a normal conversation.
+
+What the screen recording shows: the templates screen in Kavea has a section for Messenger utility templates. Kavea reads the Page's templates live from Meta every time the screen is opened and shows each one with the status Meta gave it, including rejected ones. The operator then creates a new template, writes its body with numbered placeholders, fills in an example value for each placeholder, and Kavea sends it to Meta with category UTILITY. The new template appears in the list with the status Meta returned.
+
+One deliberate design decision the reviewer will notice: we do not store these templates in our own database. Their approval status belongs to Meta and can change after we read it, so a local copy would eventually show "approved" for a template Meta has already rejected. We read them live instead.
+
+Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing them from the same place where the team answers messages is the point of the product.
+```
+
+**Vídeo:** `pages_utility_messaging`. La sección leyendo de Meta, la lista con dos
+plantillas aprobadas y una rechazada, y la creación de una nueva de punta a
+punta hasta verla aparecer aprobada.
+
 ### Pendientes de redactar
 
 `business_management` · `instagram_manage_messages` · `pages_read_engagement` ·
@@ -266,7 +294,6 @@ la aplicación. Empujar con la rueda taparía el día que dejara de funcionar.
 |---|---|
 | `instagram_manage_comments` | Construir la pantalla de comentarios. El modelo (0066) y la ingesta (0067) están en producción |
 | `pages_messaging` | Una conversación viva de Messenger. Nunca se ha probado de extremo a extremo |
-| `pages_utility_messaging` | **No existe en Kavea.** Entró en v1 el 6-ago por decisión de Gabriel, así que pasa de descarte a trabajo pendiente. Cero llamadas de API |
 
 ---
 
@@ -311,3 +338,18 @@ Data deletion callback URL   https://sdazqohyjzzylwbkvovx.supabase.co/functions/
 - **El id del envío está en un sitio distinto según el canal:** Messenger e
   Instagram devuelven `message_id` en la raíz; WhatsApp devuelve
   `messages[0].id` y no trae `message_id`.
+- **Las llamadas de prueba CADUCAN a los 30 días.** Lo dice la pantalla de
+  *Review → Testing*. No es solo que tarden en aparecer: si el envío se alarga,
+  hay que repetirlas. Las de hoy valen hasta el **5 de septiembre de 2026**.
+- **`/{page-id}/message_templates` necesita un PAGE token con el ámbito.** Con el
+  token de system user directo devuelve *«User does not have sufficient
+  administrative permission for this action on this page»*; con el Page token
+  derivado de ese mismo system user, funciona.
+- **Un ámbito nuevo se añade al system user, no al usuario personal.** En
+  *Business Settings → System users → Generate New Token* se marcan los permisos.
+  Comprobado que generar uno nuevo **no invalidó** el anterior: los crones
+  siguieron en verde y las conexiones intactas.
+- **Una plantilla con huecos y sin `example` nace REJECTED.** Meta devuelve id y
+  `status: REJECTED` en la misma respuesta. Hay que mandar
+  `example.body_text: [[...]]` con un valor por hueco.
+- **El nombre de plantilla que admite Meta** es `^[a-z][a-z0-9_]{1,60}$`.
