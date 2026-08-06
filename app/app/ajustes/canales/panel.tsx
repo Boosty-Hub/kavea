@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Conexion, Verificacion } from '@/lib/conexiones'
+import type { CanalConectado, Conexion, Verificacion } from '@/lib/conexiones'
 import { fechaHora } from '@/lib/fechas'
+import { colorCanal, etiquetaCanal } from '@/lib/ventana'
+import { LogoCanal } from './logos'
 
 /**
  * El panel de canales.
@@ -88,6 +90,8 @@ export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: st
             ) : ' · sin comprobar todavía'}
           </p>
 
+          <Canalitos canales={c.canales} huso={huso} />
+
           <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
             {c.comprobaciones.length === 0 ? (
               <p className="ficha__vacia" style={{ padding: 16 }}>
@@ -100,6 +104,92 @@ export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: st
         </section>
       ))}
     </div>
+  )
+}
+
+/**
+ * Los canales de esta conexión, con su marca y si están activos.
+ *
+ * VA ANTES DE LAS SIETE COMPROBACIONES, y el orden importa. Las comprobaciones
+ * responden «¿puede funcionar?»; esto responde «¿está encendido?». Es la
+ * pregunta más barata de las dos y la que más veces se viene a hacer, así que se
+ * contesta primero y sin tener que leer una tabla.
+ *
+ * Una conexión de Página trae dos canales —Messenger e Instagram— y una de
+ * WhatsApp trae uno. La lista sale de la base, no de una constante, para que un
+ * canal nuevo aparezca aquí el día que exista y no el día que alguien se acuerde
+ * de tocar este fichero.
+ */
+function Canalitos({ canales, huso }: { canales: CanalConectado[]; huso: string }) {
+  if (canales.length === 0) return null
+
+  return (
+    <ul
+      style={{
+        display: 'flex', flexWrap: 'wrap', gap: 8,
+        listStyle: 'none', padding: 0, margin: '12px 0 0',
+      }}
+    >
+      {canales.map((k) => (
+        <li
+          key={k.id}
+          className="tarjeta"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 12px', margin: 0,
+            // Un canal apagado se despinta entero en vez de llevar una etiqueta
+            // roja: el rojo de esta pantalla ya significa «algo está roto», y un
+            // canal pausado a propósito no lo está.
+            opacity: k.activo ? 1 : 0.55,
+          }}
+          title={
+            k.activo
+              ? undefined
+              : [k.pausado_motivo, k.pausado_desde ? `desde el ${fechaHora(k.pausado_desde, huso)}` : null]
+                  .filter(Boolean)
+                  .join(' · ') || undefined
+          }
+        >
+          <span style={{ color: colorCanal(k.canal), display: 'flex' }}>
+            <LogoCanal canal={k.canal} size={20} />
+          </span>
+
+          <span style={{ display: 'grid', minWidth: 0 }}>
+            <span style={{ fontWeight: 500, fontSize: 14 }}>{etiquetaCanal(k.canal)}</span>
+            {k.nombre ? (
+              <span
+                style={{
+                  fontSize: 12, color: 'var(--k-text-2)',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}
+              >
+                {k.nombre}
+              </span>
+            ) : null}
+          </span>
+
+          <span
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              marginLeft: 8, fontSize: 12,
+              color: k.activo ? 'var(--k-resuelta-fg)' : 'var(--k-text-2)',
+            }}
+          >
+            {/* El punto no es el único portador del estado: al lado va la
+                palabra. Un estado que solo se distingue por color no lo
+                distingue quien no separa esos dos colores. */}
+            <span
+              aria-hidden="true"
+              style={{
+                width: 7, height: 7, borderRadius: '50%',
+                background: k.activo ? 'var(--k-resuelta)' : 'var(--k-text-2)',
+              }}
+            />
+            {k.activo ? 'Activo' : 'Inactivo'}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 

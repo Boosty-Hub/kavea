@@ -21,6 +21,25 @@ export type Verificacion = {
   verificado_en: string
 }
 
+/**
+ * Un canal concreto de una conexión: la cuenta de Instagram, la Página o el
+ * número de WhatsApp.
+ *
+ * `activo` es un campo GUARDADO, y aquí sí está bien que lo sea, al revés que el
+ * estado de la conexión. Son cosas distintas: las siete comprobaciones dicen si
+ * el canal PUEDE funcionar, y esto dice si Kavea QUIERE que funcione. Un canal
+ * pausado a mano por un operador está perfectamente sano y aun así no debe
+ * despachar, y eso no se deriva de ninguna comprobación.
+ */
+export type CanalConectado = {
+  id: string
+  canal: string
+  nombre: string | null
+  activo: boolean
+  pausado_motivo: string | null
+  pausado_desde: string | null
+}
+
 export type Conexion = {
   meta_connection_id: string
   page_name: string | null
@@ -33,6 +52,7 @@ export type Conexion = {
   bloqueada: boolean | null
   ultima_pasada: string | null
   comprobaciones: Verificacion[]
+  canales: CanalConectado[]
 }
 
 /**
@@ -54,13 +74,18 @@ export const conexionesDe = cache(async (organizacionId: string): Promise<Conexi
   // Dos consultas y no un embed: `estado_de_conexion` es una vista agregada y
   // PostgREST no sabe colgarle una relación. Unirlas aquí cuesta un bucle y no
   // deja una consulta que devuelve filas de más sin dar error.
-  const [{ data: estados }, { data: checks }] = await Promise.all([
+  const [{ data: estados }, { data: checks }, { data: canales }] = await Promise.all([
     supabase.from('estado_de_conexion').select('*').eq('organization_id', organizacionId),
     supabase
       .from('verificaciones')
       .select('meta_connection_id, codigo, titulo, resultado, causa, crudo, bloquea, verificado_en')
       .eq('organization_id', organizacionId)
       .order('codigo'),
+    supabase
+      .from('channels')
+      .select('id, meta_connection_id, canal, nombre, activo, pausado_motivo, pausado_desde')
+      .eq('organization_id', organizacionId)
+      .order('canal'),
   ])
 
   const porConexion = new Map<string, Verificacion[]>()
@@ -70,8 +95,16 @@ export const conexionesDe = cache(async (organizacionId: string): Promise<Conexi
     porConexion.set(v.meta_connection_id, l)
   }
 
-  return ((estados ?? []) as Omit<Conexion, 'comprobaciones'>[]).map((e) => ({
+  const canalesDe = new Map<string, CanalConectado[]>()
+  for (const c of (canales ?? []) as Array<CanalConectado & { meta_connection_id: string }>) {
+    const l = canalesDe.get(c.meta_connection_id) ?? []
+    l.push(c)
+    canalesDe.set(c.meta_connection_id, l)
+  }
+
+  return ((estados ?? []) as Omit<Conexion, 'comprobaciones' | 'canales'>[]).map((e) => ({
     ...e,
     comprobaciones: porConexion.get(e.meta_connection_id) ?? [],
+    canales: canalesDe.get(e.meta_connection_id) ?? [],
   }))
 })
