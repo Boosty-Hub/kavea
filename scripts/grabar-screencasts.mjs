@@ -348,7 +348,15 @@ await grabar('pages_utility_messaging', async (p) => {
   if (await nueva.count()) {
     await nueva.click()
     await p.waitForTimeout(1500)
-    await p.getByPlaceholder('aviso_de_pedido').fill('recordatorio_de_cita')
+    /**
+     * EL NOMBRE LLEVA MARCA DE TIEMPO, y no es cosmética.
+     *
+     * Meta rechaza una plantilla cuyo nombre ya existe en la Página, así que la
+     * segunda grabación devolvía 502 y el vídeo enseñaba un error. Un guion que
+     * solo funciona la primera vez no es un guion: es una casualidad.
+     */
+    const sufijo = new Date().toISOString().slice(5, 16).replace(/[-T:]/g, '')
+    await p.getByPlaceholder('aviso_de_pedido').fill(`recordatorio_de_cita_${sufijo}`)
     await p.waitForTimeout(800)
     await p.getByPlaceholder(/Hola \{\{1\}\}/).fill(
       'Hola {{1}}, le recordamos su cita del {{2}}. Si no puede asistir, respondanos por aqui.',
