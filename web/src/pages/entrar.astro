@@ -1,0 +1,146 @@
+---
+import Base from '../layouts/Base.astro'
+
+/**
+ * Por dónde se entra a Kavea.
+ *
+ * POR QUÉ ESTA PÁGINA EXISTE Y NO UN ENLACE DIRECTO
+ *
+ * Kavea no tiene una URL de acceso única: cada cliente entra por el subdominio de
+ * su espacio, `suempresa.kavea.ai`. Es lo que hace que un espacio no pueda ver
+ * nada de otro ni por error de enrutado. Pero tiene un coste que hasta hoy nadie
+ * había pagado: quien guarda `kavea.ai` en favoritos llega a la página de
+ * producto y no encuentra la puerta.
+ *
+ * Así que la puerta es esta página, y lo que hace es llevarte a tu subdominio.
+ *
+ * SIN JAVASCRIPT, como todo el sitio salvo el formulario de demo. El formulario
+ * es un GET normal a `/ir`, y una regla de Netlify convierte `?espacio=acme` en
+ * `https://acme.kavea.ai/entrar`. La redirección la hace el CDN, no el navegador:
+ * un `<form>` de toda la vida y una línea en `_redirects`.
+ */
+---
+
+<Base
+  title="Entrar"
+  description="Accede a tu espacio de Kavea. Cada cliente entra por el subdominio de su organización."
+  path="/entrar"
+>
+  <section class="section">
+    <div class="page acceso">
+      <h1>Entrar en Kavea</h1>
+      <p class="lead">
+        Cada organización tiene su propio espacio, y se entra por su subdominio. Si tu empresa
+        se llama Acme en Kavea, tu dirección es <code>acme.kavea.ai</code>.
+      </p>
+
+      <form class="acceso__form" action="/ir" method="get">
+        <label class="acceso__campo">
+          <span>Nombre de tu espacio</span>
+          <div class="acceso__grupo">
+            <input
+              type="text"
+              name="espacio"
+              placeholder="acme"
+              autocomplete="organization"
+              pattern="[a-z0-9-]+"
+              required
+              aria-describedby="pista"
+            />
+            <span class="acceso__sufijo" aria-hidden="true">.kavea.ai</span>
+          </div>
+        </label>
+        <p id="pista" class="acceso__pista">
+          En minúsculas, sin espacios. Es el nombre que aparece en la dirección que te
+          repartieron al conectar tu cuenta.
+        </p>
+        <button type="submit" class="btn">Ir a mi espacio</button>
+      </form>
+
+      <hr class="acceso__hr" />
+
+      <p class="acceso__nota">
+        <strong>¿No sabes cuál es tu espacio?</strong> Está en el enlace que recibiste al
+        aceptar la invitación. Si no lo encuentras, escríbenos a
+        <a href="mailto:hola@kavea.ai">hola@kavea.ai</a> desde el correo con el que te
+        invitaron y te lo decimos.
+      </p>
+      <p class="acceso__nota">
+        <strong>¿Trabajas en Kavea?</strong> El panel interno está en
+        <a href="https://admin.kavea.ai/entrar">admin.kavea.ai</a>.
+      </p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .acceso {
+    max-width: 34rem;
+  }
+
+  .acceso__form {
+    margin-top: var(--s-6);
+    display: grid;
+    gap: var(--s-3);
+    justify-items: start;
+  }
+
+  .acceso__campo {
+    display: grid;
+    gap: var(--s-2);
+    width: 100%;
+    font-size: 14px;
+  }
+
+  /* El sufijo va PEGADO al campo y no como texto de ayuda: así se lee la
+     dirección entera de un vistazo y nadie escribe el dominio dos veces. */
+  .acceso__grupo {
+    display: flex;
+    align-items: stretch;
+    border: 1px solid var(--k-border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--k-surface);
+  }
+
+  .acceso__grupo input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    padding: 12px 14px;
+    font: inherit;
+    color: inherit;
+    background: transparent;
+  }
+
+  .acceso__grupo input:focus {
+    outline: 2px solid var(--k-acento);
+    outline-offset: -2px;
+  }
+
+  .acceso__sufijo {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    color: var(--k-text-2);
+    border-left: 1px solid var(--k-border);
+    white-space: nowrap;
+  }
+
+  .acceso__pista {
+    margin: 0;
+    font-size: 13px;
+    color: var(--k-text-2);
+  }
+
+  .acceso__hr {
+    margin: var(--s-7) 0 var(--s-5);
+    border: 0;
+    border-top: 1px solid var(--k-border);
+  }
+
+  .acceso__nota {
+    font-size: 14px;
+    color: var(--k-text-2);
+  }
+</style>

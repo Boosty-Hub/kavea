@@ -7,6 +7,18 @@
 /data-deletion        /eliminacion-de-datos  301
 /data-deletion-instructions  /eliminacion-de-datos  301
 
+# La puerta de entrada. `/entrar` explica el modelo de subdominios y manda aquí
+# un GET normal con `?espacio=acme`; esta regla lo convierte en el subdominio.
+#
+# ASÍ NO HACE FALTA JAVASCRIPT. La alternativa era un script que leyera el campo
+# y cambiara `location`, y este sitio no ejecuta nada salvo el formulario de demo
+# —hay una comprobación en CI que lo tumba si aparece otro—. La redirección la
+# hace el CDN.
+#
+# Si alguien llega a `/ir` sin parámetro, cae a `/entrar` en vez de a un error.
+/ir  espacio=:slug  https://:slug.kavea.ai/entrar  302
+/ir                 /entrar                        302
+
 # Variantes en español sin la preposición, por si alguien las teclea.
 /politica-de-privacidad  /privacidad            301
 /eliminacion-datos       /eliminacion-de-datos  301

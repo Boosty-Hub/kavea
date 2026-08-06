@@ -36,7 +36,13 @@
     # Se nombra el proyecto entero y no una ruta: la CSP no distingue rutas. Lo
     # que NO se hace es abrir `script-src` a 'unsafe-inline'; el script del
     # formulario se empaqueta como fichero y se sirve desde el propio sitio.
-    Content-Security-Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self' https://sdazqohyjzzylwbkvovx.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    # `form-action` incluye los subdominios de kavea.ai por el formulario de
+    # /entrar: envía a `/ir`, que es del propio sitio, pero el CDN responde con un
+    # 302 al espacio del cliente. Los navegadores comprueban form-action CONTRA EL
+    # DESTINO DE LA REDIRECCIÓN, no solo contra el destino declarado, así que con
+    # `'self'` a secas el envío se bloquea sin error visible: el formulario
+    # simplemente no hace nada.
+    Content-Security-Policy = "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self'; connect-src 'self' https://sdazqohyjzzylwbkvovx.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://*.kavea.ai"
 
 [[headers]]
   for = "/_astro/*"

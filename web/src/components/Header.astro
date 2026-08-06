@@ -13,6 +13,11 @@ import Logo from './Logo.astro'
       <a href="/#canales">Canales</a>
       <a href="/#nombre">El nombre</a>
       <a href="/privacidad">Privacidad</a>
+      {/* Último y destacado. Y con `hdr__entrar` para que NO lo esconda la regla
+          de móvil de abajo: en el móvil se ocultan los enlaces de navegación
+          porque no caben, y esconder justo la puerta de entrada sería el peor
+          candidato posible. */}
+      <a href="/entrar" class="hdr__entrar">Entrar</a>
     </nav>
   </div>
 </header>
@@ -57,8 +62,25 @@ import Logo from './Logo.astro'
     color: var(--k-text);
   }
 
+  .hdr__nav a.hdr__entrar {
+    color: var(--k-text);
+    border: 1px solid var(--k-border);
+    border-radius: 999px;
+    padding: 6px 14px;
+    background: var(--k-surface);
+  }
+
+  .hdr__nav a.hdr__entrar:hover {
+    border-color: var(--k-acento);
+    color: var(--k-acento);
+  }
+
   @media (max-width: 720px) {
-    .hdr__nav a:not(:last-child) {
+    /* Se esconden los de navegación, no el de entrar. La regla anterior era
+       `:not(:last-child)`, que dependía del ORDEN: al añadir «Entrar» al final
+       habría escondido «Privacidad» y dejado el nuevo, por accidente y no por
+       decisión. Ahora se nombra lo que se esconde. */
+    .hdr__nav a:not(.hdr__entrar) {
       display: none;
     }
   }
