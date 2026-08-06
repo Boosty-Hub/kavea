@@ -25,7 +25,6 @@
  *
  * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y no es por falta de código:
  *
- *   · Human Agent — no tiene pantalla propia; y su ventana cierra el 11-ago.
  *   · instagram_manage_comments — no existe la interfaz de comentarios.
  *   · pages_utility_messaging — no existe en Kavea. Entró en v1 el 6 de agosto
  *     por decisión de Gabriel, así que ahora es trabajo pendiente y no un
@@ -40,6 +39,12 @@
  * `page_id`, que en WhatsApp es null—, y grabar el dashboard de Meta es enseñar
  * la herramienta de Meta, no el producto. Ahora se graba Kavea haciéndolo, que
  * es lo que el revisor pide de verdad.
+ *
+ * `Human Agent` decía que no tiene pantalla propia. Sí la tiene, y es mejor que
+ * una pantalla propia: la cabecera del hilo pinta «solo intervención humana»
+ * cuando la conversación pasó de 24 h, y el compositor deja responder porque
+ * `ventana_de` devuelve el tag. Eso ES la feature, vista por el operador. La
+ * 0074 arregló además que en Instagram salía el tag sin `messaging_type`.
  */
 
 import { chromium } from 'playwright'
@@ -234,6 +239,44 @@ if (TARJETA_WA) {
   })
 } else {
   console.log('  whatsapp_business_messaging  OMITIDO: falta TARJETA_WHATSAPP')
+}
+
+/**
+ * Human Agent, en la misma tarjeta pero por el canal de Instagram.
+ *
+ * LA FEATURE SE VE SIN NARRARLA. Al elegir Instagram, cuya conversación pasó de
+ * las 24 h, la cabecera dice «solo intervención humana» y el compositor pinta el
+ * aviso literal: «Fuera de las 24 horas. Se enviará como intervención humana, y
+ * solo vale hasta los 7 días». El revisor lee en pantalla la política que la
+ * feature exige, y luego ve el envío salir bajo ella.
+ *
+ * Solo vale entre las 24 h y los 7 días desde el último mensaje ENTRANTE. Fuera
+ * de ese tramo el compositor cierra —correctamente— y el vídeo enseñaría un
+ * canal bloqueado, así que conviene mirar la ventana antes de grabar.
+ */
+if (TARJETA_WA) {
+  await grabar('human_agent', async (p) => {
+    await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3000)
+
+    const chip = p.locator('button.canal-chip', { hasText: 'Instagram' }).first()
+    if (!(await chip.count())) {
+      console.log('     no encuentro el selector de canal: el vídeo queda sin Human Agent')
+      return
+    }
+    await chip.click()
+    // Pausa larga a propósito: este es el fotograma que justifica el permiso.
+    // El aviso de la ventana tiene que dar tiempo a leerse entero.
+    await p.waitForTimeout(4500)
+
+    const caja = p.locator('textarea[aria-label="Mensaje"]').first()
+    await caja.click()
+    await caja.pressSequentially(
+      'Retomamos su consulta. Le atiende una persona del equipo.', { delay: 55 },
+    )
+    await p.waitForTimeout(1200)
+    await p.locator('button[type="submit"]').first().click()
+    await p.waitForTimeout(9000)
+  })
 }
 
 // Los canales, con su marca y si están activos. Es la pantalla que enseña que
