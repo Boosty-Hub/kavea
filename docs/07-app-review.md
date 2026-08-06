@@ -346,6 +346,59 @@ Without instagram_basic there is no way to know which Instagram account belongs 
 
 ---
 
+## 3.bis Data handling
+
+Las cinco preguntas de la sección, con lo que se respondió y por qué. **Son
+declaraciones legales ante Meta**, no descripciones de producto: el propio
+formulario avisa de que una respuesta vaga puede costar el acceso a la
+plataforma. Si algo de esto cambia, aquí es donde hay que venir a corregirlo.
+
+### `processor-0` — ¿Hay procesadores con acceso a los datos de Meta? → **Sí**
+
+Verificado sobre el código el 6 de agosto de 2026, no de memoria: fuera de
+`graph.facebook.com` y del propio dominio, las funciones de borde solo hablan con
+**dos** destinos externos.
+
+| Procesador | Categoría | País | Qué procesa |
+|---|---|---|---|
+| **Supabase, Inc.** | IT solutions and services | United States | Base de datos, almacenamiento y funciones. Conversaciones, contactos y credenciales cifradas. AWS `us-east-1` |
+| **Netlify, Inc.** | IT solutions and services | United States | Alojamiento de la aplicación y el amortiguador de objetos con los cuerpos crudos de webhook |
+
+**El amortiguador de Netlify no es hipotético:** 2 de los 118 eventos recibidos
+entraron por la ruta `blobs`. Netlify ha custodiado cuerpos de Meta de verdad, y
+por eso se declara.
+
+**Resend NO se declara.** Hoy solo transporta correo operativo de Kavea
+—invitaciones y avisos internos— y no lleva datos recibidos de Meta. Si algún día
+un correo incluye contenido de una conversación, pasa a ser procesador y hay que
+añadirlo.
+
+**Categorías que NO se marcan, y el motivo:** ni *Analytics* ni *Advertising*.
+Marcar «Advertising» contradiría directamente la descripción de
+`business_management`, que dice *«We do not use this permission for
+advertising»*, y una contradicción entre dos respuestas del mismo envío es de las
+que un revisor sí detecta.
+
+### `responsible-1` — Quién responde por los datos
+
+```
+Boosty Digital LLC (EIN 37-2223053), a limited liability company registered in the United States, is the data controller for all Platform Data received from Meta. Gabriel Andres Montiel Toro, Chief Executive Officer, is the individual accountable for it within the company.
+```
+
+La sociedad es la controladora; la persona se nombra como responsable **dentro**
+de ella. Redactado así a propósito: poner solo el nombre de una persona física en
+un campo que pide el data controller la convierte en controladora a título
+personal, que no es lo que se quiere declarar.
+
+### `responsible-2` — País → **United States of America**
+
+### `requests-3` — Peticiones de seguridad nacional en 12 meses → **No**
+
+### `requests-4` — Procesos ante peticiones de autoridades
+
+Son compromisos sobre procesos internos. **Solo se marca lo que sea verdad hoy**,
+no lo que suene bien: Meta puede pedir que se demuestre.
+
 ## 4. Los vídeos
 
 Se graban con `scripts/grabar-screencasts.mjs`, que inicia sesión de verdad y
