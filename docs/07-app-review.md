@@ -93,14 +93,14 @@ se hizo.
 | `pages_show_list` | — no la pide | ✅ | ✅ | |
 | `pages_manage_metadata` | ✅ Completed | ✅ | ✅ | |
 | `pages_utility_messaging` | ✅ hecha el 6-ago | ✅ | ✅ | Construido el 6-ago. Ver §3 |
-| `instagram_manage_comments` | ✅ Completed | ⛔ | ⛔ | Falta la pantalla de comentarios |
-| `pages_messaging` | ✅ Completed | ⛔ | ⛔ | Sin conversación viva de Messenger |
-| `business_management` | ✅ Completed | ✅ | ⛔ | |
+| `instagram_manage_comments` | ✅ Completed | ✅ | ✅ | Pantalla construida el 6-ago |
+| `pages_messaging` | ✅ Completed | ✅ | ✅ | Además pide Página de prueba e instrucciones |
+| `business_management` | ✅ Completed | ✅ | ✅ | |
 | `instagram_manage_messages` | — no la pide | ✅ | ✅ | |
-| `pages_read_engagement` | ✅ Completed | ✅ | ⛔ | |
-| `public_profile` | — | — no lo pide | ⛔ | Solo la casilla de conformidad |
-| `whatsapp_business_management` | ✅ Completed | ✅ | ⛔ | |
-| `instagram_basic` | ✅ Completed | ✅ | ⛔ | |
+| `pages_read_engagement` | ✅ Completed | ✅ | ✅ | |
+| `public_profile` | — | — no lo pide | ✅ | Solo la casilla de conformidad |
+| `whatsapp_business_management` | ✅ Completed | ✅ | ✅ | |
+| `instagram_basic` | ✅ Completed | ✅ | ✅ | |
 | `Human Agent` | — no la pide | ✅ | ✅ | Ventana hasta el **11-ago 02:32 UTC** |
 
 Dependencias, todas ya en verde: `pages_show_list` → `pages_manage_metadata` y
@@ -242,14 +242,107 @@ Why the business needs it: today these businesses have no way to reach a custome
 plantillas aprobadas y una rechazada, y la creación de una nueva de punta a
 punta hasta verla aparecer aprobada.
 
-### Pendientes de redactar
+### `business_management`
 
-`business_management` · `instagram_manage_messages` · `pages_read_engagement` ·
-`public_profile` · `whatsapp_business_management` · `instagram_basic` ·
-`instagram_manage_comments` · `pages_messaging` · `pages_utility_messaging`
+**Meta:** *«allows your app to read and write with the Business Manager API. The
+allowed usage for this permission is to manage business assets such as an ad
+account and to claim ad accounts.»*
 
-Del modal de estos solo se ha visto el resumen de la tabla de *Customize use
-case*, no el texto completo. Se copia aquí al abrirlos.
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Kavea is a technology provider verified by Meta, and each of our users is a business that owns its own Facebook Page, Instagram professional account and WhatsApp Business Account.
+
+We use business_management to read the messaging assets of the business portfolio a client connects: which Pages and WhatsApp Business Accounts exist in it, their names and identifiers. That is what lets a business pick the right asset when it connects Kavea, and what lets our support staff answer "which workspace is this Page connected to" without asking the customer to send screenshots.
+
+The screen recording shows the two screens that use it: the portfolio view, which lists the messaging assets of the connected portfolio, and the workspaces view, which shows which asset belongs to which customer workspace.
+
+We do not use this permission for advertising. We do not read, create or claim ad accounts, we do not read campaign or spend data, and we do not manage billing. Kavea has no advertising features at all. We read the messaging assets and nothing else.
+
+Without business_management we cannot enumerate the assets of a business portfolio, so connecting a client requires copying identifiers by hand, which is both error-prone and a way to connect the wrong account.
+```
+
+**Vídeo:** `business_management`. Portafolio y espacios.
+
+El párrafo que acota lo que **no** se hace está puesto a conciencia: este permiso
+concede la Business Manager API entera, incluida publicidad, y un revisor que lee
+«business_management» sin más piensa en anuncios.
+
+### `instagram_manage_messages`
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; they connect it to Kavea, and Kavea is their technology provider, verified as such by Meta.
+
+We use instagram_manage_messages to receive the Instagram Direct messages people send to our user's business account, and to send the replies our user's staff writes.
+
+End-to-end flow, which is what the screen recording shows: a customer sends a Direct message to the business account. Kavea receives the messages webhook and shows the conversation in that business's shared inbox, where several staff members can see it, assign it and answer, next to the same person's WhatsApp and Messenger threads when it is the same contact. When a staff member writes a reply, Kavea calls the Send API on behalf of that account inside the standard 24-hour window, and the thread shows the delivery and read receipts.
+
+We also read the sender's username and profile picture so the person appears in the inbox with their real identity instead of a numeric ID.
+
+Value for the person using the app: today these businesses answer Instagram from the app on one person's phone. Kavea turns that into a shared inbox with assignment and history, and one view of each customer across all three channels.
+
+Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
+```
+
+**Vídeo:** `instagram_manage_messages`. Bandeja y un hilo abierto.
+
+### `pages_read_engagement`
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_read_engagement together with pages_show_list to read what a Page IS, not what happens on it: its name, its identifier, and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: a person who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
+
+The screen recording shows the portfolio view, where each Page is listed with its name and connection state.
+
+We do not read posts, comments, reactions, insights or any engagement metric with this permission, and Kavea has no screen that would show them.
+
+Without it we cannot show a person a recognisable name for the Pages they manage, only numeric identifiers, and they cannot tell which one to connect.
+```
+
+**Vídeo:** `pages_read_engagement`. Portafolio.
+
+### `public_profile`
+
+Es el único permiso cuya tarjeta pide **solo la casilla de conformidad**: ni
+descripción ni vídeo. Se concede automáticamente a todas las apps.
+
+Si en algún momento pidiera texto:
+
+```
+Kavea uses public_profile only to identify the person who authorizes the connection between a business and Kavea, so that the audit log of the workspace can record who connected an account and when. We do not build a profile of that person and we do not use it for anything else.
+```
+
+### `whatsapp_business_management`
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the WhatsApp Business Account; Kavea is their technology provider and is verified as such by Meta.
+
+We use whatsapp_business_management to read the state of our user's WhatsApp Business Account: its phone numbers, the display name and its approval state, and the quality rating Meta assigns to the number. We also read and maintain the webhook subscription of the account, which is what makes messages arrive at all.
+
+Why this matters beyond setup, and this is what the screen recording shows: the channels screen lists each connected channel with the result of every individual check, so the operator can tell exactly which part is failing instead of only that something is wrong. A WhatsApp number whose quality rating has dropped, or whose display name was rejected, keeps working for a while and then stops, and the business has no idea why. Kavea reads that state daily and shows it before it becomes an outage.
+
+We do not use this permission to create accounts, register numbers on behalf of anyone, or change billing.
+
+Without it Kavea cannot tell a business whether its own WhatsApp number is healthy, and cannot detect that Meta silently unsubscribed it.
+```
+
+**Vídeo:** `whatsapp_business_management`. Canales, con la marca y el estado de
+cada uno.
+
+### `instagram_basic`
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account, which they connect to Kavea through the Facebook Page it is linked to.
+
+We use instagram_basic to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
+
+The screen recording shows the inbox of a connected account, where the Instagram conversations of that specific account are the ones that appear.
+
+With this permission we read the account id and username. We do not read media, followers, insights or any content of the account.
+
+Without instagram_basic there is no way to know which Instagram account belongs to the Page being connected, so no Instagram feature of the product can work.
+```
+
+**Vídeo:** `instagram_basic`. Bandeja.
 
 ---
 
