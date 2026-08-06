@@ -39,6 +39,9 @@ type Entrada = { href: string; etiqueta: string; icono: string }
  */
 const CLIENTE: Entrada[] = [
   { href: '/bandeja', etiqueta: 'Bandeja', icono: '◧' },
+  // Justo debajo de la bandeja y no al final: es lo segundo que se atiende, y
+  // separarlo de la bandeja es lo que recuerda que uno es privado y otro público.
+  { href: '/comentarios', etiqueta: 'Comentarios', icono: '❝' },
   { href: '/embudo', etiqueta: 'Embudo', icono: '▤' },
   { href: '/agenda', etiqueta: 'Agenda', icono: '▦' },
   { href: '/contactos', etiqueta: 'Contactos', icono: '◍' },
