@@ -117,7 +117,7 @@ export const obtenerTarjeta = cache(async (id: string) => {
     .select(
       'id, estado, titulo, asignado_a, no_leidos, last_message_at, cerrada_en, ' +
       'embudo_id, etapa_id, valor, moneda, ' +
-      'contacts(id, nombre, username, profile_pic_url), ' +
+      'contacts(id, nombre, username, profile_pic_url, foto_ruta), ' +
       'conversations(id, canal, last_incoming_at, last_message_at, en_standby, cerrada_en)',
     )
     .eq('id', id)
@@ -132,7 +132,14 @@ export const obtenerTarjeta = cache(async (id: string) => {
         etapa_id: string | null
         valor: number | null
         moneda: string
-        contacts: { id: string; nombre: string | null; username: string | null; profile_pic_url: string | null } | null
+        contacts: {
+          id: string
+          nombre: string | null
+          username: string | null
+          profile_pic_url: string | null
+          /** Ruta en el bucket privado `perfiles`, no una URL. Se firma al pintarla. */
+          foto_ruta: string | null
+        } | null
         conversations: ConversacionDeTarjeta[]
       })
     | null

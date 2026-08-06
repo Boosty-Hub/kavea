@@ -30,6 +30,7 @@ import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
 import { Compositor } from './compositor'
 import { Operar } from './operar'
+import { Perfil } from './perfil'
 import { describirActividad } from '@/lib/actividad'
 
 export const dynamic = 'force-dynamic'
@@ -150,7 +151,13 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             <Link href="/bandeja" style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
               ← Bandeja
             </Link>
-            <h2 style={{ marginTop: 4 }}>{nombre}</h2>
+            <div style={{ marginTop: 4 }}>
+              <Perfil
+                nombre={nombre}
+                username={tarjeta.contacts?.username ?? null}
+                fotoRuta={tarjeta.contacts?.foto_ruta ?? null}
+              />
+            </div>
             <div className="canales">
               {vivas.map((c) => (
                 <Ventana key={c.id} c={c} />
