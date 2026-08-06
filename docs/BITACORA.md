@@ -10,7 +10,7 @@ verificado, no se escribe como hecho.
 
 ## 1. Estado actual
 
-> Al día del **4 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
+> Al día del **6 de agosto de 2026**. Esta tabla es la única de todo el repositorio que se
 > mantiene al día: los documentos de `docs/fases/` describen lo planeado y **no se actualizan al
 > ejecutar**, así que contradicen a la realidad. Está anotado como deuda en §3.4.
 
@@ -21,7 +21,7 @@ verificado, no se escribe como hecho.
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, en modo desarrollo | `compliant`, sin violaciones |
 | Zona DNS en Netlify | ✅ Delegada y operativa | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 62 migraciones aplicadas y **registradas** | 0049–0060 estaban aplicadas sin fila de control; conciliado el 3-ago |
+| Esquema de base de datos | ✅ 78 migraciones aplicadas y **registradas** | El control vive en `public.schema_migrations`, no en el esquema del CLI: quien mire donde es estándar concluirá que no hay ninguna |
 | Bandeja de correo interna | ✅ `/admin/correos`, leer y responder | RPC y bucket verificados; el viaje completo pide sesión de staff |
 | Aislamiento entre tenants | ✅ 61 de 61 comprobaciones | Validado rompiendo una política a propósito |
 | Ingesta y normalización | ✅ En producción | Mensajes reales entrando, 8 crones vivos |
@@ -30,15 +30,18 @@ verificado, no se escribe como hecho.
 | Envío por Instagram | ✅ Texto, imagen, GIF y corazón | Envíos reales, echo en ≤6 s, contacto confirmando |
 | Diagnóstico de conexiones | ✅ V1–V7, cron diario | Primera pasada: 5 verde, 0 rojo, 2 sin saber |
 | Panel interno | ✅ Cinco pantallas | Salud, espacios, portafolio, accesos y uso |
-| Alta de cliente desde el panel | ⚠️ Construida, **sin ejecutar** | Falta el primer cliente real |
-| Envío por Messenger | ⚠️ Construido, **sin probar** | No hay contacto vivo por esa vía |
+| Alta de cliente desde el panel | ✅ **Ejecutada el 6-ago** | Creó el espacio `demostracion` con su invitación. Primera vez desde que se construyó |
+| Envío por Messenger | ✅ **Probado el 6-ago** | Primer envío del proyecto: `messaging_type: RESPONSE`, con id de Meta y sin error |
 | Correo saliente | ⚠️ **No funciona** | DNS de `kavea.ai` sin verificar en Resend |
 | **Tech Provider** | ✅ **Verificado el 4-ago** | `Submitted → Reviewed → Verified`. Doce horas de trámite |
-| App Review | ⛔ Sin enviar nunca | `submissions: []`. Falta Data Use Checkup en 13 de 13 y screencast en 12 |
+| App Review | ⚠️ **Casi listo**, sin enviar | 12 textos, 12 vídeos, Data handling y acceso del revisor, hechos. Detalle en `docs/07-app-review.md` |
 | **WhatsApp entrante** | ✅ **En la bandeja** | 6 mensajes reales, con nombre y acuses de entrega y lectura |
-| WhatsApp saliente | ✅ Ida y vuelta completa | Enviado, entregado, leído y contestado. Falso negativo del `mid` corregido |
+| WhatsApp saliente | ✅ **Desde el producto**, el 6-ago | Hasta ese día el compositor no podía: la partición salía null. El envío del 4-ago se había insertado a mano |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | El modelo existe; nada las envía a revisión y las 25 aprobadas no están en la tabla |
-| Comentarios | ⚠️ Modelo con RLS, **sin ingesta ni pantalla** | `changes[]` se guarda crudo y no aplica nada |
+| Plantillas de utilidad de Messenger | ✅ Leer y crear, en vivo contra Meta | No se espejan en Postgres: el estado lo decide Meta y una copia se queda desfasada |
+| Comentarios | ✅ Pantalla, respuesta pública y lectura por API | El webhook **no llega** pese a estar suscrito. Se traen a mano desde la pantalla |
+| Callbacks de Meta | ✅ Los tres, desplegados y probados | `deauthorize`, borrado de datos con su página de estado, y verificación del `signed_request` con guarda en CI |
+| Acceso en `kavea.ai` | ✅ Página de entrada por subdominio | Antes no había ni un enlace para entrar al producto |
 | Navegación | ✅ Sidebar colapsable | 216/60 px, persiste, y colapsa solo bajo 860 px |
 | Agentes | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias |
@@ -49,6 +52,104 @@ mañana no es el número de la fase: es la sección 3.
 ---
 
 ## 2. Entradas
+
+### 2026-08-06 · El día del App Review: doce vídeos, once migraciones y siete fallos que nadie había visto
+
+Sesión larga. El objetivo era enviar la solicitud a Meta y acabó siendo otra cosa: **casi todo
+lo que había que enseñarle al revisor estaba roto o no existía**, y salió al intentar
+grabarlo. Grabar un producto es la prueba más honesta que hay, porque no se puede grabar una
+intención.
+
+**CI llevaba cuatro ejecuciones en rojo y nadie lo sabía.** El canario C3 cazó
+`auth.uid()` sin envolver en la política de la 0066. Como `canarios.sql` corre con
+`ON_ERROR_STOP=1`, todo lo que iba detrás llevaba desde el 4 de agosto sin comprobarse.
+Arreglado en la 0068 — y al destaparlo apareció el C2 sobre una tabla nueva, exactamente como
+el 3 de agosto con C2 tapando a C4 y C5.
+
+**Y el script de migraciones no podía arreglarlo.** Mandaba el cuerpo como cadena, así que
+Windows PowerShell 5.1 lo codificaba en Latin-1 y el primer acento —la primera línea de casi
+todas estas migraciones— partía el JSON. El error que devolvía Meta hablaba de la posición 59
+de un JSON y mandaba a buscar el fallo en el SQL. Funcionaba con `pwsh` y no con
+`powershell`: dos comandos casi iguales, uno incapaz de aplicar una sola migración.
+
+#### Los fallos que salieron grabando
+
+**Desde la interfaz nunca se pudo mandar un WhatsApp.** `encolar_envio` sacaba la partición de
+`page_id`, que en una conexión de WhatsApp es null **por diseño** —la restricción de la 0065
+lo exige—. Salía null y moría contra el NOT NULL. El único envío que existía en la base se
+había insertado a mano, saltándose la función: probó el despachador, no el producto. Y encima
+quedó marcado `fallido` con `error_mensaje: HTTP 200`, que es otro fallo distinto y se llevó
+toda la atención. La 0073 lo arregla en un solo sitio: el cálculo estaba copiado en tres
+funciones, y esa duplicación es justo por qué la 0065 pudo añadir un canal sin que ninguna se
+enterara.
+
+**Human Agent en Instagram salía sin `messaging_type`.** `ventana_de` solo lo emitía para
+Messenger, con un comentario que decía —correctamente— que no se manda lo que no está
+documentado. Pero eso dejó de ser cierto el 3 de agosto, cuando se midió. El hallazgo se
+escribió en la bitácora y en el script y nunca volvió al SQL. Es el fallo de siempre: la
+medición en un sitio y la decisión en otro.
+
+**Responder a un comentario no había funcionado nunca.** Llamaba a
+`public.registrar_actividad(org, tipo, jsonb)`, una firma que no existe. Rota desde el 4 de
+agosto, descubierta la primera vez que alguien pulsó el botón. **Y el guardián de CI tenía un
+punto ciego que lo dejó pasar**: busca literales con punto, y la 0067 escribió
+`comentario_respondido` con guion bajo. Decía «57 tipos, todos traducidos» mientras esos dos
+ni estaban traducidos ni se escribían.
+
+**Al enviar, el hilo no bajaba.** `AlFinal` solo seguía al fondo si ya estabas cerca. Correcto
+para un mensaje que entra —no le arrancas la lectura a quien relee historial— y equivocado
+para uno que acabas de escribir: pulsas enviar y tu mensaje sale a un sitio que no ves.
+
+**Y un contador que mentía.** La sincronización de comentarios decía «3 aplicados» en una
+pasada que no cambió una sola fila, porque el upsert siempre aplica. Un resumen así es peor
+que no tenerlo: es lo único que se mira después de pulsar un botón.
+
+#### Lo que se construyó
+
+| Qué | Por qué |
+|---|---|
+| Enriquecimiento de perfil | El contacto de Instagram salía como «Contacto sin nombre»: el payload trae `sender.id` y nada más. Ahora se pide el handle y **se copia la foto**, no se enlaza —la URL de `lookaside` caduca en un plazo que nadie ha medido— |
+| Canales con marca y estado | La pantalla contestaba «¿puede funcionar?» y no «¿está encendido?» |
+| Los tres callbacks de Meta | `deauthorize`, borrado de datos y verificación del `signed_request`. No existían |
+| Plantillas de utilidad de Messenger | `pages_utility_messaging` no es «mandar mensajes de utilidad», es **gestionar plantillas**. Se leyó mal y por eso se creía que no había nada que construir |
+| Pantalla de comentarios | El modelo y la ingesta llevaban dos días en producción sin nada que los mirara |
+| Lectura de comentarios por API | El webhook no llega. La suscripción **sí** está —comprobado por MCP— y el endpoint funciona |
+| Acceso en `kavea.ai` | El sitio no tenía ni un enlace para entrar |
+
+#### Medido, y conviene no volver a averiguarlo
+
+- **En modo desarrollo Meta no entrega webhooks de Instagram ni Messenger de quien no tiene
+  rol en la app.** Es la razón de que haya una sola conversación de Instagram. WhatsApp **no**
+  está sujeto a esto: entra tráfico de terceros.
+- **Las llamadas de prueba del App Review caducan a los 30 días**, no solo tardan 24 h en
+  aparecer. Las de hoy valen hasta el **5 de septiembre**, y eso le pone fecha al envío.
+- **La forma real del payload de comentario**, por fin medida con un webhook de prueba: el
+  adaptador acierta en los seis campos. La incertidumbre del 4 de agosto queda cerrada.
+- **El perfil de un PSID de Messenger no se puede leer**: `100/33` con el Page token correcto.
+  Cerrado hasta que `pages_messaging` tenga acceso avanzado.
+- **El portafolio son tres listas**: 1 Página propia, **39 de clientes** y 28 donde el system
+  user tiene rol. Las «28 Páginas» de esta bitácora eran la tercera.
+- **`/{page-id}/message_templates` necesita un Page token derivado**; el de system user
+  directo devuelve error 200.
+- **Una plantilla con huecos y sin `example` nace RECHAZADA**, con id y todo en la misma
+  respuesta.
+
+#### Dos cosas que se decidieron
+
+**`pages_utility_messaging` entra en v1**, por decisión de Gabriel y contra la recomendación
+de sacarlo del envío. Se construyó.
+
+**Se borraron dos conversaciones de terceros** del espacio de Boosty —un cliente cuadrando una
+reunión y otra persona escribiendo a un tercero— para poder darle acceso al revisor de Meta
+sin enseñar datos que nadie consintió. Sin pérdida operativa: llegan por la doble suscripción
+y **quien las atiende es Kommo**. Cerrarlas no habría bastado: `listarTarjetas` sin filtro
+devuelve también las cerradas.
+
+#### Un destrozo propio, ya corregido
+
+Los vídeos del App Review acabaron versionados: un `git add -A` descuidado metió
+`screencasts/` en el repositorio, diez megas de binarios generados. Salieron del índice y
+entraron al `.gitignore` junto a `capturas/`. No se reescribió el historial publicado por eso.
 
 ### 2026-08-04 · Tech Provider aprobado, WhatsApp entra en la bandeja, y la navegación existe
 
@@ -1499,41 +1600,80 @@ cada 7 días** y sube a 200 al completar Business Verification, App Review y Acc
 Verification; y sin ser Solution Partner **el cliente debe añadir método de pago antes de
 poder enviar**, que coincide con la decisión ya tomada.
 
-### 3.8 Por dónde empezar la próxima sesión
+### 3.8 Por dónde seguir — al cerrar el 6 de agosto
 
-**Lo que no depende de nadie y desbloquea un vídeo:**
+El envío del App Review está a **dos llamadas de API y unas casillas**. Todo el contenido
+—textos, vídeos, Data handling, acceso del revisor— está hecho y documentado en
+`docs/07-app-review.md`, que es la fuente de la verdad de la solicitud.
 
-1. **La pantalla de comentarios.** El modelo (0066) y la ingesta (0067) están en producción;
-   falta la interfaz para leer y responder. Sin ella no hay screencast de
-   `instagram_manage_comments`, y ese permiso ya está en la solicitud con 20 llamadas.
-2. **Confirmar la forma real del payload de comentario.** Lo implementado viene de la
-   documentación de Meta, no de una medición: la sonda solo ha capturado el Test del panel,
-   que es un `feed` con `item: "status"`. Hay que comparar en cuanto entre uno real.
-3. **Cablear las plantillas de WhatsApp.** El modelo ya cubre el ciclo completo; falta
-   enviarlas con `POST /{WABA_ID}/message_templates`, consumir
-   `message_template_status_update` —ya suscrito—, un CHECK en `categoria`, e **importar las
-   25 aprobadas** que Kavea no sabe que existen.
-4. **Guarda de tipos en CI para las Edge Functions.** Nadie las typechequea, y habría cazado
-   dos de las tres regresiones del 4 de agosto.
+**Lo primero, mañana, y son diez minutos:**
+
+1. **`whatsapp_business_messaging`** — desde *Customize use case → WhatsApp → API Setup*:
+   Generate access token, añadir el móvil como destinatario, y **Send message**. Meta da un
+   número de prueba con envíos gratis 90 días.
+2. **`pages_utility_messaging`** — Graph API Explorer con Page token de Boosty.digital y el
+   permiso añadido: `GET 1790677317841377/message_templates`.
+3. **Terminar de pegar las tarjetas** de *Allowed usage* que falten.
+
+Las dos llamadas se hicieron hoy desde Kavea y no aparecieron marcadas. Puede ser el retraso
+de 24 h, pero hay un indicio de que no: el contador de la app dice **4 llamadas en 24 horas**
+cuando Kavea hizo decenas, lo que sugiere que Meta no atribuye a la app las llamadas hechas
+con token de system user. Por eso la vía del panel.
 
 **Lo que necesita una acción de Gabriel:**
 
-| Acción | Por qué no puede esperar |
+| Acción | Por qué |
 |---|---|
-| Screencast de **Human Agent** | La ventana cierra el **11 de agosto** y es el único que no se puede grabar cuando uno quiera |
-| **Data Use Checkup** | Bloquea los trece permisos y no depende de nadie más |
-| Crear las dos configuraciones de Facebook Login y rellenar los redirect URIs | Bloquea toda la fase 5 y el alta de clientes |
-| Los dos vídeos de WhatsApp | Requieren su sesión de Facebook. Meta acepta el cURL de *API Setup* y WhatsApp Manager como alternativa oficial |
-| **Rotar** contraseña, token de portafolio y PAT de Supabase | Pasaron por el chat del 4 de agosto |
+| **Rotar** el PAT de Supabase, la contraseña de la app y el token de system user | Los tres pasaron por el chat del 6 de agosto. Y sigue pendiente el token de portafolio del día 4 |
+| Alias de `demostracion.kavea.ai` en Netlify, o el comodín | El espacio existe y no resuelve. Con dos inquilinos el comodín deja de ser teórico |
+| Pegar los dos callbacks en App settings | `deauth_callback_url` sigue en null y los endpoints llevan desde hoy funcionando |
+| Suscribir el campo `comments` de Instagram… **ya está** | Comprobado por MCP: la suscripción existe. Lo que falta es que Meta entregue, y probablemente sea el modo desarrollo |
 
-**Y una cosa que hay que tener presente mientras:** Kavea recibe el tráfico real de WhatsApp
-de Boosty por la doble suscripción, con conversaciones de clientes que hoy atiende Kommo. Es
-correcto y deliberado, pero **hay gente escribiendo a una bandeja que nadie mira desde
-Kavea**. El corte de Kommo se hace cuando la ingesta lleve tiempo probada, no antes.
+**Lo que ya no bloquea el envío:** los `oauth_redirect_uris` de Facebook Login. Al declarar
+que la app **no usa Facebook Login** —cierto: las Páginas se conectan por el portafolio como
+Tech Provider— el revisor no lo prueba. Sigue haciendo falta para la fase 5, que es producto.
+
+**Trabajo pendiente que no depende de nadie:**
+
+1. **Login único por correo.** Los correos son únicos y la cookie de sesión **ya se fija en
+   `.kavea.ai`**, así que se puede autenticar una vez y aterrizar en el espacio. Hoy hay una
+   página que pide el subdominio, sin JavaScript. Ojo: `organization_members` tiene clave
+   `(organización, usuario)`, así que un usuario puede estar en varios y habrá que elegir.
+2. **Guarda de tipos en CI para las Edge Functions.** Sigue sin existir, y hoy habría cazado
+   el `private` de la 0069 y la firma inexistente de la 0067.
+3. **Cablear las plantillas de WhatsApp**, con las 25 aprobadas que Kavea no sabe que existen.
+4. **Reintentar los perfiles de Messenger** cuando aprueben `pages_messaging`:
+   `update public.contacts set perfil_leido_en = null where nombre is null;`
+
+**Y una advertencia sobre CI:** hoy varias ejecuciones salieron en rojo sin estar rotas. Con
+empujes cada diez minutos, `cancel-in-progress` mataba los jobs lentos —«Fuga de secretos»
+hace clon completo— y el resultado se ve como fallo. Antes de investigar un rojo, mirar si los
+jobs están *cancelled* y no *failure*.
 
 ---
 
 ## 4. Cosas que costaron y conviene no repetir
+
+- **Grabar el producto es la prueba más honesta que existe.** No se puede grabar una
+  intención. El 6 de agosto se descubrieron siete fallos en una tarde, y todos salieron al
+  intentar enseñar por vídeo algo que se daba por hecho: que WhatsApp se podía enviar desde el
+  compositor, que Human Agent salía bien, que responder un comentario funcionaba.
+- **Una medición que no vuelve al código no sirve de nada.** La forma del cuerpo de Human
+  Agent se midió el 3 de agosto, se escribió en esta bitácora y en un script, y el SQL siguió
+  tres días emitiendo lo contrario. Cerrar un incierto incluye llevarlo a donde se decide.
+- **Un camino que solo se ha probado por fuera no está probado.** El envío de WhatsApp del 4
+  de agosto se insertó a mano y dio la función por buena; el compositor no podía mandar ni uno.
+  Probar el despachador no es probar el producto.
+- **Un guardián solo caza lo que su patrón ve.** El de actividades pedía un punto en el nombre
+  del tipo, así que un tipo con guion bajo le resultó invisible: ni lo contaba ni lo echaba de
+  menos. Y al afinarlo, la primera versión gritó diecisiete falsos positivos y la segunda
+  estrechó la detección de 57 tipos a 49. Detectar de menos es peor que detectar de más.
+- **Un contador que miente es peor que no tenerlo.** Es lo único que se mira después de pulsar
+  un botón, y nadie va a la tabla a contar filas.
+- **Lo que decide un tercero no se espeja.** Las plantillas de utilidad las aprueba Meta y su
+  estado cambia sin avisar: una copia local acaba diciendo «aprobada» sobre algo ya rechazado.
+- **`git add -A` mete lo que no miras.** Diez megas de vídeos generados acabaron versionados
+  por tres commits seguidos hechos con prisa.
 
 - **Leer todos los documentos antes de escribir arquitectura.** El `06` se escribió sin el
   `02` y hubo que corregirlo con cuatro planes de fase ya construidos encima.
