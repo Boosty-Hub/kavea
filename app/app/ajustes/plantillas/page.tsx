@@ -4,6 +4,7 @@ import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organ
 import { listarPlantillas, variablesDe } from '@/lib/plantillas'
 import { puedeHacer } from '@/lib/equipo'
 import { EditorPlantillas } from './editor'
+import { PlantillasDeUtilidad } from './utilidad'
 
 import { NavAjustes } from '../nav'
 
@@ -30,7 +31,7 @@ export default async function PaginaPlantillas() {
       <h1 style={{ marginBlock: '8px 12px' }}>Plantillas</h1>
       <p style={{ color: 'var(--k-text-2)', marginTop: 0, maxWidth: 620 }}>
         Mensajes que se repiten, con huecos que se rellenan solos a partir de la ficha. Hay
-        dos clases y no se parecen en nada.
+        tres clases y no se parecen en nada.
       </p>
 
       <div className="tarjeta" style={{ marginTop: 16, display: 'grid', gap: 12, maxWidth: 620 }}>
@@ -50,6 +51,14 @@ export default async function PaginaPlantillas() {
             <strong> El envío a WhatsApp todavía no existe</strong>; aquí se lleva el registro.
           </div>
         </div>
+        <div>
+          <strong style={{ fontWeight: 500 }}>De utilidad, en Messenger</strong>
+          <div style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
+            Avisos de pedido, cita o cuenta. Viven en Meta, no en Kavea: se crean contra la
+            Página, las aprueba Meta en segundos, y el estado se lee de allí cada vez. Por eso
+            salen abajo y no en la lista de esta pantalla.
+          </div>
+        </div>
       </div>
 
       <EditorPlantillas
@@ -58,6 +67,8 @@ export default async function PaginaPlantillas() {
         variables={variables}
         puedeConfigurar={puedeConfigurar}
       />
+
+      <PlantillasDeUtilidad puedeConfigurar={puedeConfigurar} />
     </main>
   )
 }

@@ -26,6 +26,16 @@ out/
 secrets/
 secrets/**
 
+# Salidas de los scripts de captura y grabación. Son ARTEFACTOS: se regeneran
+# con `grabar-screencasts.mjs` y `capturar.mjs` en un minuto, y pesan megas.
+#
+# Entraron al repositorio el 6 de agosto de 2026 por un `git add -A` descuidado
+# mientras se grababan los vídeos del App Review. Se sacaron con
+# `git rm -r --cached`, así que siguen en el historial: no se reescribió nada
+# publicado por diez megas, pero que no crezca.
+screencasts/
+capturas/
+
 # Sistema y registros
 .DS_Store
 Thumbs.db
