@@ -14,13 +14,32 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$headers = @{ Authorization = "Bearer $Token"; "Content-Type" = "application/json" }
+$headers = @{ Authorization = "Bearer $Token"; "Content-Type" = "application/json; charset=utf-8" }
 $endpoint = "https://api.supabase.com/v1/projects/$ProjectRef/database/query"
 
 function Invoke-Sql {
   param([string] $Sql)
   $body = @{ query = $Sql } | ConvertTo-Json -Depth 3
-  return Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $body
+
+  # EL CUERPO SE MANDA COMO BYTES UTF-8, no como cadena.
+  #
+  # Con una cadena, Windows PowerShell 5.1 la codifica en Latin-1 porque la
+  # cabecera Content-Type no lleva charset, y el primer carácter no ASCII
+  # —cualquier acento o guión largo, o sea la primera línea de casi todas estas
+  # migraciones— llega partido. El servidor contesta:
+  #
+  #   {"message":"Expected ',' or '}' after property value in JSON at position 59"}
+  #
+  # que no se parece en nada a la causa y manda a buscar el error en el SQL.
+  # PowerShell 7 acierta por defecto, así que esto solo fallaba al invocar el
+  # script con `powershell` en vez de con `pwsh`: dos comandos casi iguales, uno
+  # de los cuales no puede aplicar ninguna migración de este repositorio.
+  #
+  # Convirtiendo aquí, da igual con cuál se llame.
+  # El charset va en `$headers`, no en `-ContentType`: pasarlo por los dos sitios
+  # a la vez es un error de parámetro duplicado en PowerShell 7.
+  $bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
+  return Invoke-RestMethod -Uri $endpoint -Method Post -Headers $headers -Body $bytes
 }
 
 # 1. Guarda: confirmar contra qué proyecto se va a escribir.
