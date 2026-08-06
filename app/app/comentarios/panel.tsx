@@ -62,18 +62,62 @@ export function PanelComentarios({
     router.refresh()
   }
 
+  /**
+   * Traer de Meta lo que el webhook no trajo.
+   *
+   * El botón existe porque un webhook es una entrega, y una entrega se pierde:
+   * tras una hora de fallos Meta desuscribe en silencio y lo que no llegó no
+   * vuelve solo. Esto lee las publicaciones recientes y sus comentarios, y es lo
+   * que permite descubrir el hueco en vez de creerse que no hubo comentarios.
+   */
+  async function sincronizar() {
+    setOcupado(true); setError(null)
+    try {
+      const r = await fetch('/api/comentarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'sincronizar' }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(j.error ?? 'No se pudo leer de Meta.'); return }
+      router.refresh()
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  const traer = (
+    <button
+      type="button"
+      className="operar__control"
+      style={{ cursor: 'pointer', fontSize: 13 }}
+      disabled={ocupado}
+      onClick={() => void sincronizar()}
+    >
+      {ocupado ? 'Leyendo de Meta' : 'Traer de Meta'}
+    </button>
+  )
+
   if (comentarios.length === 0) {
     return (
-      <p className="ficha__vacia" style={{ marginTop: 24 }}>
-        No hay comentarios todavía. Llegan solos cuando alguien comenta una publicación
-        de las cuentas conectadas.
-      </p>
+      <div style={{ marginTop: 24, display: 'grid', gap: 12, justifyItems: 'start' }}>
+        {error ? <p className="error" role="alert">{error}</p> : null}
+        <p className="ficha__vacia" style={{ margin: 0 }}>
+          No hay comentarios todavía. Llegan solos cuando alguien comenta una publicación
+          de las cuentas conectadas, y también se pueden traer a mano.
+        </p>
+        {traer}
+      </div>
     )
   }
 
   return (
     <div style={{ display: 'grid', gap: 12, marginTop: 20 }}>
       {error ? <p className="error" role="alert">{error}</p> : null}
+
+      <div style={{ display: 'flex' }}>
+        <span style={{ marginLeft: 'auto' }}>{traer}</span>
+      </div>
 
       {comentarios.map((c) => {
         const e = ESTADOS[c.estado] ?? ESTADOS.nuevo!

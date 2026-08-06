@@ -36,8 +36,35 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'sin organización' }, { status: 403 })
   }
 
-  const { comentario, texto } = await req.json().catch(() => ({})) as
-    { comentario?: string; texto?: string }
+  const { comentario, texto, accion } = await req.json().catch(() => ({})) as
+    { comentario?: string; texto?: string; accion?: string }
+
+  const base = process.env.KAVEA_FUNCTIONS_URL
+  const secreto = process.env.SUPABASE_SECRET_KEY
+  if (!base || !secreto) return NextResponse.json({ error: 'sin configurar' }, { status: 503 })
+
+  /**
+   * Traer de Meta lo que el webhook no trajo.
+   *
+   * No lleva `page_id` ni `organizacion` por parámetro: la función de borde los
+   * resuelve de `meta_asset_routes`, que es la misma tabla por la que el
+   * normalizador decide el tenant. Aceptarlos aquí sería ofrecer una forma de
+   * sincronizar los comentarios de la cuenta de otro cliente.
+   */
+  if (accion === 'sincronizar') {
+    try {
+      const s = await fetch(`${base}/sincronizar-comentarios`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${secreto}`, 'Content-Type': 'application/json' },
+        body: '{}',
+        signal: AbortSignal.timeout(60_000),
+      })
+      return NextResponse.json(await s.json().catch(() => ({})), { status: s.ok ? 200 : 502 })
+    } catch {
+      return NextResponse.json({ error: 'Meta no contestó a tiempo.' }, { status: 504 })
+    }
+  }
+
   if (!comentario || !texto?.trim()) {
     return NextResponse.json({ error: 'falta el comentario o el texto' }, { status: 400 })
   }
@@ -53,14 +80,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'no se pudo preparar la respuesta' }, { status: 500 })
   }
 
-  const url = process.env.KAVEA_FUNCTIONS_URL
-  const clave = process.env.SUPABASE_SECRET_KEY
-  if (!url || !clave) return NextResponse.json({ error: 'sin configurar' }, { status: 503 })
-
   try {
-    const meta = await fetch(`${url}/responder-comentario`, {
+    const meta = await fetch(`${base}/responder-comentario`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${clave}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${secreto}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ comment_id: r.comment_id, texto: r.texto }),
       signal: AbortSignal.timeout(30_000),
     })
