@@ -25,7 +25,6 @@
  *
  * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y no es por falta de código:
  *
- *   · instagram_manage_comments — no existe la interfaz de comentarios.
  *   · pages_messaging — necesita una conversación viva de Messenger, y no hay.
  *
  * LO QUE SÍ SE PUEDE DESDE EL 6 DE AGOSTO, y antes no:
@@ -275,6 +274,44 @@ if (TARJETA_WA) {
     await p.waitForTimeout(9000)
   })
 }
+
+/**
+ * Comentarios de Instagram: leerlos y responder en público.
+ *
+ * El recorrido pulsa «Traer de Meta» ANTES de enseñar la lista, aunque los
+ * comentarios ya estén en la base. Es lo que demuestra la lectura: sin ese clic
+ * el vídeo enseña una tabla, y una tabla no prueba que el permiso se use.
+ *
+ * Después responde a uno de verdad. La respuesta se publica en Instagram y queda
+ * colgando del comentario, que es exactamente lo que concede el permiso.
+ */
+await grabar('instagram_manage_comments', async (p) => {
+  await ver(p, `${BASE}/comentarios`, 3500)
+
+  const traer = p.getByRole('button', { name: /traer de meta/i }).first()
+  if (await traer.count()) {
+    await traer.click()
+    await p.waitForTimeout(5000)
+  }
+
+  // Responder al primero que siga en «nuevo».
+  const responder = p.getByRole('button', { name: /responder en público/i }).first()
+  if (!(await responder.count())) {
+    console.log('     no hay comentarios sin responder: el vídeo queda solo con la lectura')
+    return
+  }
+  await responder.click()
+  await p.waitForTimeout(1200)
+
+  const caja = p.locator('textarea[aria-label="Respuesta al comentario"]').first()
+  await caja.click()
+  await caja.pressSequentially(
+    'Gracias por comentar. Le escribimos por mensaje directo con el detalle.', { delay: 50 },
+  )
+  await p.waitForTimeout(1200)
+  await p.getByRole('button', { name: /publicar respuesta/i }).click()
+  await p.waitForTimeout(8000)
+})
 
 // Los canales, con su marca y si están activos. Es la pantalla que enseña que
 // Kavea LEE los activos de la WhatsApp Business Account del cliente, que es

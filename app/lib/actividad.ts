@@ -148,6 +148,15 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'tarea.reabierta': return `reabrió la tarea "${d.titulo}"`
     case 'tarea.borrada': return `borró la tarea "${d.titulo}"`
 
+    // --- Comentarios ---
+    // Se dice «en público» siempre. En el registro, igual que en la pantalla,
+    // la diferencia entre responder un mensaje y responder un comentario no es
+    // de canal: es de quién lo lee.
+    case 'comentario.respondido':
+      return `respondió en público a un comentario de ${d.canal === 'messenger' ? 'Facebook' : 'Instagram'}`
+    case 'comentario.marcado':
+      return d.estado === 'ignorado' ? 'ignoró un comentario' : 'reabrió un comentario'
+
     // --- Envío ---
     // No hay `mensaje.fallido`: un envío que falla ya lo dice su propia burbuja
     // con `envio_estado`. Una línea de actividad sería decirlo dos veces.
