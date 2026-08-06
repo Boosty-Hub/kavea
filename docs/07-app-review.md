@@ -399,6 +399,71 @@ personal, que no es lo que se quiere declarar.
 Son compromisos sobre procesos internos. **Solo se marca lo que sea verdad hoy**,
 no lo que suene bien: Meta puede pedir que se demuestre.
 
+## 3.ter Acceso del revisor
+
+El revisor entra en **`boosty.kavea.ai`** con un usuario propio,
+`revisor@kavea.ai`, rol `agente`. **La contraseña no está en este repositorio**
+—ninguna clave entra— y vive solo en el formulario de Meta.
+
+### Por qué el espacio de Boosty y no uno inventado
+
+Porque un espacio sintético no puede recibir el mensaje del revisor. Las
+instrucciones de `pages_messaging` le piden escribir a la Página desde su
+Facebook, y ese mensaje aterriza donde está conectada la Página: en Boosty. Un
+espacio vacío no tiene canal por el que llegue nada.
+
+Se creó también un espacio `demostracion` con el flujo real de alta —primera vez
+que se ejecuta, y funcionó— pero queda sin uso hasta que tenga una Página propia
+conectada y su alias de DNS. Ver §5.
+
+### Lo que se borró antes de dar acceso, y por qué
+
+El espacio de Boosty tenía **cinco** conversaciones y dos eran de terceros
+reales: `Super Cauchos Cia Ltda` negociando la hora de una reunión, y otra
+persona escribiendo a «Paty». Enseñárselas a un revisor es enseñar datos de
+clientes que no lo han consentido.
+
+Se borraron **de Kavea**, y sin pérdida operativa: llegan por la doble
+suscripción de la WABA y **quien las atiende es Kommo**, que las conserva. Kavea
+no es el sistema de registro de esas conversaciones.
+
+Comprobado antes de borrar, con `rollback`: 5 → 3 contactos, 52 → 40 mensajes.
+Y comprobado después entrando como el revisor: ve dos conversaciones, las dos de
+Gabriel, con los tres canales representados.
+
+**Cerrarlas no habría bastado**: `listarTarjetas` sin filtro devuelve también las
+cerradas, así que seguirían a la vista.
+
+### Instrucciones para el formulario
+
+```
+Kavea is a shared team inbox. The workspace below belongs to Boosty Digital LLC and is used for testing: every conversation in it is with Boosty's own accounts, so no third-party customer data is exposed.
+
+URL: https://boosty.kavea.ai
+Email: revisor@kavea.ai
+Password: (see the credentials field)
+
+The workspace is connected to the Boosty.digital Facebook Page, its linked Instagram professional account, and Boosty's WhatsApp Business number, so all three channels can be tested against real accounts.
+
+To test Messenger (pages_messaging):
+1. Grant the Tester role in App Roles to a real Facebook account. Test users created in App Roles cannot receive messages from a Page.
+2. From that account, send a message to the Boosty.digital Page (m.me/boosty.digital).
+3. Sign in above. The conversation appears in Bandeja (Inbox) within seconds.
+4. Open it, type a reply in the composer and press Enviar. The reply is delivered to the Facebook account from step 2.
+
+To test Instagram (instagram_manage_messages, instagram_basic, Human Agent):
+Open the conversation in Bandeja. The header shows the remaining messaging window per channel. When a conversation is older than 24 hours the header reads "solo intervención humana" and the composer states that the reply will be sent as a human agent intervention.
+
+To test comments (instagram_manage_comments):
+Open Comentarios in the left menu. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public.
+
+To test WhatsApp (whatsapp_business_messaging, whatsapp_business_management):
+Open Ajustes > Canales to see each connected channel with its state. WhatsApp conversations appear in the same inbox.
+
+To test utility templates (pages_utility_messaging):
+Open Ajustes > Plantillas and scroll to "De utilidad, en Messenger". The list is read live from Meta and shows each template with the status Meta gave it. A new one can be created from there.
+```
+
 ## 4. Los vídeos
 
 Se graban con `scripts/grabar-screencasts.mjs`, que inicia sesión de verdad y
