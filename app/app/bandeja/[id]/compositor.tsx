@@ -57,6 +57,18 @@ export function Compositor({
   const pasado = bytes > tope
   const cerrada = conv.ventana.clase === 'cerrada'
 
+  /**
+   * Baja el hilo hasta el final. Lo escucha `AlFinal`, que es quien conoce el
+   * contenedor y sus reglas.
+   *
+   * Se llama DOS VECES por envío, y no sobra: la primera al refrescar, cuando el
+   * mensaje aún no está pintado y solo sirve para volver a pegarse al fondo; la
+   * segunda tras el refresco de los 2,5 s, cuando ya está el acuse.
+   */
+  function alFondo() {
+    window.dispatchEvent(new Event('kavea:al-fondo'))
+  }
+
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     if (!texto.trim() || pasado || cerrada) return
@@ -71,12 +83,13 @@ export function Compositor({
     setTexto('')
     setFaltan([])
     router.refresh()
+    alFondo()
 
     // Se despierta al despachador en vez de esperar al cron: un minuto de
     // espera para una respuesta que el operador acaba de escribir se siente
     // roto aunque acabe saliendo.
     fetch('/api/despachar', { method: 'POST' }).catch(() => {})
-    setTimeout(() => router.refresh(), 2500)
+    setTimeout(() => { router.refresh(); alFondo() }, 2500)
   }
 
   return (
@@ -218,8 +231,9 @@ export function Compositor({
                 setEnviando(false)
                 if (error) { setError(error.message); return }
                 router.refresh()
+                alFondo()
                 fetch('/api/despachar', { method: 'POST' }).catch(() => {})
-                setTimeout(() => router.refresh(), 2500)
+                setTimeout(() => { router.refresh(); alFondo() }, 2500)
               }}
             >
               ❤️

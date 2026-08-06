@@ -94,18 +94,41 @@ async function entrar(ctx) {
   return p
 }
 
+/**
+ * La sesión se abre UNA VEZ y fuera de cualquier grabación.
+ *
+ * Antes cada vídeo empezaba iniciando sesión, y el resultado eran DIECISIETE
+ * SEGUNDOS de pantalla en blanco y formulario de acceso antes de que apareciera
+ * nada. El revisor no tiene por qué ver eso, y en un vídeo corto es la mayor
+ * parte del metraje.
+ *
+ * Se guarda el estado —cookies y almacenamiento— y cada contexto de grabación
+ * nace ya dentro. De paso son nueve inicios de sesión menos.
+ */
+let estadoSesion = null
+async function sesion() {
+  if (estadoSesion) return estadoSesion
+  const ctx = await navegador.newContext({ viewport: { width: 1440, height: 900 }, locale: 'es-ES' })
+  await entrar(ctx)
+  estadoSesion = await ctx.storageState()
+  await ctx.close()
+  return estadoSesion
+}
+
 /** Un vídeo por permiso. El nombre del fichero ES el permiso, para no confundirlos al subirlos. */
 async function grabar(permiso, recorrido) {
+  const estado = await sesion()
   const ctx = await navegador.newContext({
     viewport: { width: 1440, height: 900 },
     recordVideo: { dir: dirVideo, size: { width: 1440, height: 900 } },
     locale: 'es-ES',
     timezoneId: 'America/Caracas',
+    storageState: estado,
   })
   const errores = []
   ctx.on('console', (m) => { if (m.type() === 'error') errores.push(m.text().slice(0, 160)) })
 
-  const p = await entrar(ctx)
+  const p = await ctx.newPage()
   try {
     await recorrido(p)
   } finally {
@@ -167,10 +190,20 @@ if (TARJETA_WA) {
     await ver(p, `${BASE}/bandeja`, 3000)
 
     await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3200)
-    // Desplazar el hilo para que se vean los mensajes ENTRANTES del cliente.
-    // Sin esto el vídeo solo prueba que Kavea escribe, no que conversa.
-    await p.mouse.wheel(0, -600); await p.waitForTimeout(2000)
-    await p.mouse.wheel(0, 600); await p.waitForTimeout(1500)
+
+    // EL RATÓN SE PONE ENCIMA DEL HILO ANTES DE GIRAR LA RUEDA.
+    //
+    // `mouse.wheel` desplaza lo que haya bajo el cursor, y el cursor arranca en
+    // (0,0), que es la barra lateral. La primera versión creía estar recorriendo
+    // la conversación y estaba moviendo el menú.
+    const hilo = p.locator('.hilo__cuerpo').first()
+    const caja0 = await hilo.boundingBox()
+    if (caja0) await p.mouse.move(caja0.x + caja0.width / 2, caja0.y + caja0.height / 2)
+
+    // Subir a ver los mensajes ENTRANTES del cliente: sin esto el vídeo prueba
+    // que Kavea escribe, no que conversa.
+    await p.mouse.wheel(0, -700); await p.waitForTimeout(2200)
+    await p.mouse.wheel(0, 700); await p.waitForTimeout(1500)
 
     const caja = p.locator('textarea[aria-label="Mensaje"]').first()
     if (!(await caja.count())) {
@@ -187,10 +220,17 @@ if (TARJETA_WA) {
     const enviar = p.locator('button[type="submit"]').first()
     await enviar.click()
 
-    // El despachador corre cada minuto, así que el acuse no da tiempo. Lo que sí
-    // se ve, y es lo que importa, es el mensaje entrando en el hilo.
-    await p.waitForTimeout(6000)
-    await p.mouse.wheel(0, 600); await p.waitForTimeout(3000)
+    // NO se desplaza a mano después de enviar, y es a propósito.
+    //
+    // La aplicación baja sola al fondo al pulsar enviar: el compositor avisa con
+    // `kavea:al-fondo` y `AlFinal` obedece. Bajar aquí con la rueda taparía si
+    // eso dejara de funcionar, y el vídeo enseñaría una conversación que se
+    // comporta bien solo porque el guion la empuja.
+    //
+    // La espera es larga porque el compositor refresca a los 2,5 s y el
+    // despachador se despierta por `/api/despachar`: da tiempo a que el mensaje
+    // salga de verdad y no solo a que aparezca en la lista.
+    await p.waitForTimeout(9000)
   })
 } else {
   console.log('  whatsapp_business_messaging  OMITIDO: falta TARJETA_WHATSAPP')

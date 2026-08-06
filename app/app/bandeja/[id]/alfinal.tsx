@@ -20,6 +20,19 @@ import { useEffect, useRef } from 'react'
  * · Si el operador ha subido a leer historial y entra un mensaje nuevo, saltar
  *   al final le arranca la lectura de las manos. Solo se sigue al fondo si ya
  *   estaba cerca del fondo.
+ *
+ * LA EXCEPCIÓN: LO QUE MANDAS TÚ.
+ *
+ * Esa última regla vale para un mensaje que ENTRA, no para uno que acabas de
+ * escribir. Si has subido a releer algo, pulsas enviar y la vista se queda
+ * donde estaba, tu mensaje sale disparado a un sitio que no ves: no sabes si se
+ * mandó, y lo reescribes. Se vio grabando el screencast del App Review, que es
+ * donde más se nota porque el vídeo enseña exactamente lo que ve el operador.
+ *
+ * Por eso el compositor avisa con `kavea:al-fondo` y aquí se baja sin preguntar.
+ * Va por evento y no por prop: `AlFinal` y el compositor son hermanos con el
+ * hilo entero en medio, y pasar una señal de uno a otro obligaría a subir estado
+ * hasta la página y bajarlo por dos ramas para un empujón que no es estado.
  */
 export function AlFinal({ marca }: { marca: string }) {
   const ancla = useRef<HTMLDivElement>(null)
@@ -45,11 +58,18 @@ export function AlFinal({ marca }: { marca: string }) {
     const alScroll = () => { pegado = cercaDelFondo() }
     cuerpo.addEventListener('scroll', alScroll, { passive: true })
 
+    // Acabas de enviar: se baja pase lo que pase, y además se vuelve a pegar,
+    // porque el mensaje todavía no está pintado cuando llega este aviso. El
+    // ResizeObserver de abajo hace el resto cuando aparezca.
+    const forzar = () => { pegado = true; alFondo(true) }
+    window.addEventListener('kavea:al-fondo', forzar)
+
     const ro = new ResizeObserver(() => { if (pegado) alFondo(false) })
     for (const hijo of Array.from(cuerpo.children)) ro.observe(hijo)
 
     return () => {
       cuerpo.removeEventListener('scroll', alScroll)
+      window.removeEventListener('kavea:al-fondo', forzar)
       ro.disconnect()
     }
   }, [marca])
