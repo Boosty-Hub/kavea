@@ -25,12 +25,21 @@
  *
  * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y no es por falta de código:
  *
- *   · whatsapp_business_messaging y whatsapp_business_management — se graban en
- *     el dashboard de Meta, que exige la sesión de Facebook de Gabriel.
  *   · Human Agent — no tiene pantalla propia; y su ventana cierra el 11-ago.
  *   · instagram_manage_comments — no existe la interfaz de comentarios.
- *   · pages_utility_messaging — no existe en Kavea, y está fuera de v1.
+ *   · pages_utility_messaging — no existe en Kavea. Entró en v1 el 6 de agosto
+ *     por decisión de Gabriel, así que ahora es trabajo pendiente y no un
+ *     descarte: hace falta construirlo y provocar su llamada.
  *   · pages_messaging — necesita una conversación viva de Messenger, y no hay.
+ *
+ * LO QUE SÍ SE PUEDE DESDE EL 6 DE AGOSTO, y antes no:
+ *
+ * `whatsapp_business_messaging` decía aquí que había que grabarlo en el
+ * dashboard de Meta. Era cierto mientras el compositor no pudo mandar un
+ * WhatsApp —la 0073 arregló que `encolar_envio` calculaba la partición desde
+ * `page_id`, que en WhatsApp es null—, y grabar el dashboard de Meta es enseñar
+ * la herramienta de Meta, no el producto. Ahora se graba Kavea haciéndolo, que
+ * es lo que el revisor pide de verdad.
  */
 
 import { chromium } from 'playwright'
@@ -127,8 +136,73 @@ async function ver(p, url, ms = 3200) {
   await p.waitForTimeout(ms)
 }
 
-// ---------------------------------------------------------------- los seis vídeos
+// ---------------------------------------------------------------- los vídeos
 console.log('\nGrabando:')
+
+/**
+ * La tarjeta con la conversación viva de WhatsApp.
+ *
+ * Va por parámetro y no fija en el código: la ventana de 24 h se cierra, y el
+ * día que se cierre hay que grabar otra conversación, no editar el script. Si no
+ * se pasa, el vídeo de WhatsApp se salta y se dice por qué en vez de grabar una
+ * pantalla vacía y descubrirlo al subirla.
+ */
+const TARJETA_WA = process.env.TARJETA_WHATSAPP ?? ''
+
+/**
+ * ESTE VÍDEO MANDA UN MENSAJE DE VERDAD.
+ *
+ * Es el único del script que escribe hacia fuera, y es a propósito: un vídeo del
+ * compositor sin pulsar enviar no demuestra el permiso, demuestra una caja de
+ * texto. El destinatario es el número que tenga esa conversación abierta.
+ *
+ * Requiere ventana de 24 h abierta. Si está cerrada, Kavea rechaza el envío por
+ * su propia comprobación —que es correcto— y el vídeo saldría enseñando un
+ * error, así que conviene mirar la ventana antes de grabar.
+ */
+if (TARJETA_WA) {
+  await grabar('whatsapp_business_messaging', async (p) => {
+    // Primero la bandeja entera: el revisor tiene que ver que esto es un
+    // producto con varias conversaciones, no una pantalla de demostración.
+    await ver(p, `${BASE}/bandeja`, 3000)
+
+    await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3200)
+    // Desplazar el hilo para que se vean los mensajes ENTRANTES del cliente.
+    // Sin esto el vídeo solo prueba que Kavea escribe, no que conversa.
+    await p.mouse.wheel(0, -600); await p.waitForTimeout(2000)
+    await p.mouse.wheel(0, 600); await p.waitForTimeout(1500)
+
+    const caja = p.locator('textarea[aria-label="Mensaje"]').first()
+    if (!(await caja.count())) {
+      console.log('     no encuentro el compositor: el vídeo queda sin envío')
+      return
+    }
+
+    // Se escribe con retardo por tecla para que en el vídeo se vea ESCRIBIR. Un
+    // `fill` pone el texto de golpe y parece un pegado automático.
+    await caja.click()
+    await caja.pressSequentially('Hola, gracias por escribirnos. Le respondemos desde Kavea.', { delay: 55 })
+    await p.waitForTimeout(1200)
+
+    const enviar = p.locator('button[type="submit"]').first()
+    await enviar.click()
+
+    // El despachador corre cada minuto, así que el acuse no da tiempo. Lo que sí
+    // se ve, y es lo que importa, es el mensaje entrando en el hilo.
+    await p.waitForTimeout(6000)
+    await p.mouse.wheel(0, 600); await p.waitForTimeout(3000)
+  })
+} else {
+  console.log('  whatsapp_business_messaging  OMITIDO: falta TARJETA_WHATSAPP')
+}
+
+// Los canales, con su marca y si están activos. Es la pantalla que enseña que
+// Kavea LEE los activos de la WhatsApp Business Account del cliente, que es
+// exactamente lo que concede este permiso.
+await grabar('whatsapp_business_management', async (p) => {
+  await ver(p, `${BASE}/ajustes/canales`, 5000)
+  await p.mouse.wheel(0, 400); await p.waitForTimeout(2500)
+})
 
 await grabar('pages_show_list', async (p) => {
   await ver(p, `${ADMIN}/admin/portafolio`, 4200)
