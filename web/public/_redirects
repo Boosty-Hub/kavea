@@ -10,3 +10,16 @@
 # Variantes en español sin la preposición, por si alguien las teclea.
 /politica-de-privacidad  /privacidad            301
 /eliminacion-datos       /eliminacion-de-datos  301
+
+# La página de ESTADO de una solicitud de borrado. Es dinámica —consulta el
+# código contra la base— así que no puede ser un fichero de este sitio estático:
+# se reenvía por proxy a la función de borde, con 200 y no con 301.
+#
+# POR QUÉ BAJO kavea.ai Y NO ENLAZANDO DIRECTO A supabase.co: esta URL se la
+# devuelve el callback a Meta, y Meta se la enseña a un usuario final. Un enlace
+# a un subdominio técnico que esa persona no ha visto nunca es indistinguible de
+# un fraude, y es justo el momento en el que menos conviene parecerlo.
+#
+# La cadena de consulta se conserva sola en los proxies de Netlify, así que el
+# `?codigo=` llega entero.
+/eliminacion-de-datos/estado  https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-borrado/estado  200

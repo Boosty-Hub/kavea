@@ -54,3 +54,18 @@ file_size_limit = "50MiB"
 # olvida en el siguiente despliegue, un fichero versionado no.
 [functions.meta-webhook]
 verify_jwt = false
+
+# Los dos callbacks de Facebook Login, por lo mismo: Meta los llama con un
+# `signed_request` en un campo de formulario, sin bearer token. Con verify_jwt
+# activo la plataforma contesta 401 antes de llegar al código, y el App Review da
+# el callback por incumplido sin más explicación.
+#
+# Que no lleven JWT no significa que estén abiertos: los dos rechazan cualquier
+# cuerpo cuyo `signed_request` no valide contra el App Secret.
+[functions.meta-desautorizar]
+verify_jwt = false
+
+# Esta además sirve por GET la página de estado, que la abre una persona desde un
+# enlace. Un 401 ahí sería una página de error para el usuario final.
+[functions.meta-borrado]
+verify_jwt = false

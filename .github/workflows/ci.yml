@@ -37,6 +37,14 @@ jobs:
       - name: Toda actividad sabe decirse en castellano
         run: node scripts/comprobar-actividades.mjs
 
+      # Los dos callbacks que Meta exige para el App Review dependen enteros de
+      # esta verificación, y su trampa —firmar la base64 sin decodificar— no la
+      # ve el compilador. Además es hoy lo único que ejecuta una línea de
+      # supabase/functions antes de desplegarla: las Edge Functions no se
+      # typechequean aquí.
+      - name: El signed_request se verifica como Meta lo firma
+        run: node --import tsx scripts/comprobar-firma.mjs
+
       # Las variables son FALSAS a propósito. El build no debe hablar con
       # Supabase; si lo hiciera, es un fallo de diseño y conviene descubrirlo
       # aquí y no en producción.
