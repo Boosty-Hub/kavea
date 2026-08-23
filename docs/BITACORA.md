@@ -42,7 +42,9 @@ de git de este mismo archivo.
 | Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
 | Privilegios de `anon` y `authenticated` | ✅ Auditados el 23-ago | RLS activo y forzado en las 33 tablas; TRUNCATE retirado en la 0085 |
 | **Tech Provider** | ✅ Verificado el 4-ago | `Submitted → Reviewed → Verified` en 12 h |
-| App Review | ⚠️ Contenido listo, sin enviar | **Las llamadas de prueba caducan el 5-sep** — ver §2 |
+| App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1 |
+| WhatsApp para terceros | ✅ Aprobado por Meta | `whatsapp_business_messaging` y `whatsapp_business_management` |
+| Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
 | Correo saliente | ⚠️ No funciona | DNS de `kavea.ai` sin verificar en Resend |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
@@ -57,12 +59,23 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
 ## 2. Pendiente, por bloqueo
 
 ### Con fecha encima
-- **Enviar el App Review antes del 5-sep-2026.** Las llamadas de prueba caducan a los 30 días y
-  las que hay se hicieron el 6-ago. Pasada la fecha hay que rehacerlas antes de poder enviar.
-  Contenido completo en `docs/07-app-review.md`.
+- **Rehacer el App Review de los 8 permisos rechazados.** Antes de grabar nada, declarar en el
+  envío que Kavea es server-to-server con token de system user: es el quinto punto de la propia
+  lista de Meta y explica por qué los vídeos no pueden enseñar el login de Meta ni la pantalla de
+  consentimiento —los dos primeros requisitos que se incumplieron en los ocho—. Con el botón
+  **Request again**; no hay que rehacer el formulario.
+- **Y antes de eso, construir tres cosas que los vídeos tienen que enseñar y no existen:** editar
+  y borrar un comentario propio · leer y pintar contenido de la Página (posts, fotos, eventos)
+  con la identidad de la Página visible · una pantalla de perfil de Instagram con sus campos y su
+  lista de medios. Detalle verbatim en `docs/07` §1.
+- **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
+  después, hay que repetirlas antes.
 
 ### Bloqueado por Meta
 - Pegar `deauth_callback_url` en App settings (el código ya funciona).
+- Nadie vigila la bandeja de resultados del App Review. La respuesta del 7-ago estuvo dieciséis
+  días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación en el cron de
+  diagnóstico. Mientras no lo haya, se mira a mano.
 - Cablear las plantillas de WhatsApp. Las 25 aprobadas viven en la WABA `1415042803155441`, que
   se retira: para el número nuevo hay que crearlas de cero en `2459716937850832`.
 - Facebook Login for Business: crear `config_id`, decidir qué host fijo lleva el OAuth callback
@@ -128,6 +141,43 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (repaso) — El App Review llevaba dieciséis días contestado
+
+Gabriel abrió la pantalla de App Review y ahí estaba el resultado, fechado el **7-ago-2026 a las
+08:18 GMT-4**. Este repositorio decía otra cosa: `docs/07` §1 afirmaba «nunca se ha enviado nada»
+y la tabla de la §1 de aquí ponía «contenido listo, sin enviar». Las dos frases eran ciertas al
+cierre del 6-ago y dejaron de serlo esa misma noche.
+
+**Cinco aprobados** — `whatsapp_business_messaging`, `whatsapp_business_management`,
+`pages_show_list`, `business_management`, `public_profile`. WhatsApp queda completo para
+terceros: recibir, enviar y gestionar la WABA.
+
+**Ocho rechazados** — Human Agent, `pages_manage_metadata`, `pages_utility_messaging`,
+`instagram_manage_comments`, `pages_messaging`, `instagram_manage_messages`,
+`pages_read_engagement`, `instagram_basic`. Instagram y Messenger no se pueden ofrecer fuera del
+portafolio de Boosty, así que la fase 5 solo puede vender WhatsApp.
+
+**Los ocho, por la misma causa, y no es el producto.** «Screencast Not Aligned with Use Case
+Details». Los dos primeros requisitos que Meta exige de cada grabación son el login completo de
+Meta y la pantalla donde un usuario concede permisos. **Kavea no tiene ninguno de los dos, y no
+es un olvido: es la arquitectura.** Conecta como Tech Provider con token de system user; no hay
+pantalla de login de Meta que grabar. La salida estaba en el quinto punto de la misma lista
+—declarar que es server-to-server / system user token para que Meta sepa que ese flujo no es
+visible— y no se aplicó.
+
+Tres de las notas del revisor piden además funcionalidad **que no existe**: el bucle completo de
+moderación de un comentario (crear, editar, borrar), leer y pintar contenido de la Página, y una
+pantalla de perfil de Instagram. Eso no es volver a grabar, es construir y luego grabar.
+
+**Lo que este día deja anotado no es el rechazo, es el silencio.** El resultado llevaba
+dieciséis días en el panel y nada lo empuja hacia fuera: ni correo encaminado a la bandeja
+interna, ni una comprobación en el cron de diagnóstico. Es el mismo patrón que las cuatro
+ejecuciones de CI en rojo del 6-ago y que el tiempo real que nunca funcionó: **el fallo no fue
+el fallo, fue que nadie se enteró.**
+
+No se pudo verificar por API: `META_APP_SECRET` está vacío en el `.env.local` de esta máquina,
+así que no hay token de app con el que llamar a `/{app-id}/permissions`. La fuente es el panel.
 
 ### 2026-08-23 (cierre) — Cuatro defectos que solo se vieron abriendo el navegador
 
@@ -488,6 +538,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   delate. Cuando debe poder encoger, `minmax(0, 1fr)`.
 - Un dato nuevo dentro de un componente viejo trae consigo lo que el componente nunca tuvo que
   soportar: una clave que ya no es única, una etiqueta con guiones, un ancho que no cabía.
+- Un trámite enviado necesita quién mire la respuesta. Lo que decide un tercero no llega solo:
+  el App Review estuvo dieciséis días contestado sin que nadie lo supiera.
+- Un documento con fecha de corte se vuelve mentira sin que nadie lo edite. Si dice «al día de»,
+  hay que releerlo antes de decidir con él.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta

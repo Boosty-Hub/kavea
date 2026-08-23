@@ -14,74 +14,87 @@ producto, y tienen que seguir siendo verdad dentro de seis meses.
 citas de Meta son literales de sus modales; donde no se ha abierto el modal se
 dice que falta, y no se rellena de memoria.
 
-> Al día del **6 de agosto de 2026**.
+> Al día del **23 de agosto de 2026**. La §1 se reescribió ese día: el envío SÍ se hizo y
+> Meta ya contestó. Lo que sigue a partir de la §2 describe el envío del 6-ago tal y como
+> se preparó, y hay que releerlo con el resultado de la §1 delante.
 
 ---
 
-## 1. Estado del envío
+## 1. Estado del envío — enviado, y contestado
 
-`app_status: dev_mode` · `is_live: false` · `submission_status: UNSUBMITTED` ·
-`submitted_time: null`
+**Resultado del 7-ago-2026, 08:18 GMT-4. Cinco permisos aprobados, ocho rechazados.**
 
-Nunca se ha enviado nada. La pantalla de App Review dice «Not submitted» con la
-lista de trece peticiones en borrador, cada una asociada a su use case.
+Esta sección decía hasta el 23-ago que «nunca se ha enviado nada» y que el panel mostraba
+*Not submitted*. Era cierto al cierre del 6-ago y dejó de serlo esa misma noche: el envío salió
+y Meta contestó al día siguiente. **La respuesta estuvo dieciséis días sin leerse.** No hay
+excusa técnica: el resultado vive en el panel y nada lo empuja hacia fuera.
 
-**Aviso sobre la API:** `devtools_app_review status` devuelve
-`cannot_submit_reason: "Cannot submit to App Review while a previous submission
-is in review"`. Es engañoso. No hay ningún envío en revisión: el panel dice «Not
-submitted» y `submitted_time` es null. Se perdió media hora buscando un envío
-atascado que no existe.
+### Aprobados
 
-### Las cinco secciones del formulario
+`whatsapp_business_messaging` · `whatsapp_business_management` · `pages_show_list` ·
+`business_management` · `public_profile`
 
-| Sección | Estado el 6-ago |
+Eso significa que **WhatsApp se puede ofrecer a un cliente ajeno a Boosty**: recibir, enviar y
+gestionar la WABA. Es el canal completo.
+
+### Rechazados
+
+`Human Agent` · `pages_manage_metadata` · `pages_utility_messaging` ·
+`instagram_manage_comments` · `pages_messaging` · `instagram_manage_messages` ·
+`pages_read_engagement` · `instagram_basic`
+
+Eso significa que **Instagram y Messenger no se pueden ofrecer a nadie fuera del portafolio de
+Boosty**. Siguen funcionando donde ya funcionan, porque en modo desarrollo Meta entrega a quien
+tiene rol en la app, pero la fase 5 —autoservicio— no puede vender esos dos canales.
+
+### La causa es la misma en los ocho: «Screencast Not Aligned with Use Case Details»
+
+Ninguno se rechazó por lo que el producto hace. Se rechazaron por lo que los vídeos no enseñan.
+Meta lista cinco requisitos para cada grabación, y los dos primeros son:
+
+> 1. The complete Meta login flow.
+> 2. A user granting app access to the permission or feature.
+
+**Kavea no tiene ninguno de los dos, y no es un olvido: es la arquitectura.** Conecta como Tech
+Provider con un token de system user, así que no existe una pantalla donde un usuario inicie
+sesión con Meta ni conceda permisos. Los vídeos no podían enseñar algo que el producto no tiene.
+
+Y la salida la da el propio quinto punto de Meta, que estaba en la lista y no se aplicó:
+
+> 5. If your app is a server-to-server app OR your app is using system user token to access Meta
+>    API, please indicate it in your next submission so that we're aware that frontend Meta login
+>    authentication flow is not visible.
+
+**Declarar eso es el arreglo sistémico.** Sin ello, volver a grabar los ocho vídeos vuelve a
+chocar contra los mismos dos requisitos.
+
+### Y además, lo que pide cada revisor, con sus palabras
+
+| Permiso | Qué hay que enseñar, verbatim |
 |---|---|
-| Verification | ✅ verde — es lo que dio el Tech Provider |
-| App settings | ✅ verde |
-| **Allowed usage** | ⚪ trece tarjetas, una por permiso |
-| **Data handling** | ⚪ sin abrir |
-| **Reviewer instructions** | ⚪ marcada *Needs your review* |
+| `pages_manage_metadata` | «(1) where your app subscribes to Page events or updates Page settings, and (2) a sample webhook event (for example, a new comment notification) arriving in your app, tied to the same Page shown during setup» |
+| `pages_utility_messaging` | «(1) creation or selection of a utility or marketing message template, (2) how the template is populated with placeholders (name, order ID, etc.), and (3) sending the message to a test recipient and showing the delivered template message in the native client» |
+| `instagram_manage_comments` | «a complete comment moderation loop… add a comment from your app, edit that comment, and delete it. Then, open the native client to confirm the final state on that post» |
+| `pages_messaging` | «(1) asset selection (Page, account, or number visible), (2) a live send action from your app, and (3) the delivered message in the native client» |
+| `instagram_manage_messages` | Idéntica a `pages_messaging` |
+| `pages_read_engagement` | «(1) Page selection, (2) the retrieval of Page content such as posts, photos, events, and/or followers' profile pictures/names where permitted, and (3) the rendered results in your app's UI with the Page identity visibly displayed» |
+| `instagram_basic` | «(1) the selected Instagram professional account with its handle or ID visible, (2) a sample of profile fields (name, bio, followers, etc.), and (3) a media list displayed in your app UI labeled for that account» |
+| `Human Agent` | Sin nota específica: solo el rechazo genérico de screencast |
 
-Abajo: *«You must complete all steps before you can submit for review»*, con el
-botón **Submit for review** en gris.
+Tres de esas notas piden funcionalidad que **hay que construir antes de poder grabarla**:
+editar y borrar un comentario propio (`instagram_manage_comments`), leer contenido de la Página
+—posts, fotos, eventos— y pintarlo (`pages_read_engagement`), y una pantalla que enseñe el
+perfil de Instagram con sus campos y su lista de medios (`instagram_basic`). No es volver a
+grabar: es construir y luego grabar.
 
-### Los tres requisitos por permiso
+### Botón
 
-Los enseña el globo de **Requirements** de cada fila, en *Customize use case*:
+En el panel hay un **Request again**. No hay que rehacer el formulario entero.
 
-| Requisito | Estado |
-|---|---|
-| Business Verification | 🟢 verde en todos |
-| App Review | ⚪ |
-| Data handling questions | ⚪ |
+### Lo que sigue caducando
 
-**Dónde NO está el Data Use Checkup.** No está en «Required actions» —esa
-pantalla dice literalmente *«You don't currently have any required actions»*— ni
-en `developers.facebook.com/apps/{id}/data-use-checkup/`, que no carga. El
-checkup anual solo existe cuando Meta abre la ventana, y no la tiene abierta. Lo
-que sí está pendiente son las **Data handling questions**, que viven dentro del
-formulario del envío.
-
-### Lo que pide cada tarjeta de *Allowed usage*
-
-Verbatim del modal:
-
-> Please provide a detailed description of how your app uses the permission or
-> feature requested, how it adds value for a person using your app, and why it's
-> necessary for app functionality.
-
-> Upload a screen recording that demonstrates how your app will use this
-> permission or feature so we can confirm it is used correctly and does not
-> violate our policies.
-
-> Make sure you've completed required API test calls for added permissions.
-> **Completed test calls can take up to 24 hours to show for your app.**
-
-Y una casilla: *«If approved, I agree that any data I receive through {permiso}
-will be used in accordance with the allowed usage.»*
-
-Esas 24 horas explican por qué un contador en cero no significa que la llamada no
-se hizo.
+Las llamadas de prueba se hicieron el 6-ago y caducan a los 30 días: **5-sep-2026**. Si el nuevo
+envío sale después, hay que repetirlas antes.
 
 ---
 
