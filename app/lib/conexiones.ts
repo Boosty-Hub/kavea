@@ -43,7 +43,8 @@ export type CanalConectado = {
 export type Conexion = {
   meta_connection_id: string
   page_name: string | null
-  page_id: string
+  /** Null en una conexión de WhatsApp: la restricción de la 0065 lo exige. */
+  page_id: string | null
   ig_username: string | null
   en_verde: number
   en_rojo: number

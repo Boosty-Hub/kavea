@@ -342,6 +342,7 @@ input[type='radio'] { accent-color: var(--k-accent); }
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -492,8 +493,10 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
 
 /* ---------- Ficha ---------- */
 
-.hilo-con-ficha { display: grid; grid-template-columns: 1fr minmax(280px, 320px); min-height: 0; }
+.hilo-con-ficha { display: flex; min-height: 0; }
 .ficha {
+  flex: 0 0 320px;
+  width: 320px;
   border-inline-start: 1px solid var(--k-border);
   background: var(--k-surface);
   overflow-y: auto;
@@ -503,6 +506,10 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
   gap: 20px;
   min-height: 0;
 }
+/* Colapsada a una franja angosta: solo queda el botón de expandir. El ancho se
+   fija por clase y no por estado inline para que la transición del propio
+   componente (declarada en su `style`) tenga algo estable que animar. */
+.ficha--colapsada { flex: 0 0 44px; width: 44px; padding: 20px 6px; overflow: hidden; }
 .ficha__bloque { display: grid; gap: 8px; }
 .ficha__titulo {
   font-size: 11px;
@@ -935,10 +942,13 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
    panel lateral deja al hilo por debajo de los 400 px y las burbujas se
    estrechan hasta partir palabras. */
 @media (max-width: 1180px) {
-  .hilo-con-ficha { grid-template-columns: 1fr; }
+  .hilo-con-ficha { flex-direction: column; }
   .ficha {
+    flex: 0 0 auto;
+    width: 100%;
     border-inline-start: 0;
     border-top: 1px solid var(--k-border);
     max-height: 45vh;
   }
+  .ficha--colapsada { max-height: 44px; }
 }

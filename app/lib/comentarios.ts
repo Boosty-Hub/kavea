@@ -51,6 +51,39 @@ export const listarComentarios = cache(async (estado?: string): Promise<Comentar
   return (data ?? []) as unknown as Comentario[]
 })
 
+/**
+ * Un comentario y su hilo, para la vista de chat dentro de la Bandeja.
+ *
+ * `parent_id` guarda el `comment_id` de META, no el `id` (uuid) de la fila —
+ * así lo define la 0066—, así que las respuestas se buscan por ese campo y no
+ * por el id local.
+ */
+export const obtenerComentario = cache(async (id: string): Promise<Comentario | null> => {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('comentarios')
+    .select(
+      'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
+      'estado, oculto, respondido_en, created_at',
+    )
+    .eq('id', id)
+    .maybeSingle()
+  return (data as Comentario | null) ?? null
+})
+
+export const respuestasDe = cache(async (commentId: string): Promise<Comentario[]> => {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('comentarios')
+    .select(
+      'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
+      'estado, oculto, respondido_en, created_at',
+    )
+    .eq('parent_id', commentId)
+    .order('created_at', { ascending: true })
+  return (data ?? []) as unknown as Comentario[]
+})
+
 export const contarComentarios = cache(async (): Promise<Record<string, number>> => {
   const supabase = await crearClienteServidor()
   const { data } = await supabase.from('comentarios').select('estado')

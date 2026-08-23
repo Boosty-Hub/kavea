@@ -21,6 +21,16 @@
  * NO HAY REINTENTOS NI BACKOFF AQUÍ. Son llamadas de lectura y el cron pasa una
  * vez al día. Si Meta responde 500, la comprobación queda `no_verificable` con
  * la causa escrita, que es la verdad: no sabemos, no que esté roto.
+ *
+ * DOS FORMAS DE CONEXIÓN, DOS BATERÍAS DE PREGUNTAS.
+ *
+ * Página+Instagram y WABA+número no comparten ni un nodo del grafo: `/me` no
+ * significa nada para un número, y `/{phone-id}` no significa nada para una
+ * Página. Hasta el 21-ago-2026 esta función asumía siempre la forma de
+ * Página —el shape de `credencial_de_conexion`, `page_access_token_*`— y una
+ * conexión de WhatsApp reventaba en V4 con un `TypeError` sobre `null`. Se
+ * separan en dos baterías con los mismos siete códigos y el mismo contrato de
+ * vuelta, para que la pantalla no tenga que saber cuál es cuál.
  */
 
 import { descifrar, desdeHexPg } from '../_compartido/cripto.ts'
@@ -33,9 +43,13 @@ type Resultado = 'ok' | 'fallo' | 'no_verificable' | 'sin_probar'
 type Conexion = {
   id: string
   organization_id: string
-  page_id: string
+  page_id: string | null
   page_name: string | null
   ig_business_account_id: string | null
+  waba_id: string | null
+  phone_number_id: string | null
+  display_phone_number: string | null
+  verified_name: string | null
   /** Lo que se vio al conectar. No se puede releer: ver V2. */
   tasks: string[] | null
 }
@@ -102,6 +116,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   const resultados: Array<{ codigo: string; resultado: Resultado; causa: string | null }> = []
 
+  let conexion: Conexion
   async function anotar(
     codigo: string, titulo: string, resultado: Resultado,
     causa: string | null, crudo: unknown, bloquea = true,
@@ -119,10 +134,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }).catch(() => {})
   }
 
-  let conexion: Conexion
   try {
     conexion = (await sql<Conexion[]>(
-      `meta_connections?select=id,organization_id,page_id,page_name,ig_business_account_id,tasks`
+      `meta_connections?select=id,organization_id,page_id,page_name,ig_business_account_id,`
+      + `waba_id,phone_number_id,display_phone_number,verified_name,tasks`
       + `&id=eq.${conexionId}`,
     ))?.[0]
     if (!conexion) throw new Error('esa conexión no existe')
@@ -130,6 +145,49 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return new Response(JSON.stringify({ error: String(err) }), { status: 404 })
   }
 
+  const esWhatsapp = Boolean(conexion.phone_number_id)
+
+  if (esWhatsapp) await comprobarWhatsapp(conexion, anotar)
+  else await comprobarPagina(conexion, anotar)
+
+  return new Response(JSON.stringify({ conexion: conexion.id, resultados }), {
+    headers: { 'Content-Type': 'application/json' },
+  })
+})
+
+type Anotar = (
+  codigo: string, titulo: string, resultado: Resultado,
+  causa: string | null, crudo: unknown, bloquea?: boolean,
+) => Promise<void>
+
+/**
+ * V7 es común a las dos formas: no llama a Meta, mira si alguna vez entró algo
+ * por esta conexión. La pregunta y la consulta son idénticas para una Página o
+ * para un número.
+ */
+async function comprobarLlegoAlgo(conexion: Conexion, anotar: Anotar): Promise<boolean> {
+  // `!inner` no es adorno: sin él PostgREST no resuelve un filtro sobre una
+  // columna embebida y devuelve filas de más SIN dar error, que es la peor
+  // forma de equivocarse.
+  const entrantes = await sql<Array<{ id: string }>>(
+    `conversations?select=id,channels!inner(meta_connection_id)`
+    + `&channels.meta_connection_id=eq.${conexion.id}`
+    + `&last_incoming_at=not.is.null&limit=1`,
+  ).catch(() => [])
+  const llego = (entrantes?.length ?? 0) > 0
+  await anotar('V7', 'Ha llegado un mensaje real',
+    llego ? 'ok' : 'sin_probar',
+    llego ? null
+      : 'Todavía no ha entrado ningún mensaje por esta conexión. Es la única comprobación '
+        + 'que prueba el toggle «Permitir acceso a mensajes», que no expone ninguna API.',
+    null)
+  return llego
+}
+
+// ---------------------------------------------------------------------------
+// Página + Instagram
+// ---------------------------------------------------------------------------
+async function comprobarPagina(conexion: Conexion, anotar: Anotar): Promise<void> {
   // El token. Si no se puede descifrar, TODO lo demás es no_verificable: no hay
   // forma de saber si la Página está bien configurada sin poder preguntarlo, y
   // marcarlo como fallo mandaría a revisar la Página en vez de la credencial.
@@ -159,9 +217,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
         c === 'V4' ? `No se pudo leer la credencial: ${err}` : 'Sin token no se puede preguntar.',
         null, c === 'V4')
     }
-    return new Response(JSON.stringify({ conexion: conexion.id, resultados }), {
-      headers: { 'Content-Type': 'application/json' },
-    })
+    await anotar('V7', 'Ha llegado un mensaje real', 'no_verificable',
+      'Sin token no se puede completar el diagnóstico.', null, false)
+    return
   }
 
   // --- V1: la Página existe y este token la alcanza -------------------------
@@ -215,34 +273,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
     ig ?? null)
 
   // --- V4: el token sirve ----------------------------------------------------
-  // `debug_token` necesita el token de la APP, no el de la Página. Sin él no se
-  // puede preguntar: eso es `no_verificable`, no un fallo. Que V1 haya
-  // funcionado ya dice que el token vale para leer.
-  //
-  // Los nombres son los que YA usa el receptor de webhooks para verificar la
-  // firma. Inventar aquí un par nuevo dejaría dos variables con el mismo
-  // secreto dentro y una de ellas sin rotar el día que toque.
-  const appId = Deno.env.get('META_APP_ID')
-  const appSecret = Deno.env.get('META_APP_SECRET')
-  if (appId && appSecret) {
-    const d = await grafo(
-      `debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
-      token,
-    )
-    const dd = (d.cuerpo.data ?? {}) as { is_valid?: boolean; expires_at?: number; scopes?: string[] }
-    await anotar('V4', 'El token sirve',
-      d.ok && dd.is_valid ? 'ok' : 'fallo',
-      d.ok && dd.is_valid ? null : porque(d.cuerpo, d.http),
-      { is_valid: dd.is_valid, expires_at: dd.expires_at, scopes: dd.scopes })
-  } else {
-    await anotar('V4', 'El token sirve',
-      pagina.ok ? 'no_verificable' : 'fallo',
-      pagina.ok
+  const { valido, crudo } = await comprobarTokenDeApp(token, pagina)
+  await anotar('V4', 'El token sirve',
+    valido === null ? (pagina.ok ? 'no_verificable' : 'fallo') : valido ? 'ok' : 'fallo',
+    valido === null
+      ? (pagina.ok
         ? 'Sin el identificador y el secreto de la app no se puede llamar a debug_token. '
           + 'La lectura de la Página sí funcionó, así que el token vale al menos para leer.'
-        : porque(c, pagina.http),
-      null, !pagina.ok)
-  }
+        : porque(c, pagina.http))
+      : valido ? null : porque(crudo, 0),
+    valido === null ? null : crudo, valido === false)
 
   // --- V5: webhooks suscritos ------------------------------------------------
   // Que Meta ENTREGARÁ eventos. Sin esto la bandeja está muda y todo lo demás
@@ -283,26 +323,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     }).catch(() => {})
   }
 
-  // --- V7: ha llegado un mensaje de verdad ----------------------------------
-  // El árbitro. Todo lo anterior junto, incluido el toggle que ninguna API
-  // expone. No se llama a Meta: se mira si alguna vez entró algo por esta
-  // conexión, que es exactamente lo que la pregunta significa.
-  //
-  // `!inner` no es adorno: sin él PostgREST no resuelve un filtro sobre una
-  // columna embebida y devuelve filas de más SIN dar error, que es la peor
-  // forma de equivocarse.
-  const entrantes = await sql<Array<{ id: string }>>(
-    `conversations?select=id,channels!inner(meta_connection_id)`
-    + `&channels.meta_connection_id=eq.${conexion.id}`
-    + `&last_incoming_at=not.is.null&limit=1`,
-  ).catch(() => [])
-  const llego = (entrantes?.length ?? 0) > 0
-  await anotar('V7', 'Ha llegado un mensaje real',
-    llego ? 'ok' : 'sin_probar',
-    llego ? null
-      : 'Todavía no ha entrado ningún mensaje por esta conexión. Es la única comprobación '
-        + 'que prueba el toggle «Permitir acceso a mensajes», que no expone ninguna API.',
-    null)
+  // --- V7: ha llegado un mensaje de verdad -----------------------------------
+  await comprobarLlegoAlgo(conexion, anotar)
 
   await sql(`meta_connections?id=eq.${conexion.id}`, {
     method: 'PATCH',
@@ -311,8 +333,184 @@ Deno.serve(async (req: Request): Promise<Response> => {
       subscription_ok: apps.length > 0,
     }),
   }).catch(() => {})
+}
 
-  return new Response(JSON.stringify({ conexion: conexion.id, resultados }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
-})
+/**
+ * `debug_token` necesita el token de la APP, no el de la Página ni el de
+ * portafolio que usa WhatsApp. Compartido entre las dos baterías porque la
+ * pregunta —¿este token sigue vivo?— es la misma para cualquier credencial.
+ *
+ * Devuelve `valido: null` cuando no se puede preguntar (falta `META_APP_ID`
+ * o `META_APP_SECRET`), que es distinto de `false`.
+ */
+async function comprobarTokenDeApp(
+  token: string, lectura: { ok: boolean; http: number; cuerpo: Record<string, unknown> },
+): Promise<{ valido: boolean | null; crudo: Record<string, unknown> }> {
+  const appId = Deno.env.get('META_APP_ID')
+  const appSecret = Deno.env.get('META_APP_SECRET')
+  if (!appId || !appSecret) {
+    return { valido: lectura.ok ? null : false, crudo: lectura.ok ? {} : lectura.cuerpo }
+  }
+
+  const d = await grafo(
+    `debug_token?input_token=${encodeURIComponent(token)}&access_token=${appId}|${appSecret}`,
+    token,
+  )
+  const dd = (d.cuerpo.data ?? {}) as { is_valid?: boolean; expires_at?: number; scopes?: string[] }
+  return {
+    valido: Boolean(d.ok && dd.is_valid),
+    crudo: d.ok && dd.is_valid
+      ? { is_valid: dd.is_valid, expires_at: dd.expires_at, scopes: dd.scopes }
+      : d.cuerpo,
+  }
+}
+
+// ---------------------------------------------------------------------------
+// WABA + número de WhatsApp
+// ---------------------------------------------------------------------------
+async function comprobarWhatsapp(conexion: Conexion, anotar: Anotar): Promise<void> {
+  // El token es el de portafolio, guardado tal cual —no hay Page Access Token
+  // que derivar, WhatsApp no tiene esa forma—. Ver 0065 y la acción
+  // `credencial_whatsapp` de la función `portafolio`.
+  let token: string
+  try {
+    const cred = (await sql<Array<{
+      whatsapp_token_cipher: string
+      whatsapp_token_nonce: string
+      whatsapp_token_kid: string
+    }>>('rpc/credencial_whatsapp_de_conexion', {
+      method: 'POST',
+      body: JSON.stringify({ p_conexion: conexion.id }),
+    }))?.[0]
+    if (!cred?.whatsapp_token_cipher) throw new Error('no hay credencial de WhatsApp guardada para esta conexión')
+    token = await descifrar(
+      desdeHexPg(cred.whatsapp_token_cipher),
+      desdeHexPg(cred.whatsapp_token_nonce),
+      cred.whatsapp_token_kid,
+    )
+  } catch (err) {
+    for (const [c, t] of [
+      ['V1', 'El número existe y hay acceso'], ['V2', 'Número verificado'],
+      ['V3', 'Calidad del número'], ['V4', 'El token sirve'],
+      ['V5', 'Webhooks suscritos'], ['V6', 'Plataforma del número'],
+    ]) {
+      await anotar(c, t, c === 'V4' ? 'fallo' : 'no_verificable',
+        c === 'V4' ? `No se pudo leer la credencial: ${err}` : 'Sin token no se puede preguntar.',
+        null, c === 'V4')
+    }
+    await anotar('V7', 'Ha llegado un mensaje real', 'no_verificable',
+      'Sin token no se puede completar el diagnóstico.', null, false)
+    return
+  }
+
+  // --- V1: el número existe y este token lo alcanza --------------------------
+  const numero = await grafo(
+    `${conexion.phone_number_id}?fields=display_phone_number,verified_name,quality_rating,`
+    + `code_verification_status,platform_type,name_status`,
+    token,
+  )
+  const c = numero.cuerpo
+
+  await anotar('V1', 'El número existe y hay acceso',
+    numero.ok && c.display_phone_number ? 'ok' : 'fallo',
+    numero.ok && c.display_phone_number ? null : porque(c, numero.http),
+    { id: conexion.phone_number_id, display_phone_number: c.display_phone_number })
+
+  // --- V2: verificación del número --------------------------------------------
+  // Aviso, no bloqueo: un número puede enviar y recibir con la verificación de
+  // código pendiente. Lo que de verdad decide si funciona es V7.
+  const verificacion = c.code_verification_status as string | undefined
+  await anotar('V2', 'Número verificado',
+    !numero.ok ? 'no_verificable' : verificacion === 'VERIFIED' ? 'ok' : 'fallo',
+    !numero.ok ? 'No se pudo leer el número.'
+      : verificacion === 'VERIFIED' ? null
+      : `Meta lo marca como «${verificacion ?? 'sin dato'}». No siempre bloquea el envío: lo `
+        + 'decide V7.',
+    { code_verification_status: verificacion ?? null }, false)
+
+  // --- V3: calidad del número --------------------------------------------------
+  //
+  // `UNKNOWN` NO ES UN FALLO, ES AUSENCIA DE DATO.
+  //
+  // Meta solo asigna calidad cuando hay volumen: todo número recién registrado
+  // sale `UNKNOWN`, y la versión anterior de esta línea lo mandaba a `fallo`
+  // porque la cadena es truthy. Medido el 23-ago-2026 con +1 321-393-1397 a los
+  // dos minutos de registrarlo: rojo en el panel sobre un número sano, y encima
+  // con un texto que hablaba de amarillo y rojo sin venir a cuento. Es el mismo
+  // error que el contador de comentarios del 6-ago —un indicador que miente es
+  // peor que no tenerlo— y aquí además entrena a ignorar el panel justo el día
+  // que se conecta un canal.
+  const calidad = c.quality_rating as string | undefined
+  await anotar('V3', 'Calidad del número',
+    !numero.ok ? 'no_verificable'
+      : calidad === 'GREEN' ? 'ok'
+      : !calidad || calidad === 'UNKNOWN' ? 'sin_probar'
+      : 'fallo',
+    !numero.ok ? 'No se pudo leer el número.'
+      : calidad === 'GREEN' ? null
+      : !calidad || calidad === 'UNKNOWN'
+        ? 'Meta todavía no le ha puesto calidad: la asigna con volumen, así que un número '
+          + 'recién registrado siempre sale así. Vuelve a mirar cuando haya tráfico.'
+        : `Meta la marca «${calidad}». Un número puede seguir enviando en amarillo; en rojo, no.`,
+    { quality_rating: calidad ?? null }, false)
+
+  // --- V4: el token sirve -------------------------------------------------------
+  const { valido, crudo } = await comprobarTokenDeApp(token, numero)
+  await anotar('V4', 'El token sirve',
+    valido === null ? (numero.ok ? 'no_verificable' : 'fallo') : valido ? 'ok' : 'fallo',
+    valido === null
+      ? (numero.ok
+        ? 'Sin el identificador y el secreto de la app no se puede llamar a debug_token. '
+          + 'La lectura del número sí funcionó, así que el token vale al menos para leer.'
+        : porque(c, numero.http))
+      : valido ? null : porque(crudo, 0),
+    valido === null ? null : crudo, valido === false)
+
+  // --- V5: webhooks suscritos, A NIVEL DE WABA, no de número ------------------
+  // Es la comprobación que faltaba hasta hoy y la que de verdad importa: la
+  // app se suscribe a la WABA entera, no número a número.
+  const subs = await grafo(`${conexion.waba_id}/subscribed_apps`, token)
+  const apps = (subs.cuerpo.data ?? []) as Array<{ whatsapp_business_api_data?: { id?: string } }>
+  await anotar('V5', 'Webhooks suscritos',
+    !subs.ok ? 'no_verificable' : apps.length ? 'ok' : 'fallo',
+    !subs.ok ? porque(subs.cuerpo, subs.http)
+      : apps.length ? null
+      : 'La app de Kavea no aparece suscrita a esta WABA. Meta no va a entregar ningún '
+        + 'evento. Se suscribe con POST /{waba-id}/subscribed_apps.',
+    { apps: apps.length })
+
+  // --- V6: la plataforma del número --------------------------------------------
+  // NUNCA BLOQUEA, Y ES A PROPÓSITO INFORMATIVO. `platform_type` distingue
+  // Cloud API de On-Premise, y un número en Coexistence puede devolver
+  // `ON_PREMISE` sin que eso signifique que los webhooks de Cloud API no
+  // lleguen. El único árbitro real de si el canal funciona es V7.
+  //
+  // CORREGIDO EL 23-AGO-2026. Este comentario decía «medido el 21-ago-2026 con
+  // el número de Gabriel, que sí recibe». No se midió nada: por ese número no
+  // entró jamás un solo mensaje —V7 en `sin_probar`, cero eventos de WhatsApp
+  // en `webhook_events`— y el 23-ago se comprobó que su WABA y su número ya no
+  // existen en Graph. Se escribió como hecho una suposición, que es justo lo
+  // que la regla de la bitácora prohíbe.
+  const plataforma = c.platform_type as string | undefined
+  await anotar('V6', 'Plataforma del número',
+    !numero.ok ? 'no_verificable' : 'no_verificable',
+    !numero.ok ? 'No se pudo leer el número.'
+      : plataforma === 'ON_PREMISE'
+        ? 'Meta lo reporta como ON_PREMISE. Puede ser un número migrado a medias, o uno en '
+          + 'Coexistence —vinculado desde el celular sin desconectarlo—: los dos valen aquí. '
+          + 'V7 dice si de verdad entrega.'
+        : `Meta lo reporta como ${plataforma ?? 'sin dato'}.`,
+    { platform_type: plataforma ?? null }, false)
+
+  // --- V7: ha llegado un mensaje de verdad -----------------------------------
+  await comprobarLlegoAlgo(conexion, anotar)
+
+  await sql(`meta_connections?id=eq.${conexion.id}`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      last_subscription_check_at: new Date().toISOString(),
+      subscription_ok: apps.length > 0,
+      name_status: (c.name_status as string | undefined) ?? null,
+    }),
+  }).catch(() => {})
+}

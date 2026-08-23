@@ -25,6 +25,14 @@ export type ConversacionDeTarjeta = {
   last_message_at: string | null
   en_standby: boolean
   cerrada_en: string | null
+  /**
+   * El canal CONCRETO por el que va esta conversación: «+1 321-393-1397»,
+   * «@boosty.digital». Desde la 0082 una organización puede tener dos números
+   * de WhatsApp, y entonces `canal` ya no identifica por dónde se responde:
+   * las dos conversaciones dirían «WhatsApp» y saldrían por conexiones
+   * distintas. Quien atiende tiene que verlo antes de escribir, no después.
+   */
+  channels: { nombre: string | null } | null
 }
 
 export type FilaBandeja = {
@@ -118,7 +126,7 @@ export const obtenerTarjeta = cache(async (id: string) => {
       'id, estado, titulo, asignado_a, no_leidos, last_message_at, cerrada_en, ' +
       'embudo_id, etapa_id, valor, moneda, ' +
       'contacts(id, nombre, username, profile_pic_url, foto_ruta), ' +
-      'conversations(id, canal, last_incoming_at, last_message_at, en_standby, cerrada_en)',
+      'conversations(id, canal, last_incoming_at, last_message_at, en_standby, cerrada_en, channels(nombre))',
     )
     .eq('id', id)
     .maybeSingle()

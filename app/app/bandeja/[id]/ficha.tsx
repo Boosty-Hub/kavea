@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
@@ -9,6 +9,8 @@ import type { Archivo, Documento, ResumenComercial } from '@/lib/comercial'
 import { etiquetaCanal, terminoSeguro, colorCanal } from '@/lib/ventana'
 import { Archivos } from './archivos'
 import { Compras } from './compras'
+
+const CLAVE_COLAPSO = 'kavea:hilo-ficha-colapsada'
 
 const PESTANAS = [
   { clave: 'datos', etiqueta: 'Datos' },
@@ -55,6 +57,23 @@ export function Ficha({
   const [error, setError] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState(false)
 
+  // Colapsable para dejarle más ancho a la conversación. Preferencia del
+  // aparato, mismo patrón que el sidebar y la cabecera del hilo: arranca
+  // expandida hasta montar, para no producir una discordancia de hidratación.
+  const [colapsada, setColapsada] = useState(false)
+  const [montada, setMontada] = useState(false)
+  useEffect(() => {
+    try {
+      setColapsada(window.localStorage.getItem(CLAVE_COLAPSO) === '1')
+    } catch { /* modo privado: se queda expandida */ }
+    setMontada(true)
+  }, [])
+  function alternarColapso() {
+    const v = !colapsada
+    setColapsada(v)
+    try { window.localStorage.setItem(CLAVE_COLAPSO, v ? '1' : '0') } catch { /* ver arriba */ }
+  }
+
   /**
    * La pestaña activa va en la URL, no en un useState.
    *
@@ -80,7 +99,34 @@ export function Ficha({
   }
 
   return (
-    <aside className="ficha" aria-label="Ficha de la conversación">
+    <aside
+      className={`ficha${colapsada ? ' ficha--colapsada' : ''}`}
+      aria-label="Ficha de la conversación"
+      style={{ transition: montada ? 'flex-basis .14s ease, width .14s ease' : 'none' }}
+    >
+      <button
+        type="button"
+        onClick={alternarColapso}
+        aria-expanded={!colapsada}
+        title={colapsada ? 'Expandir la ficha' : 'Colapsar la ficha'}
+        style={{
+          border: '1px solid var(--k-border)',
+          background: 'none',
+          borderRadius: 6,
+          cursor: 'pointer',
+          color: 'var(--k-text-2)',
+          font: 'inherit',
+          fontSize: 13,
+          padding: '4px 8px',
+          lineHeight: 1,
+          alignSelf: colapsada ? 'center' : 'flex-end',
+        }}
+      >
+        {colapsada ? '‹' : '›'}
+      </button>
+
+      {colapsada ? null : (
+      <>
       <div className="pestanas" role="tablist" aria-label="Secciones de la ficha">
         {PESTANAS.map((p) => (
           <button
@@ -218,6 +264,8 @@ export function Ficha({
 
       <Unir tarjetaId={tarjetaId} ocupado={ocupado} llamar={llamar} />
       </div>
+      </>
+      )}
     </aside>
   )
 }

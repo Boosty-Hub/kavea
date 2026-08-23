@@ -6,6 +6,8 @@ import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
 import { Buscador } from './buscador'
+import { PestanasVista } from './pestanas-vista'
+import { ListaComentarios } from './comentario/lista'
 import { Notificaciones } from '../notificaciones'
 import { misNotificaciones, sinLeer } from '@/lib/agenda'
 
@@ -22,7 +24,7 @@ const FILTROS: Array<{ clave: string; etiqueta: string }> = [
 export default async function Bandeja({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; canal?: string }>
+  searchParams: Promise<{ estado?: string; canal?: string; vista?: string }>
 }) {
   if ((await superficieActual()) !== 'app') notFound()
   if (!(await usuarioActual())) redirect('/entrar')
@@ -36,7 +38,27 @@ export default async function Bandeja({
   const huso = org.zona_horaria ?? HUSO_POR_DEFECTO
 
   const sp = await searchParams
+  const vista = sp.vista === 'comentarios' ? 'comentarios' : 'conversaciones'
   const estado = sp.estado ?? 'todas'
+
+  if (vista === 'comentarios') {
+    const [avisos, pendientes] = await Promise.all([misNotificaciones(), sinLeer()])
+    return (
+      <div className="bandeja">
+        <ListaComentarios org={org} huso={huso} avisos={avisos} pendientes={pendientes} estado={sp.estado} />
+
+        <section className="bandeja__hilo">
+          <div className="vacio">
+            <h2>Elige un comentario</h2>
+            <p>
+              Son públicos: lo que respondas aquí lo lee cualquiera que pase por la
+              publicación. No hay ventana de 24 h porque no son mensajes privados.
+            </p>
+          </div>
+        </section>
+      </div>
+    )
+  }
 
   const [tarjetas, conteos, avisos, pendientes] = await Promise.all([
     listarTarjetas({ estado, canal: sp.canal }),
@@ -51,19 +73,10 @@ export default async function Bandeja({
 
       <section className="bandeja__lista" aria-label="Conversaciones">
         <header className="bandeja__cabecera">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <p className="label">{org.nombre}</p>
-            <span style={{ fontSize: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
-              <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
-              <Link href="/agenda" style={{ color: 'var(--k-text-2)' }}>Agenda</Link>
-              {/* A la organización, no a Campos: es la primera de las seis y la
-                  que hace de portada. Entrar en Ajustes y aterrizar en un
-                  formulario de campos personalizados no dice dónde estás. */}
-              <Link href="/ajustes/organizacion" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
-              <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} huso={huso} />
-            </span>
-          </div>
+          <Cabeza org={org} huso={huso} avisos={avisos} pendientes={pendientes} />
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
+
+          <PestanasVista activa="conversaciones" />
 
           <Buscador huso={huso} />
 
@@ -97,6 +110,30 @@ export default async function Bandeja({
           <p>Los mensajes, lo que ocurre en Meta y lo que hace el equipo se ven en un solo hilo.</p>
         </div>
       </section>
+    </div>
+  )
+}
+
+function Cabeza({
+  org, huso, avisos, pendientes,
+}: {
+  org: { id: string; nombre: string }
+  huso: string
+  avisos: Awaited<ReturnType<typeof misNotificaciones>>
+  pendientes: number
+}) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <p className="label">{org.nombre}</p>
+      <span style={{ fontSize: 12, display: 'flex', gap: 10, alignItems: 'center' }}>
+        <Link href="/embudo" style={{ color: 'var(--k-text-2)' }}>Embudo</Link>
+        <Link href="/agenda" style={{ color: 'var(--k-text-2)' }}>Agenda</Link>
+        {/* A la organización, no a Campos: es la primera de las seis y la
+            que hace de portada. Entrar en Ajustes y aterrizar en un
+            formulario de campos personalizados no dice dónde estás. */}
+        <Link href="/ajustes/organizacion" style={{ color: 'var(--k-text-2)' }}>Ajustes</Link>
+        <Notificaciones iniciales={avisos} sinLeerInicial={pendientes} organizacionId={org.id} huso={huso} />
+      </span>
     </div>
   )
 }

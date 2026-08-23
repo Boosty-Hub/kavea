@@ -25,10 +25,13 @@ import {
 } from '@/lib/ventana'
 import { hora as enHuso, HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Refrescador } from '../refrescador'
+import { PestanasVista } from '../pestanas-vista'
 import { Adjuntos } from './adjunto'
 import { Ficha } from './ficha'
 import { AlFinal } from './alfinal'
+import { Cabecera } from './cabecera'
 import { Compositor } from './compositor'
+import { MarcarLeido } from './marcar-leido'
 import { Operar } from './operar'
 import { Perfil } from './perfil'
 import { describirActividad } from '@/lib/actividad'
@@ -98,16 +101,20 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
 
   // Lo consumen el compositor y la pestaña de archivos: los dos sitios desde los
   // que sale algo hacia Meta, y los dos con la misma verdad sobre la ventana.
-  const canalesVivos = vivas.map((c, i) => ({ id: c.id, canal: c.canal, ventana: ventanas[i]! }))
+  const canalesVivos = vivas.map((c, i) => ({
+    id: c.id, canal: c.canal, nombre: c.channels?.nombre ?? null, ventana: ventanas[i]!,
+  }))
 
   return (
     <div className="bandeja bandeja--hilo">
       <Refrescador organizationId={org.id} />
+      {convIds[0] ? <MarcarLeido conversacionId={convIds[0]} /> : null}
 
       <section className="bandeja__lista" aria-label="Conversaciones">
         <header className="bandeja__cabecera">
           <p className="label">{org.nombre}</p>
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
+          <PestanasVista activa="conversaciones" />
           <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '8px 0 0' }}>
             {conteos.todas ?? 0} abiertas
           </p>
@@ -146,43 +153,35 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       </section>
 
       <section className="bandeja__hilo" aria-label={`Conversación con ${nombre}`}>
-        <header className="hilo__cabecera">
-          <div>
-            <Link href="/bandeja" style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
-              ← Bandeja
-            </Link>
-            <div style={{ marginTop: 4 }}>
-              <Perfil
-                nombre={nombre}
-                username={tarjeta.contacts?.username ?? null}
-                fotoRuta={tarjeta.contacts?.foto_ruta ?? null}
-              />
-            </div>
-            <div className="canales">
-              {vivas.map((c) => (
-                <Ventana key={c.id} c={c} />
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Operar
-              tarjetaId={id}
-              estado={tarjeta.estado}
-              asignadoA={tarjeta.asignado_a}
-              miembros={miembros}
+        <Cabecera
+          perfil={
+            <Perfil
+              nombre={nombre}
+              username={tarjeta.contacts?.username ?? null}
+              fotoRuta={tarjeta.contacts?.foto_ruta ?? null}
             />
-            {vivas.some((c) => c.en_standby) ? (
-              <span
-                className="pildora"
-                style={{ background: 'var(--k-esperando-bg)', color: 'var(--k-esperando-fg)' }}
-                title="Otra aplicación es dueña del hilo. Kavea recibe por standby y no puede responder."
-              >
-                En standby
-              </span>
-            ) : null}
-          </div>
-        </header>
+          }
+          ventanas={vivas.map((c) => <Ventana key={c.id} c={c} />)}
+          acciones={
+            <>
+              <Operar
+                tarjetaId={id}
+                estado={tarjeta.estado}
+                asignadoA={tarjeta.asignado_a}
+                miembros={miembros}
+              />
+              {vivas.some((c) => c.en_standby) ? (
+                <span
+                  className="pildora"
+                  style={{ background: 'var(--k-esperando-bg)', color: 'var(--k-esperando-fg)' }}
+                  title="Otra aplicación es dueña del hilo. Kavea recibe por standby y no puede responder."
+                >
+                  En standby
+                </span>
+              ) : null}
+            </>
+          }
+        />
 
         <div className="hilo-con-ficha">
           <div className="hilo__cuerpo">
@@ -255,12 +254,23 @@ function marcarCortes(entradas: EntradaHilo[], multicanal: boolean) {
   })
 }
 
-/** La ventana de servicio de una conversación, con su canal delante. */
+/**
+ * La ventana de servicio de una conversación, con su canal delante.
+ *
+ * El nombre del canal concreto va en el `title` y no en la píldora: con dos
+ * números de WhatsApp hacen falta dos píldoras que ya se distinguen por su
+ * ventana, y meter el número entero en cada una desborda la cabecera. Donde
+ * sí va escrito siempre es en el compositor, que es donde se decide.
+ */
 function Ventana({ c }: { c: ConversacionDeTarjeta }) {
   const v = calcularVentana(c.last_incoming_at)
   const cv = COLOR_VENTANA[v.clase]
+  const nombre = c.channels?.nombre
   return (
-    <span className="canal-chip" title={v.detalle}>
+    <span
+      className="canal-chip"
+      title={nombre ? `${nombre} — ${v.detalle}` : v.detalle}
+    >
       <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
       {etiquetaCanal(c.canal)}
       <span style={{ color: cv.fg }}>

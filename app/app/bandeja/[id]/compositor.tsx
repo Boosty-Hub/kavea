@@ -27,12 +27,27 @@ import { etiquetaCanal, colorCanal } from '@/lib/ventana'
 
 type Ventana = { clase: 'abierta' | 'humana' | 'cerrada'; motivo: string | null }
 
+/**
+ * Por dónde sale la respuesta, escrito entero.
+ *
+ * Desde la 0082 una organización puede tener dos números de WhatsApp, y cada
+ * conversación sale por el suyo: `encolar_envio` saca la conexión de
+ * `conversations.channel_id`. Con solo «WhatsApp» en pantalla, las dos se leen
+ * igual y por cuál se contesta queda a la suerte de cuál eligió el selector.
+ * El 23-ago-2026 eso mandó un mensaje al hilo de un número desconectado.
+ */
+function porDonde(c: { canal: string; nombre: string | null }) {
+  return c.nombre ? `${etiquetaCanal(c.canal)} · ${c.nombre}` : etiquetaCanal(c.canal)
+}
+
 export function Compositor({
   conversaciones, tarjetaId, plantillas,
 }: {
   conversaciones: Array<{
     id: string
     canal: string
+    /** El canal concreto: «+1 321-393-1397», «@boosty.digital». Puede faltar. */
+    nombre: string | null
     ventana: Ventana
   }>
   tarjetaId: string
@@ -107,7 +122,7 @@ export function Compositor({
               title={c.ventana.motivo ?? 'Se puede responder'}
             >
               <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
-              {etiquetaCanal(c.canal)}
+              {porDonde(c)}
               {c.ventana.clase !== 'abierta' ? (
                 <span style={{ color: 'var(--k-text-2)' }}>
                   {c.ventana.clase === 'humana' ? 'fuera de ventana' : 'cerrado'}
@@ -116,7 +131,21 @@ export function Compositor({
             </button>
           ))}
         </div>
-      ) : null}
+      ) : (
+        // Con un solo canal no hay selector, y el marcador de posición se va en
+        // cuanto se escribe la primera letra. Esta línea se queda.
+        <p
+          className="compositor__canales"
+          style={{ color: 'var(--k-text-2)', fontSize: 12, margin: 0 }}
+        >
+          <span
+            className="pildora__punto"
+            style={{ background: colorCanal(conv.canal), marginRight: 6 }}
+            aria-hidden="true"
+          />
+          Respondes por {porDonde(conv)}
+        </p>
+      )}
 
       {conv.ventana.motivo ? (
         <p
@@ -156,7 +185,7 @@ export function Compositor({
           placeholder={
             cerrada
               ? 'No se puede responder por este canal'
-              : `Responder por ${etiquetaCanal(conv.canal)}`
+              : `Responder por ${porDonde(conv)}`
           }
           aria-label="Mensaje"
           onKeyDown={(e) => {

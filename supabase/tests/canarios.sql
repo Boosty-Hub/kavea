@@ -194,4 +194,53 @@ begin
   end if;
 end $$;
 
-\echo 'Canarios: los siete pasan.'
+-- C8 -------------------------------------------------------------------------
+-- Ninguna función SECURITY DEFINER de public/private ejecutable por PUBLIC,
+-- salvo las cinco de la lista.
+--
+-- POR QUÉ EXISTE ESTE CANARIO. Postgres concede EXECUTE a `public` en toda
+-- función nueva, y `anon` hereda de `public`. Siete migraciones escribieron
+-- `revoke all on function ... from anon` creyendo que cerraban la puerta: no
+-- quita nada, porque el permiso no venía de `anon` sino de `public`. El
+-- 23-ago-2026 eso dejaba `credencial_whatsapp_de_conexion` respondiendo el
+-- blob cifrado del token a cualquiera con la clave publicable —la que va en el
+-- bundle del navegador— y `guardar_credencial_whatsapp` aceptando escrituras
+-- sin autenticar. Cerrado en la 0084. La forma correcta es
+-- `revoke ... from public, anon`.
+--
+-- LAS CINCO EXCEPCIONES son las que se ejecutan DENTRO de las políticas de
+-- RLS, con el rol de quien consulta: quitarles `public` haría que una consulta
+-- de `anon` fallara con «permission denied» en vez de devolver cero filas.
+-- Solo devuelven booleanos sobre el `auth.uid()` de quien llama, así que no
+-- hay nada que filtrar. `rls_auto_enable` es de trigger de evento.
+--
+-- Si añades una función a esta lista, que sea porque no lee ni escribe datos
+-- de un tenant, no porque el canario molesta.
+do $$
+declare v_fallos text;
+begin
+  select string_agg(n.nspname || '.' || p.proname, ', ')
+    into v_fallos
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where n.nspname in ('public', 'private')
+     and p.prosecdef
+     and p.proacl is not null
+     and exists (
+       select 1 from aclexplode(p.proacl) a
+        where a.grantee = 0 and a.privilege_type = 'EXECUTE'
+     )
+     -- Las de las extensiones no las gobernamos nosotros.
+     and not exists (
+       select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'
+     )
+     and p.proname not in (
+       'es_miembro', 'es_owner', 'es_staff', 'org_ids_con_grant', 'rls_auto_enable'
+     );
+
+  if v_fallos is not null then
+    raise exception 'C8: security definer ejecutable por PUBLIC (revoca de public, no solo de anon): %', v_fallos;
+  end if;
+end $$;
+
+\echo 'Canarios: los ocho pasan.'

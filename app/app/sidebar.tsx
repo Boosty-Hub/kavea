@@ -30,23 +30,46 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { crearClienteNavegador } from '@/lib/supabase/navegador'
 
 type Entrada = { href: string; etiqueta: string; icono: string }
+type Seccion = { id: string; titulo: string; entradas: Entrada[] }
 
 /**
- * El orden es el del trabajo, no alfabético: primero donde se atiende, después
- * donde se organiza, y al final lo que se configura una vez al mes.
+ * Por secciones, y el orden de cada sección es el del trabajo: primero el
+ * proceso comercial y la atención del día, después lo que se organiza, y al
+ * final lo que se configura una vez al mes.
+ *
+ * Comentarios ya no es una entrada de primer nivel: entra como pestaña dentro
+ * de la Bandeja (`app/bandeja/[id]/page.tsx` y `app/bandeja/page.tsx`), porque
+ * es el mismo tipo de trabajo —atender a alguien— aunque la respuesta sea
+ * pública y no tenga ventana de 24 h.
  */
-const CLIENTE: Entrada[] = [
-  { href: '/bandeja', etiqueta: 'Bandeja', icono: '◧' },
-  // Justo debajo de la bandeja y no al final: es lo segundo que se atiende, y
-  // separarlo de la bandeja es lo que recuerda que uno es privado y otro público.
-  { href: '/comentarios', etiqueta: 'Comentarios', icono: '❝' },
-  { href: '/embudo', etiqueta: 'Embudo', icono: '▤' },
-  { href: '/agenda', etiqueta: 'Agenda', icono: '▦' },
-  { href: '/contactos', etiqueta: 'Contactos', icono: '◍' },
-  { href: '/actividad', etiqueta: 'Actividad', icono: '◷' },
-  { href: '/ajustes/organizacion', etiqueta: 'Ajustes', icono: '◎' },
+const SECCIONES_CLIENTE: Seccion[] = [
+  {
+    id: 'trabajo',
+    titulo: 'Trabajo',
+    entradas: [
+      { href: '/embudo', etiqueta: 'Embudo', icono: '▤' },
+      { href: '/bandeja', etiqueta: 'Bandeja', icono: '◧' },
+      { href: '/agenda', etiqueta: 'Agenda', icono: '▦' },
+    ],
+  },
+  {
+    id: 'datos',
+    titulo: 'Datos',
+    entradas: [
+      { href: '/contactos', etiqueta: 'Contactos', icono: '◍' },
+      { href: '/actividad', etiqueta: 'Actividad', icono: '◷' },
+    ],
+  },
+  {
+    id: 'cuenta',
+    titulo: 'Cuenta',
+    entradas: [
+      { href: '/ajustes/organizacion', etiqueta: 'Ajustes', icono: '◎' },
+    ],
+  },
 ]
 
 const ADMIN: Entrada[] = [
@@ -71,6 +94,54 @@ function sinMenu(ruta: string): boolean {
 }
 
 const CLAVE = 'kavea:menu-colapsado'
+const CLAVE_SECCIONES = 'kavea:menu-secciones-colapsadas'
+
+/**
+ * Sección de la navegación, colapsable independientemente del menú entero.
+ *
+ * Solo tiene sentido con el menú expandido: en modo icono ya no hay título que
+ * plegar, así que ahí se ignora y se pintan las entradas planas — es el mismo
+ * criterio que ya usa la etiqueta de cada enlace.
+ */
+function SeccionNav({
+  seccion, colapsada, alternar, children,
+}: {
+  seccion: Seccion
+  colapsada: boolean
+  alternar: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={alternar}
+        aria-expanded={!colapsada}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          width: '100%',
+          background: 'none',
+          border: 0,
+          cursor: 'pointer',
+          font: 'inherit',
+          padding: '6px 10px',
+          marginTop: 6,
+          color: 'var(--k-text-2)',
+          fontSize: 11,
+          fontWeight: 500,
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+        }}
+      >
+        {seccion.titulo}
+        <span aria-hidden="true" style={{ fontSize: 10 }}>{colapsada ? '▸' : '▾'}</span>
+      </button>
+      {colapsada ? null : children}
+    </div>
+  )
+}
 
 export function Sidebar() {
   const ruta = usePathname() ?? '/'
@@ -80,6 +151,35 @@ export function Sidebar() {
   // compara los dos árboles. Ya pasó una vez en el calendario, con un #418.
   const [colapsado, setColapsado] = useState(false)
   const [montado, setMontado] = useState(false)
+  const [seccionesColapsadas, setSeccionesColapsadas] = useState<Set<string>>(new Set())
+  const [noLeidos, setNoLeidos] = useState(0)
+
+  const enPanelAdmin = ruta.startsWith('/admin')
+
+  // El total de no leídos de toda la bandeja, para la píldora del enlace.
+  // Cliente y no servidor: el layout que envuelve al Sidebar es compartido por
+  // rutas con y sin sesión, así que resolver la organización ahí arriesga
+  // romper `/entrar`. RLS ya limita la consulta a lo que el usuario puede ver,
+  // igual que en `lib/bandeja.ts`. Sin canal de Broadcast propio —el Sidebar no
+  // conoce el id de la organización— así que se refresca al cambiar de ruta y
+  // con un sondeo, igual que la seguridad de `Refrescador`.
+  useEffect(() => {
+    if (enPanelAdmin || sinMenu(ruta)) return
+    let vivo = true
+    async function cargar() {
+      const { data, error } = await crearClienteNavegador()
+        .from('tarjetas')
+        .select('no_leidos')
+        .neq('estado', 'cerrada')
+        .gt('no_leidos', 0)
+      if (error) console.error('[sidebar] no_leidos', error)
+      if (!vivo) return
+      setNoLeidos((data ?? []).reduce((s, t: { no_leidos: number }) => s + t.no_leidos, 0))
+    }
+    cargar()
+    const reloj = setInterval(cargar, 30_000)
+    return () => { vivo = false; clearInterval(reloj) }
+  }, [ruta, enPanelAdmin])
 
   useEffect(() => {
     try {
@@ -107,6 +207,10 @@ export function Sidebar() {
       // Modo privado o almacenamiento bloqueado: se queda expandido y no se
       // rompe nada. Una preferencia no vale una pantalla en blanco.
     }
+    try {
+      const guardadas = window.localStorage.getItem(CLAVE_SECCIONES)
+      if (guardadas) setSeccionesColapsadas(new Set(guardadas.split(',').filter(Boolean)))
+    } catch { /* ver arriba */ }
     setMontado(true)
   }, [])
 
@@ -118,14 +222,81 @@ export function Sidebar() {
     } catch { /* ver arriba */ }
   }
 
+  function alternarSeccion(id: string) {
+    setSeccionesColapsadas((prev) => {
+      const siguiente = new Set(prev)
+      if (siguiente.has(id)) siguiente.delete(id); else siguiente.add(id)
+      try {
+        window.localStorage.setItem(CLAVE_SECCIONES, [...siguiente].join(','))
+      } catch { /* ver arriba */ }
+      return siguiente
+    })
+  }
+
   if (sinMenu(ruta)) return null
 
-  const entradas = ruta.startsWith('/admin') ? ADMIN : CLIENTE
   const ancho = colapsado ? 60 : 216
+
+  function EnlaceModulo({ e }: { e: Entrada }) {
+    // UNA regla, no tres.
+    //
+    // `/admin` se compara EXACTA porque es prefijo de las otras seis del
+    // panel: con `startsWith`, «Salud» saldría activa en las siete pantallas.
+    // El resto se compara por su primer segmento, que es lo que hace que
+    // `/ajustes/organizacion` quede activo en las seis pantallas de ajustes y
+    // `/bandeja` en `/bandeja/<id>`.
+    const seccionRuta = '/' + e.href.split('/')[1]
+    const activo = e.href === '/admin'
+      ? ruta === '/admin'
+      : ruta === seccionRuta || ruta.startsWith(seccionRuta + '/')
+    const pildora = e.href === '/bandeja' && noLeidos > 0 ? noLeidos : null
+
+    return (
+      <Link
+        href={e.href}
+        aria-current={activo ? 'page' : undefined}
+        title={colapsado ? `${e.etiqueta}${pildora ? ` · ${pildora} sin leer` : ''}` : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          padding: '8px 10px',
+          borderRadius: 6,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          color: activo ? 'var(--k-text)' : 'var(--k-text-2)',
+          fontWeight: activo ? 500 : 400,
+          background: activo ? 'var(--k-activo, rgba(0,0,0,.05))' : 'transparent',
+        }}
+      >
+        <span aria-hidden="true" style={{ width: 16, textAlign: 'center', flexShrink: 0, position: 'relative' }}>
+          {e.icono}
+          {/* En modo icono la píldora se convierte en un punto: un número de
+              tres cifras no cabe sobre 16 px de ancho. */}
+          {pildora && colapsado ? (
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute', top: -2, right: -4, width: 7, height: 7,
+                borderRadius: 999, background: 'var(--k-escalada-fg, #b3261e)',
+              }}
+            />
+          ) : null}
+        </span>
+        {/* La etiqueta se quita del árbol al colapsar en vez de ocultarse con
+            CSS: un lector de pantalla leería siete nombres invisibles. */}
+        {!colapsado && <span style={{ flex: 1, minWidth: 0 }}>{e.etiqueta}</span>}
+        {pildora && !colapsado ? (
+          <span className="sinleer" aria-label={`${pildora} sin leer`}>{pildora}</span>
+        ) : null}
+      </Link>
+    )
+  }
 
   return (
     <nav
-      aria-label={ruta.startsWith('/admin') ? 'Panel interno' : 'Módulos'}
+      aria-label={enPanelAdmin ? 'Panel interno' : 'Módulos'}
       style={{
         width: ancho,
         minWidth: ancho,
@@ -167,48 +338,27 @@ export function Sidebar() {
         {!colapsado && <span style={{ marginLeft: 10, fontSize: 13 }}>Kavea</span>}
       </button>
 
-      {entradas.map((e) => {
-        // UNA regla, no tres.
-        //
-        // `/admin` se compara EXACTA porque es prefijo de las otras seis del
-        // panel: con `startsWith`, «Salud» saldría activa en las siete pantallas.
-        // El resto se compara por su primer segmento, que es lo que hace que
-        // `/ajustes/organizacion` quede activo en las seis pantallas de ajustes y
-        // `/bandeja` en `/bandeja/<id>`.
-        const seccion = '/' + e.href.split('/')[1]
-        const activo = e.href === '/admin'
-          ? ruta === '/admin'
-          : ruta === seccion || ruta.startsWith(seccion + '/')
-
-        return (
-          <Link
-            key={e.href}
-            href={e.href}
-            aria-current={activo ? 'page' : undefined}
-            title={colapsado ? e.etiqueta : undefined}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 11,
-              padding: '8px 10px',
-              borderRadius: 6,
-              textDecoration: 'none',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              color: activo ? 'var(--k-text)' : 'var(--k-text-2)',
-              fontWeight: activo ? 500 : 400,
-              background: activo ? 'var(--k-activo, rgba(0,0,0,.05))' : 'transparent',
-            }}
+      {enPanelAdmin ? (
+        ADMIN.map((e) => <EnlaceModulo key={e.href} e={e} />)
+      ) : colapsado ? (
+        // En modo icono las secciones no aportan nada que plegar: se pintan
+        // planas, en el mismo orden, para no obligar a expandir el menú
+        // entero solo para ver el segundo grupo.
+        SECCIONES_CLIENTE.flatMap((s) => s.entradas).map((e) => <EnlaceModulo key={e.href} e={e} />)
+      ) : (
+        SECCIONES_CLIENTE.map((s) => (
+          <SeccionNav
+            key={s.id}
+            seccion={s}
+            colapsada={seccionesColapsadas.has(s.id)}
+            alternar={() => alternarSeccion(s.id)}
           >
-            <span aria-hidden="true" style={{ width: 16, textAlign: 'center', flexShrink: 0 }}>
-              {e.icono}
-            </span>
-            {/* La etiqueta se quita del árbol al colapsar en vez de ocultarse con
-                CSS: un lector de pantalla leería siete nombres invisibles. */}
-            {!colapsado && <span>{e.etiqueta}</span>}
-          </Link>
-        )
-      })}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {s.entradas.map((e) => <EnlaceModulo key={e.href} e={e} />)}
+            </div>
+          </SeccionNav>
+        ))
+      )}
     </nav>
   )
 }

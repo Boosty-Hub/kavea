@@ -95,7 +95,9 @@ async function listarPaginas(): Promise<Pagina[]> {
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
-  let cuerpo: { accion?: string; page_id?: string; organizacion?: string; conexion?: string }
+  let cuerpo: {
+    accion?: string; page_id?: string; waba_id?: string; organizacion?: string; conexion?: string
+  }
   try {
     cuerpo = await req.json()
   } catch {
@@ -272,6 +274,41 @@ Deno.serve(async (req: Request): Promise<Response> => {
         // en rojo. Borrar la conexión perdería la credencial recién cifrada.
         aviso: js.success ? null : (js.error?.message ?? 'La suscripción no confirmó.'),
       })
+    }
+
+    // --- desuscribir ---------------------------------------------------------
+    //
+    // El paso con Meta al desconectar un canal. Se llama DESPUÉS de que
+    // `desconectar_conexion` ya limpió la base de Kavea — si esto falla, la
+    // conexión sigue igual de desconectada aquí: solo le queda a Meta mandando
+    // webhooks que ya no encuentran ruta. Por eso es un aviso, no un error que
+    // el llamante tenga que reintentar.
+    //
+    // Página y WABA se dan de baja con tokens distintos: la Página necesita SU
+    // Page Access Token, derivado de nuevo del portafolio —igual que en
+    // «conectar»—, y la WABA se da de baja con el token de portafolio
+    // directamente, que es el mismo que ya usa para leerla y enviar por ella.
+    if (cuerpo.accion === 'desuscribir') {
+      const { page_id, waba_id } = cuerpo
+      if (!page_id && !waba_id) return json({ error: 'falta page_id o waba_id' }, 400)
+
+      const token = page_id
+        ? (await listarPaginas()).find((p) => p.id === page_id)?.access_token
+        : tokenPortafolio()
+
+      if (!token) {
+        return json({
+          ok: false,
+          aviso: 'La Página ya no está en el portafolio; puede que Meta ya la haya dado de baja.',
+        })
+      }
+
+      const r = await fetch(
+        `https://graph.facebook.com/${V}/${page_id ?? waba_id}/subscribed_apps`,
+        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(20_000) },
+      )
+      const j = await r.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
+      return json({ ok: Boolean(j.success), aviso: j.success ? null : (j.error?.message ?? 'Meta no confirmó la baja.') })
     }
 
     return json({ error: 'acción desconocida' }, 400)

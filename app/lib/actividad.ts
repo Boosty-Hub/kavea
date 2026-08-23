@@ -87,6 +87,11 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'espacio.creado': return `creó este espacio (${d.slug})`
     case 'canal.conectado':
       return `conectó la Página ${d.pagina}${d.instagram ? ` y @${d.instagram}` : ''}`
+    case 'canal.pausado':
+      return `pausó ${etiquetaCanal(String(d.canal ?? ''))}${d.motivo ? ` · ${d.motivo}` : ''}`
+    case 'canal.reanudado': return `reanudó ${etiquetaCanal(String(d.canal ?? ''))}`
+    case 'conexion.desconectada':
+      return `desconectó ${d.nombre ?? 'un canal'}${d.motivo ? ` · ${d.motivo}` : ''}`
 
     // --- La persona y sus canales ---
     case 'identidad.vinculada':
