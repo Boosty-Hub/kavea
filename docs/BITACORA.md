@@ -37,7 +37,8 @@ de git de este mismo archivo.
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
 | Tiempo real de la bandeja | ✅ Desde la 0086 | Nunca funcionó antes: canal privado sin política y emisión por el tópico público. Lo tapaba el sondeo de 60 s |
-| Registro self-service | 🟡 Construido, **no operativo** | `cuenta.*/registro` y `/crear`, migración 0087. Bloqueado por el correo: Supabase manda 2/hora con su remitente de cortesía |
+| Registro self-service | ✅ Operativo | Alta real el 23-ago: correo de confirmación **entregado** por Resend |
+| Subdominio del inquilino | 🟡 Automático, pero lento | La función `subdominio` da el alias por API; el DNS tarda y no siempre |
 | Navegación | ✅ Sidebar por secciones, colapsable | Trabajo / Datos / Cuenta, con no leídos |
 | Acceso en `kavea.ai` | ✅ Página de entrada por subdominio | Antes no había ningún enlace |
 | Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
@@ -46,13 +47,13 @@ de git de este mismo archivo.
 | App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1 |
 | WhatsApp para terceros | ✅ Aprobado por Meta | `whatsapp_business_messaging` y `whatsapp_business_management` |
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
-| Correo saliente | ⚠️ No funciona | DNS de `kavea.ai` sin verificar en Resend |
+| Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
 | Facebook Login for Business | ⛔ Cero configuraciones, redirect URIs vacío | Camino único para vender a público, **y** lo que hace grabables los dos requisitos que tumbaron los 8 permisos |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago) y los permisos de WhatsApp (7-ago) ya están; `docs/fases/05` aún lo da por bloqueado |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
-| Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias |
+| Comodín `*.kavea.ai` | ⛔ Bloqueado por Netlify | `422 invalid site`, recomprobado el 23-ago. El certificado del sitio SÍ es comodín; lo que falta es el registro DNS |
 
 Fases 0–4 operativas, fase 5 en su tarea 12.
 
@@ -73,14 +74,18 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
 - **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
   después, hay que repetirlas antes.
 
-### Bloqueado por configuración, no por código — el registro no se puede abrir
-- **SMTP propio en Supabase Auth.** Hoy `smtp_host` es null y el límite son 2 correos/hora en
-  todo el proyecto. Resend ya está contratado y su DNS es el mismo pendiente de «correo
-  saliente»: resolverlo desbloquea las dos cosas.
-- **`site_url`** apunta a `http://localhost:3000`; debe ser el host real.
-- **`uri_allow_list`** vacía; sin `https://cuenta.kavea.ai/**` el `emailRedirectTo` se ignora.
-- **`password_min_length: 6`**, mientras la pantalla de registro pide 8. Subirlo a 8.
-- Alias de Netlify y DNS para **`cuenta.kavea.ai`** y **`conectar.kavea.ai`**.
+### El subdominio del inquilino, que es lo que queda cojo
+- **El DNS de un alias nuevo no es inmediato y no es predecible.** `cuenta` y `conectar`
+  respondieron en segundos; `demostracion` seguía sin existir para el autoritativo quince
+  minutos después. Hasta entender por qué, `/crear` no redirige. Medir cuánto tarda de verdad
+  con dos o tres altas más.
+- **Pedir el comodín `*.kavea.ai` a soporte de Netlify.** La API lo rechaza (`422 invalid site`)
+  y el certificado del sitio ya lo cubre. Con él sobran los alias por inquilino y el alta deja
+  de depender de una llamada a Netlify.
+- **Los plantillas de correo de Supabase están en inglés** («Confirm your email address») en un
+  producto en español.
+- Cuando haya varios inquilinos, mirar el tope de alias por sitio de Netlify antes de chocar
+  con él.
 
 ### La decisión de arquitectura que ordena el resto
 Kavea no puede ser un producto por suscripción con token de system user: ese token solo alcanza
@@ -166,6 +171,50 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (noche) — El registro se abre de verdad, y el subdominio no llega solo
+
+Gabriel pasó las credenciales de Resend y Netlify, y con ellas se cerró lo que ayer bloqueaba el
+autoservicio.
+
+**El correo ya funcionaba y nadie lo sabía.** `kavea.ai` figura `verified` en Resend. La tabla de
+la §1 llevaba semanas diciendo «correo saliente no funciona, DNS sin verificar»: otra afirmación
+caducada, la tercera de esta jornada.
+
+**Supabase Auth, conectado a Resend.** `smtp.resend.com:465`, remitente `support@kavea.ai`
+—dirección con MX entrante hacia `/admin/correos`, así que una respuesta la ve alguien—,
+`site_url` de `localhost:3000` a `https://cuenta.kavea.ai`, lista de redirecciones permitidas,
+`password_min_length` de 6 a **8** para que el servidor deje de ser más flojo que la pantalla, y
+el límite de correos de 2/hora a 100. Un detalle de la API: `smtp_port` se rechaza como número y
+hay que mandarlo como cadena.
+
+**Probado con un alta real**, no con la configuración: usuario creado en producción, y en el
+registro de Resend aparece «Confirm your email address … delivered». Después se borró el usuario
+de prueba.
+
+**Los dos hosts sin inquilino existen**: `cuenta.kavea.ai` y `conectar.kavea.ai`, alias del sitio
+`kavea-app`. Netlify creó sus registros y respondieron **200 en segundos**.
+
+**Y ahí apareció el hueco de verdad.** La zona lleva un registro por host y no hay comodín, así
+que cada inquilino necesita su alias. Con las altas conducidas por Boosty eso era tolerable; con
+el registro abierto significa que alguien se registra y aterriza en un host muerto — la lección de
+la 0059 repetida una capa más arriba. Se construyó la función de borde `subdominio`, que pide el
+alias a Netlify leyendo el slug **de la base** y no del parámetro (si viniera de fuera, se podría
+pedir un alias para `admin`), idempotente y con el token de Netlify solo en el borde.
+
+**Con ella se descubrió que `demostracion.kavea.ai` nunca tuvo alias**: el espacio creado el
+6-ago llevaba diecisiete días siendo inalcanzable, y el alta de aquel día dijo «hecho».
+
+**Lo que NO se puede prometer, y por eso el código ya no lo promete.** Que Netlify acepte el
+alias no significa que el host resuelva. `cuenta` y `conectar` fueron instantáneos;
+`demostracion`, dado de alta igual y con su registro ya listado en la zona, seguía sin existir
+**para el servidor autoritativo** quince minutos después. No sé explicar la diferencia, así que
+`/crear` dejó de redirigir: enseña la dirección, dice que puede tardar, y no manda a nadie a un
+error de DNS.
+
+**Y el comodín, recomprobado en vez de recordado:** `POST` de un registro `*.kavea.ai` devuelve
+`422 invalid site`. Sigue bloqueado. Curiosamente el certificado del sitio **sí** es `*.kavea.ai`,
+así que TLS nunca fue el problema: lo que falta es el registro DNS.
 
 ### 2026-08-23 (construcción) — La puerta del autoservicio, y lo que la tiene cerrada
 
@@ -649,6 +698,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   está en ningún fichero. La configuración del proyecto se lee antes de dar por hecho un alta.
 - Cuando la interfaz valida más que el servidor, lo que manda es el servidor. Una regla que solo
   vive en el navegador no es una regla.
+- Que una API acepte un cambio de infraestructura no significa que el cambio ya esté en pie.
+  Entre el 201 y el servicio funcionando hay un tiempo que hay que medir, no suponer.
+- Abrir una puerta nueva destapa lo que ya estaba roto detrás: el espacio de demostración
+  llevaba diecisiete días sin subdominio y su alta había dicho «hecho».
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta

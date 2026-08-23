@@ -41,6 +41,7 @@ export default function Crear() {
   const [libre, setLibre] = useState<boolean | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [listo, setListo] = useState<{ slug: string; avisoMeta: boolean } | null>(null)
   const reloj = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -85,11 +86,52 @@ export default function Crear() {
       return
     }
 
-    // A su casa. Con protocolo explícito porque se cambia de host y en local
-    // no hay https.
-    const protocolo = window.location.protocol
-    const puerto = window.location.port ? `:${window.location.port}` : ''
-    window.location.href = `${protocolo}//${data.slug}.${RAIZ}${puerto}/bandeja`
+    // EL SUBDOMINIO NO EXISTE HASTA QUE NETLIFY LO SABE. La zona de kavea.ai
+    // lleva un registro por host y no hay comodín, así que sin este paso el
+    // cliente aterrizaría en un host muerto y el alta habría dicho «hecho».
+    // Es la lección de la 0059 —un espacio al que no puede entrar nadie— una
+    // capa más arriba.
+    const prov = await fetch('/api/subdominio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organizacion: data.organizacion_id }),
+    }).then((r) => r.json()).catch(() => ({ error: 'sin respuesta' }))
+
+    // NO SE REDIRIGE. Y no es prudencia de más: medido el 23-ago-2026, que
+    // Netlify acepte el alias NO significa que el host resuelva. `cuenta` y
+    // `conectar` respondieron en segundos; `demostracion`, dado de alta de la
+    // misma forma y con su registro ya listado en la zona, seguía sin existir
+    // para el servidor autoritativo quince minutos después. No sé explicar la
+    // diferencia, así que el código no la da por buena: mandar al cliente a su
+    // host recién creado es mandarlo a un error de DNS la mitad de las veces.
+    //
+    // El certificado del sitio es `*.kavea.ai`, así que TLS nunca es el
+    // problema; lo que tarda es el DNS. Y el comodín DNS sigue bloqueado por
+    // Netlify —`422 invalid site`, comprobado el mismo día—, que es lo que
+    // obliga a un alias por inquilino.
+    setListo({ slug: data.slug, avisoMeta: prov?.ok !== true })
+    setEnviando(false)
+  }
+
+  if (listo) {
+    const url = `https://${listo.slug}.${RAIZ}`
+    return (
+      <main className="pagina" style={{ maxWidth: 480 }}>
+        <p className="label">Kavea</p>
+        <h1 style={{ marginBlock: '12px 16px' }}>Tu espacio ya existe</h1>
+        <p style={{ color: 'var(--k-text-2)', lineHeight: 1.6 }}>
+          Se llama <strong>{listo.slug}</strong> y eres su propietario. Se entra por:
+        </p>
+        <p style={{ margin: '14px 0' }}>
+          <a href={url} style={{ fontSize: 18 }}>{listo.slug}.{RAIZ}</a>
+        </p>
+        <p style={{ color: 'var(--k-text-2)', fontSize: 13, lineHeight: 1.6 }}>
+          {listo.avisoMeta
+            ? 'El enrutado del subdominio no se pudo confirmar. Guarda esta dirección: si todavía no abre, vuelve a intentarlo en unos minutos.'
+            : 'La dirección puede tardar unos minutos en responder la primera vez, mientras se propaga el DNS. Guárdala.'}
+        </p>
+      </main>
+    )
   }
 
   if (sesion === 'mirando') return <main className="pagina" />
