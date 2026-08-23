@@ -262,4 +262,57 @@ begin
   end if;
 end $$;
 
-\echo 'Canarios: los ocho pasan.'
+-- C9 -------------------------------------------------------------------------
+-- Ni `anon` ni `authenticated` pueden TRUNCATE en ninguna tabla de public.
+--
+-- RLS NO SE APLICA A TRUNCATE. Es una excepción explícita de Postgres: las
+-- políticas filtran filas, y TRUNCATE no mira filas. Los otros siete
+-- privilegios que la plataforma concede por defecto —`arwdDxtm`— quedan
+-- contenidos por RLS; este no lo contiene nada.
+--
+-- No es alcanzable por PostgREST, que no tiene verbo TRUNCATE. Lo que este
+-- canario protege es el futuro: una función SQL a la que se le olvide
+-- `security definer` corre con los privilegios de quien llama, y si trunca
+-- algo, RLS no tiene nada que decir.
+--
+-- SE COMPRUEBAN LAS DOS MITADES, porque arreglar solo una dura hasta el
+-- siguiente `create table`: los permisos de las tablas que hay, y el
+-- `alter default privileges` que decide los de las que vengan. La 0085 hizo
+-- las dos; esto vigila que sigan hechas.
+--
+-- El default de `supabase_admin` conserva la D y no se toca: es de la
+-- plataforma y no crea tablas de esta aplicación. Las migraciones se aplican
+-- como `postgres`.
+do $$
+declare v_tablas text; v_default text;
+begin
+  select string_agg(c.relname, ', ' order by c.relname)
+    into v_tablas
+    from pg_class c
+    join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname = 'public'
+     and c.relkind = 'r'
+     and (has_table_privilege('anon', c.oid, 'TRUNCATE')
+       or has_table_privilege('authenticated', c.oid, 'TRUNCATE'));
+
+  if v_tablas is not null then
+    raise exception 'C9: anon o authenticated pueden TRUNCATE (RLS no lo gobierna): %', v_tablas;
+  end if;
+
+  select d.defaclacl::text into v_default
+    from pg_default_acl d
+    join pg_namespace n on n.oid = d.defaclnamespace
+   where n.nspname = 'public' and d.defaclobjtype = 'r'
+     and pg_get_userbyid(d.defaclrole) = 'postgres';
+
+  -- `D` es TRUNCATE en la notacion de aclitem. Si vuelve a aparecer para anon
+  -- o authenticated, la proxima tabla nacera con el privilegio otra vez.
+  if v_default is null
+     or v_default ~ 'anon=[a-zA-Z]*D'
+     or v_default ~ 'authenticated=[a-zA-Z]*D' then
+    raise exception 'C9: el default privileges de postgres en public vuelve a dar TRUNCATE (o desaparecio): %',
+      coalesce(v_default, 'sin fila');
+  end if;
+end $$;
+
+\echo 'Canarios: los nueve pasan.'

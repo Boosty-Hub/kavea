@@ -225,6 +225,60 @@ jobs:
           fi
           echo "Sin claves antiguas."
 
+      - name: Ningun revoke nuevo de funcion se queda en `from anon`
+        run: |
+          # `revoke ... from anon` NO QUITA NADA EN UNA FUNCION.
+          #
+          # Postgres concede EXECUTE a `public` en toda funcion nueva, y `anon`
+          # hereda de `public`: revocarle a `anon` lo que tiene por herencia lo
+          # deja igual. El 23-ago-2026 eso dejo `credencial_whatsapp_de_conexion`
+          # devolviendo el blob cifrado del token de WhatsApp a cualquiera con la
+          # clave publicable. Lo correcto es `from public, anon`.
+          #
+          # SOLO FUNCIONES, y no es un olvido: en una TABLA el rol `public` no
+          # recibe nada por defecto -lo comprobado el 23-ago: el relacl de
+          # `messages` lista postgres, anon, authenticated y service_role, sin
+          # entrada de PUBLIC-, asi que ahi `from anon, authenticated` si es
+          # completo. Es la asimetria que hace tan facil equivocarse.
+          #
+          # GRANDFATHERING HASTA LA 0079, y no por pereza: esas migraciones ya
+          # estan aplicadas y este repositorio no reescribe migraciones -la 0077
+          # y la 0084 corrigieron las suyas con migraciones NUEVAS, que es la
+          # convencion-. Su texto sigue siendo erroneo y por eso existe esta
+          # guarda: para que no se copie. De la 0080 en adelante, se falla.
+          python3 - <<'EOF'
+          import glob, os, re, sys
+          malos = []
+          for f in sorted(glob.glob('supabase/migrations/*.sql')):
+              n = os.path.basename(f)[:4]
+              if not n.isdigit() or int(n) <= 79:
+                  continue
+              cuerpo = open(f, encoding='utf-8').read()
+              # Sin comentarios: la 0084 EXPLICA el patron y no debe cazarse.
+              cuerpo = re.sub(r'--[^\n]*', '', cuerpo)
+              for sent in cuerpo.split(';'):
+                  llano = ' '.join(sent.split())
+                  if not re.search(r'\brevoke\b', llano, re.I):
+                      continue
+                  if not re.search(r'\bon\s+function\b', llano, re.I):
+                      continue
+                  # La lista de roles es lo que va tras el ULTIMO `from`: antes
+                  # puede aparecer `public` como ESQUEMA, que no cuenta.
+                  partes = re.split(r'\bfrom\b', llano, flags=re.I)
+                  if len(partes) < 2:
+                      continue
+                  roles = partes[-1]
+                  if re.search(r'\banon\b', roles, re.I) and not re.search(r'\bpublic\b', roles, re.I):
+                      malos.append(f'{os.path.basename(f)}: {llano[:110]}')
+          if malos:
+              print('Un revoke que se queda en `anon` no quita el permiso de `public`:')
+              for m in malos:
+                  print('  ' + m)
+              print('Escribe `from public, anon`.')
+              sys.exit(1)
+          print('Ningun revoke nuevo de funcion revoca solo de anon.')
+          EOF
+
       - name: Los tags muertos de Meta no aparecen
         run: |
           # CONFIRMED_EVENT_UPDATE, ACCOUNT_UPDATE y POST_PURCHASE_UPDATE

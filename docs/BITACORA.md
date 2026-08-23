@@ -19,15 +19,15 @@ de git de este mismo archivo.
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 84 migraciones aplicadas y registradas | En `public.schema_migrations` |
+| Esquema de base de datos | ✅ 85 migraciones aplicadas y registradas | En `public.schema_migrations` |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
-| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 8/8 canarios | C8 añadido el 23-ago tras un agujero real |
+| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 9/9 canarios | C8 y C9 añadidos el 23-ago; auditoría completa ese día |
 | Ingesta y normalización | ✅ Producción | 8 crones vivos, mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
-| WhatsApp — `+1 321-393-1397` | ✅ Cloud API directo, el 23-ago | `CONNECTED`, `throughput STANDARD`, V7 en verde con mensaje real |
-| WhatsApp — `+1 829-954-3803` | ⛔ A retirar | Meta lo reporta `DISCONNECTED`; sin tráfico real desde el 7-ago |
+| WhatsApp — `+1 321-393-1397` | ✅ Cloud API directo, el 23-ago | Ciclo completo: entrante en la bandeja y respuesta recibida en el móvil |
+| WhatsApp — `+1 829-954-3803` | ✅ Retirado el 23-ago | Conexión `disconnected`, canal apagado, webhooks dados de baja en Meta |
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
@@ -38,6 +38,8 @@ de git de este mismo archivo.
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
 | Navegación | ✅ Sidebar por secciones, colapsable | Trabajo / Datos / Cuenta, con no leídos |
 | Acceso en `kavea.ai` | ✅ Página de entrada por subdominio | Antes no había ningún enlace |
+| Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
+| Privilegios de `anon` y `authenticated` | ✅ Auditados el 23-ago | RLS activo y forzado en las 33 tablas; TRUNCATE retirado en la 0085 |
 | **Tech Provider** | ✅ Verificado el 4-ago | `Submitted → Reviewed → Verified` en 12 h |
 | App Review | ⚠️ Contenido listo, sin enviar | **Las llamadas de prueba caducan el 5-sep** — ver §2 |
 | Correo saliente | ⚠️ No funciona | DNS de `kavea.ai` sin verificar en Resend |
@@ -87,8 +89,6 @@ Conversation Routing (`primary_receiver`, `thread_owner`, los seis endpoints) ·
 diagnóstico diferencial · pantalla de expectativas de WhatsApp.
 
 ### Trabajo sin bloqueo — resto
-- Retirar `+1 829-954-3803`: botón Desconectar en Ajustes → Canales, que además da de baja los
-  webhooks en Meta. Kommo no se entera: su suscripción sobre esa WABA es otra.
 - Borrar del portafolio la WABA vacía «Gabriel Montiel Toro» (`1621952576167448`), sin números.
 - Messenger nunca se probó de extremo a extremo con un contacto real (Instagram sí, varias veces).
 - Circuit breaker de límites a `call_count > 80` (hoy se reacciona, no se previene).
@@ -115,9 +115,6 @@ diagnóstico diferencial · pantalla de expectativas de WhatsApp.
   Páginas de clientes + 28 con rol de system user), después el PAT de Supabase, Resend, Netlify,
   la clave secreta y la contraseña de la app. **Sube de prioridad**: entre el 4 y el 23-ago el
   blob cifrado del token de WhatsApp era legible por `anon` (entrada del 23-ago).
-- Barrer las otras cinco migraciones que escribieron `revoke ... from anon`. La 0084 cerró lo que
-  estaba abierto de verdad y C8 impide que vuelva, pero el texto equivocado sigue en el
-  repositorio y el siguiente que lo copie repetirá el error.
 - `private.avisar_bandeja` abre una subtransacción por mensaje; el lote está topado en 64 porque
   el caché de subtransacciones de Postgres también es 64. Sin medir su efecto real.
 - `conversations.no_leidos` sigue marcada como sospechosa desde el 3-ago. El contador que de
@@ -130,6 +127,51 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (tarde) — Auditoría de la base: qué protege RLS y qué no
+
+Cerrado el número nuevo, se reviso a fondo lo que el agujero de la mañana dejo en duda.
+
+**El ciclo de WhatsApp, completo.** Se retiro `+1 829-954-3803` desde el botón de Ajustes →
+Canales —primera vez que se usa: conexión en `disconnected`, canal apagado con motivo, webhooks
+dados de baja en Meta— y se probó el `+1 321-393-1397` de extremo a extremo: mensaje entrante en
+la bandeja y respuesta recibida en el móvil. Hasta hoy solo estaba probada la entrada.
+
+**Las claves legacy ya estaban apagadas.** `api-keys/legacy` responde `{"enabled":false}`, la app
+usa `sb_publishable_*` y `sb_secret_*`, las funciones de borde leen `KAVEA_SUPABASE_SECRET` con
+nombre propio, y CI ya tenía un guardián que tumba el build si aparece `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` o algo con forma de JWT en el árbol. La prueba de que
+`KAVEA_SUPABASE_SECRET` no es un JWT viejo es que las funciones contestan: con legacy apagado, no
+podrían.
+
+**Lo que la auditoría encontró bien**, y conviene dejarlo escrito para no volver a mirarlo:
+RLS activo **y forzado** en las 33 tablas de `public` · cero políticas sin acotar por
+organización o usuario · las 7 vistas con `security_invoker = on` · los 3 buckets privados, con
+políticas por pertenencia o por staff · `anon` sin `USAGE` sobre `private`, y PostgREST devuelve
+`PGRST202` para cualquier función de ahí, incluso con el rol de servicio. Comprobado además por
+HTTP con la clave publicable: `SELECT` sobre siete tablas sensibles devuelve `[]` y un `DELETE`
+sin filtro no borra nada.
+
+**Lo que encontró mal: TRUNCATE.** `anon` y `authenticated` tienen `arwdDxtm` —todo— sobre las 33
+tablas. No es un descuido del repositorio: sale de un `ALTER DEFAULT PRIVILEGES` de la
+plataforma, y es el modelo normal de Supabase, que confía en RLS para filtrar. Pero **RLS no se
+aplica a TRUNCATE**: las políticas filtran filas y TRUNCATE no mira filas. De los ocho
+privilegios, siete quedan contenidos y el octavo no lo contiene nada.
+
+No es alcanzable hoy —PostgREST no tiene verbo TRUNCATE— y se dice para no exagerar. Lo que se
+quita es la vía futura, que es concreta: una función SQL a la que se le olvide `security definer`
+corre con los privilegios de quien llama. La 0085 lo revoca en las tablas que hay Y en el
+`alter default privileges`, porque arreglar solo lo primero dura hasta el siguiente
+`create table`. `service_role` lo conserva.
+
+**Dos guardianes nuevos.** El canario **C9** vigila las dos mitades de lo anterior; se comprobó
+que detecta cambiándole el privilegio por uno que sí está concedido. Y una guarda de CI que
+falla si una migración de la 0080 en adelante escribe `revoke ... on function ... from anon` sin
+`public`. Solo funciones, y no es un olvido: en una tabla el rol `public` no recibe nada por
+defecto, así que ahí `from anon, authenticated` sí es completo — esa asimetría es justo lo que
+hace tan fácil equivocarse. Las migraciones anteriores a la 0080 quedan indultadas porque este
+repositorio no reescribe migraciones aplicadas: la 0077 y la 0084 corrigieron las suyas con
+migraciones nuevas. Probada en los dos sentidos, sembrando una migración mala.
 
 ### 2026-08-23 — El número que no existía, y el hilo que salía por el número muerto
 
@@ -356,6 +398,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Un `proacl` NULL no es «sin permisos», es «los de por defecto» — y el de por defecto en una
   función es EXECUTE para PUBLIC. Auditar permisos filtrando por `proacl is not null` deja fuera
   justo lo que nadie ha revisado nunca.
+- RLS no se aplica a TRUNCATE. «La tabla tiene RLS» no quiere decir que todos los privilegios
+  concedidos sobre ella estén contenidos.
+- Un privilegio por defecto se arregla en dos sitios: los objetos que ya existen y el
+  `alter default privileges` que gobierna los que vengan. Solo lo primero dura hasta el
+  siguiente `create`.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta
