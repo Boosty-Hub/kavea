@@ -195,51 +195,70 @@ begin
 end $$;
 
 -- C8 -------------------------------------------------------------------------
--- Ninguna función SECURITY DEFINER de public/private ejecutable por PUBLIC,
--- salvo las cinco de la lista.
+-- Ninguna función SECURITY DEFINER de `public` ejecutable por PUBLIC, salvo las
+-- cinco de la lista.
 --
--- POR QUÉ EXISTE ESTE CANARIO. Postgres concede EXECUTE a `public` en toda
--- función nueva, y `anon` hereda de `public`. Siete migraciones escribieron
+-- POR QUÉ EXISTE. Postgres concede EXECUTE a `public` en toda función nueva, y
+-- `anon` hereda de `public`. Siete migraciones escribieron
 -- `revoke all on function ... from anon` creyendo que cerraban la puerta: no
--- quita nada, porque el permiso no venía de `anon` sino de `public`. El
--- 23-ago-2026 eso dejaba `credencial_whatsapp_de_conexion` respondiendo el
--- blob cifrado del token a cualquiera con la clave publicable —la que va en el
--- bundle del navegador— y `guardar_credencial_whatsapp` aceptando escrituras
--- sin autenticar. Cerrado en la 0084. La forma correcta es
--- `revoke ... from public, anon`.
+-- quita nada, porque el permiso no venía de `anon`. El 23-ago-2026 eso dejaba
+-- `credencial_whatsapp_de_conexion` devolviendo el blob cifrado del token de
+-- WhatsApp a cualquiera con la clave publicable —la que va en el bundle del
+-- navegador— y `guardar_credencial_whatsapp` aceptando escrituras sin
+-- autenticar. Cerrado en la 0084. Lo correcto es `revoke ... from public, anon`.
 --
--- LAS CINCO EXCEPCIONES son las que se ejecutan DENTRO de las políticas de
--- RLS, con el rol de quien consulta: quitarles `public` haría que una consulta
--- de `anon` fallara con «permission denied» en vez de devolver cero filas.
--- Solo devuelven booleanos sobre el `auth.uid()` de quien llama, así que no
--- hay nada que filtrar. `rls_auto_enable` es de trigger de evento.
+-- DOS FORMAS DE TENER EL PERMISO, Y LA SEGUNDA ES LA TRAMPOSA. `proacl` lista
+-- las concesiones explícitas, pero una función a la que NADIE le tocó los
+-- permisos tiene `proacl` NULL, y eso no significa «sin permisos»: significa
+-- que rigen los de por defecto, o sea PUBLIC. La primera versión de este
+-- canario, escrita el mismo 23-ago, filtraba por `proacl is not null` y por eso
+-- se habría saltado el caso más probable de todos: una migración que crea una
+-- función SECURITY DEFINER nueva y no revoca nada. Se comprobó contra
+-- producción antes de corregirlo: 19 funciones así, todas en `private`.
 --
--- Si añades una función a esta lista, que sea porque no lee ni escribe datos
--- de un tenant, no porque el canario molesta.
+-- SOLO `public`, Y NO ES DEJADEZ. PostgREST únicamente resuelve funciones del
+-- esquema expuesto: una llamada a algo de `private` devuelve PGRST202 incluso
+-- con el rol de servicio, comprobado el 23-ago. `public` es la superficie que
+-- se alcanza por HTTP, que es de lo que trata este canario. Si algún día se
+-- expone otro esquema, hay que añadirlo AQUÍ el mismo día.
+--
+-- LAS EXCEPCIONES. Cuatro corren DENTRO de las políticas de RLS, con el rol de
+-- quien consulta: quitarles `public` haría que una consulta de `anon` fallara
+-- con «permission denied» en vez de devolver cero filas. Solo devuelven
+-- booleanos o ids sobre el `auth.uid()` de quien llama. La quinta,
+-- `rls_auto_enable`, devuelve `event_trigger`, y Postgres no deja invocar
+-- directamente una función de ese tipo: no hay forma de llamarla.
+--
+-- Si añades una función a esta lista, que sea porque no lee ni escribe datos de
+-- un tenant, no porque el canario molesta.
 do $$
 declare v_fallos text;
 begin
-  select string_agg(n.nspname || '.' || p.proname, ', ')
+  select string_agg(p.proname, ', ' order by p.proname)
     into v_fallos
     from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-   where n.nspname in ('public', 'private')
+   where n.nspname = 'public'
      and p.prosecdef
-     and p.proacl is not null
-     and exists (
-       select 1 from aclexplode(p.proacl) a
-        where a.grantee = 0 and a.privilege_type = 'EXECUTE'
-     )
      -- Las de las extensiones no las gobernamos nosotros.
      and not exists (
        select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e'
+     )
+     and (
+       -- Sin ACL: rigen los permisos por defecto, y el de por defecto es PUBLIC.
+       p.proacl is null
+       -- Con ACL: PUBLIC aparece como concesión de grantee 0.
+       or exists (
+         select 1 from aclexplode(p.proacl) a
+          where a.grantee = 0 and a.privilege_type = 'EXECUTE'
+       )
      )
      and p.proname not in (
        'es_miembro', 'es_owner', 'es_staff', 'org_ids_con_grant', 'rls_auto_enable'
      );
 
   if v_fallos is not null then
-    raise exception 'C8: security definer ejecutable por PUBLIC (revoca de public, no solo de anon): %', v_fallos;
+    raise exception 'C8: security definer de public ejecutable por PUBLIC (revoca de public, no solo de anon): %', v_fallos;
   end if;
 end $$;
 

@@ -188,8 +188,15 @@ de la rotación pendiente. Diecinueve días abierto.
 
 **Construido:** el compositor dice por qué número responde («Responder por WhatsApp · +1
 321-393-1397»), como línea fija con un solo canal y en cada botón del selector con varios.
-Canario **C8**: ninguna función SECURITY DEFINER de `public`/`private` ejecutable por `PUBLIC`,
-con cinco excepciones documentadas. Comprobado que detecta, quitándole la lista.
+Canario **C8**: ninguna función SECURITY DEFINER de `public` ejecutable por `PUBLIC`, con cinco
+excepciones documentadas. Su primera versión, escrita ese mismo día, filtraba por
+`proacl is not null` y por eso se habría saltado el caso más probable: una función a la que
+nadie tocó los permisos tiene `proacl` NULL, y eso no es «sin permisos», es «rigen los de por
+defecto», que son PUBLIC. Corregido antes de darlo por bueno. Se comprobó que detecta por las
+dos vías: quitándole la lista de excepciones (caza las cinco) y apuntándolo a `private`, donde
+las 19 SECURITY DEFINER tienen `proacl` NULL (las caza). Se limita a `public` porque PostgREST
+solo resuelve el esquema expuesto: una llamada a algo de `private` devuelve `PGRST202` incluso
+con el rol de servicio, comprobado.
 
 ### 2026-08-21 — Comentarios entra en la Bandeja, y los canales se pueden apagar
 
@@ -346,6 +353,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Un componente definido dentro del render se remonta en cada pasada — puede borrar lo que el
   usuario está escribiendo.
 - `revoke ... from anon` no quita nada: el permiso viene de `public`, y `anon` hereda de ahí.
+- Un `proacl` NULL no es «sin permisos», es «los de por defecto» — y el de por defecto en una
+  función es EXECUTE para PUBLIC. Auditar permisos filtrando por `proacl is not null` deja fuera
+  justo lo que nadie ha revisado nunca.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta
