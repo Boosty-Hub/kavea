@@ -24,8 +24,21 @@
 
 const RAIZ = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? 'kavea.ai'
 
-/** Nombres que nunca son una organización. Duplica la lista de la migración 0001. */
-const RESERVADOS = new Set(['www', 'admin', 'api', 'hooks', 'mail', 'send', 'status'])
+/**
+ * Nombres que nunca son una organización. Subconjunto de la lista de la
+ * migración 0001, que es el guardián de verdad: allí es un CHECK y aquí solo
+ * enrutado. La dirección peligrosa sería tener aquí uno que la 0001 permita
+ * —una organización existente e inalcanzable—, así que todo lo que se añada
+ * aquí tiene que estar también allí.
+ *
+ * `cuenta` es la superficie SIN INQUILINO: sirve el registro y el retorno de
+ * OAuth de Meta. No puede resolver a organización porque no es de nadie, y por
+ * eso tampoco lleva la guarda de sesión del panel: un cliente que vuelve del
+ * diálogo de Facebook todavía no tiene por qué tener sesión aquí.
+ */
+const RESERVADOS = new Set([
+  'www', 'admin', 'api', 'hooks', 'mail', 'send', 'status', 'cuenta', 'conectar',
+])
 
 export type Superficie = 'app' | 'admin' | 'ninguna'
 

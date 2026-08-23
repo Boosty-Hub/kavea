@@ -37,6 +37,7 @@ de git de este mismo archivo.
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
 | Tiempo real de la bandeja | ✅ Desde la 0086 | Nunca funcionó antes: canal privado sin política y emisión por el tópico público. Lo tapaba el sondeo de 60 s |
+| Registro self-service | 🟡 Construido, **no operativo** | `cuenta.*/registro` y `/crear`, migración 0087. Bloqueado por el correo: Supabase manda 2/hora con su remitente de cortesía |
 | Navegación | ✅ Sidebar por secciones, colapsable | Trabajo / Datos / Cuenta, con no leídos |
 | Acceso en `kavea.ai` | ✅ Página de entrada por subdominio | Antes no había ningún enlace |
 | Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
@@ -71,6 +72,15 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
   lista de medios. Detalle verbatim en `docs/07` §1.
 - **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
   después, hay que repetirlas antes.
+
+### Bloqueado por configuración, no por código — el registro no se puede abrir
+- **SMTP propio en Supabase Auth.** Hoy `smtp_host` es null y el límite son 2 correos/hora en
+  todo el proyecto. Resend ya está contratado y su DNS es el mismo pendiente de «correo
+  saliente»: resolverlo desbloquea las dos cosas.
+- **`site_url`** apunta a `http://localhost:3000`; debe ser el host real.
+- **`uri_allow_list`** vacía; sin `https://cuenta.kavea.ai/**` el `emailRedirectTo` se ignora.
+- **`password_min_length: 6`**, mientras la pantalla de registro pide 8. Subirlo a 8.
+- Alias de Netlify y DNS para **`cuenta.kavea.ai`** y **`conectar.kavea.ai`**.
 
 ### La decisión de arquitectura que ordena el resto
 Kavea no puede ser un producto por suscripción con token de system user: ese token solo alcanza
@@ -156,6 +166,39 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (construcción) — La puerta del autoservicio, y lo que la tiene cerrada
+
+Primera rebanada del alta self-service. **El código está; el alta no funciona todavía**, y el
+motivo no es código.
+
+**Lo construido.** `registrarse` (migración 0087): un usuario con sesión y **correo confirmado**
+crea su organización y queda propietario en la misma transacción. No se tocó `crear_espacio`
+—la vía conducida por Boosty, que exige staff y deja invitación—: una función con dos amos
+acaba autorizando al que no debe. Con ella, `subdominio_libre`, que devuelve un booleano y nada
+más porque un `select` sobre `organizations` enumeraría la lista de clientes de Kavea.
+
+Dos pantallas en la superficie **sin inquilino** (`cuenta.kavea.ai`, ya reservada en
+`dominio.ts` y en el CHECK de la 0087): `/registro` crea la cuenta y manda el correo, `/crear`
+recibe el enlace de confirmación y elige nombre y subdominio, con comprobación en vivo.
+
+**Un tope de abuso, dicho como lo que es:** una organización por persona. No es regla de
+producto — sin él, una cuenta confirmada se sienta encima de cien subdominios en un minuto.
+
+**Y lo que impide abrirlo hoy**, medido en la configuración del proyecto:
+
+- `smtp_host: None` y `rate_limit_email_sent: 2`. Supabase usa su remitente de cortesía:
+  **dos correos por hora en todo el proyecto**. Con `mailer_autoconfirm: false` cada alta
+  necesita uno. El registro público no puede funcionar así, y es el mismo pendiente de
+  «correo saliente no funciona» que llevaba semanas como cosmético.
+- `site_url: http://localhost:3000`. Los enlaces de confirmación apuntarían ahí.
+- `uri_allow_list` vacía: `emailRedirectTo` se ignora y todo cae en `site_url`.
+- `password_min_length: 6` mientras la pantalla pide 8. **El servidor es más flojo que la
+  interfaz**, así que ocho es lo que Kavea pide y seis lo que acepta.
+
+**Y un defecto que solo salió en la captura:** el sidebar entero —Bandeja, Embudo, Agenda— se
+pintaba en la página de registro, a alguien que todavía no tiene cuenta ni organización.
+`sinMenu()` no las conocía, y en esa función no hay nada que delate qué rutas existen.
 
 ### 2026-08-23 (decisión) — El token de system user no llega a un producto por suscripción
 
@@ -602,6 +645,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   seguía dando Embedded Signup por bloqueado por Tech Provider tres semanas después de tenerlo.
 - Dos problemas que parecen de áreas distintas —vender a público y pasar una revisión— pueden
   tener una sola solución. Conviene buscarla antes de resolverlos por separado.
+- Una pantalla puede quedar «terminada» y no funcionar por un límite de la plataforma que no
+  está en ningún fichero. La configuración del proyecto se lee antes de dar por hecho un alta.
+- Cuando la interfaz valida más que el servidor, lo que manda es el servidor. Una regla que solo
+  vive en el navegador no es una regla.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta

@@ -90,7 +90,15 @@ const ADMIN: Entrada[] = [
  * tampoco: solo redirige.
  */
 function sinMenu(ruta: string): boolean {
-  return ruta === '/' || ruta === '/entrar' || ruta.startsWith('/invitacion')
+  // `/registro` y `/crear` viven en la superficie SIN INQUILINO: quien las abre
+  // todavía no tiene organización, así que un menú con Bandeja y Embudo enseña
+  // una casa que no es suya. Se vio en una captura del 23-ago-2026, no leyendo
+  // esta función: aquí no hay nada que delate qué rutas existen.
+  return ruta === '/'
+    || ruta === '/entrar'
+    || ruta === '/registro'
+    || ruta === '/crear'
+    || ruta.startsWith('/invitacion')
 }
 
 const CLAVE = 'kavea:menu-colapsado'
