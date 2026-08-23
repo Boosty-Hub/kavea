@@ -48,7 +48,8 @@ de git de este mismo archivo.
 | Correo saliente | ⚠️ No funciona | DNS de `kavea.ai` sin verificar en Resend |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Facebook Login for Business | ⛔ Cero configuraciones, redirect URIs vacío | No bloquea el App Review; bloquea la fase 5 |
+| Facebook Login for Business | ⛔ Cero configuraciones, redirect URIs vacío | Camino único para vender a público, **y** lo que hace grabables los dos requisitos que tumbaron los 8 permisos |
+| Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago) y los permisos de WhatsApp (7-ago) ya están; `docs/fases/05` aún lo da por bloqueado |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | Comodín `*.kavea.ai` | ⏸ Aplazado, no bloquea | Con un inquilino basta un alias |
 
@@ -70,6 +71,20 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
   lista de medios. Detalle verbatim en `docs/07` §1.
 - **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
   después, hay que repetirlas antes.
+
+### La decisión de arquitectura que ordena el resto
+Kavea no puede ser un producto por suscripción con token de system user: ese token solo alcanza
+activos del portafolio de Boosty. El camino es **Facebook Login for Business** (Embedded Signup
+para WhatsApp), ya diseñado en `docs/fases/05`. Y montarlo es a la vez el arreglo del App Review,
+porque hace grabables el login de Meta y la pantalla de consentimiento. Orden acordado el
+23-ago: **WhatsApp autoservicio primero** —sus permisos ya están aprobados y Tech Provider
+también, así que no depende de nadie— y Facebook Login for Business después, sirviendo al mismo
+tiempo para el reenvío de Instagram y Messenger.
+
+Sin confirmar, y hay que confirmarlo antes de planificar encima: si el revisor de Meta, con su
+propia cuenta y sin rol en la app, puede completar el diálogo de una configuración que pide
+permisos aún no aprobados. Para GRABAR el vídeo basta una cuenta con rol; para que él lo pruebe,
+no se sabe.
 
 ### Bloqueado por Meta
 - Pegar `deauth_callback_url` en App settings (el código ya funciona).
@@ -141,6 +156,47 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (decisión) — El token de system user no llega a un producto por suscripción
+
+Pregunta de Gabriel: si Kavea va a ser público por suscripción, ¿puede seguir conectando con un
+token de system user? **No.** Y la respuesta cambia el orden de todo lo demás.
+
+**Por qué no.** Un token de system user alcanza los activos que viven en el portafolio de
+Boosty: los propios y los que un cliente asignó a mano al Business Manager. La Página de alguien
+que se registra en la web un martes por la noche no está ahí, y no hay forma de que lo esté sin
+que una persona de Boosty y una del cliente se pongan de acuerdo. Eso es un alta B2B, no una
+suscripción.
+
+**La vía que sí llega es Facebook Login for Business**, y para WhatsApp su variante Embedded
+Signup: el cliente pulsa un botón, ve el diálogo de Meta, concede acceso, y Kavea recibe un token
+BISU acotado al portafolio de ESE cliente. `docs/fases/05` ya lo tiene diseñado entero —bloques A
+a I, 26 tareas, 24 sin hacer— con las dos vías de alta conviviendo: la A por activo asignado,
+que es la que se usa hoy con las 39 Páginas de clientes, y la B por OAuth, que es la del
+autoservicio. Las dos terminan en la misma fila de `meta_connections`; lo que cambia es de dónde
+sale el token.
+
+**Y aquí está lo que nadie había atado: montar el login ES el arreglo del App Review.** Los ocho
+permisos se rechazaron porque los vídeos no enseñaban «the complete Meta login flow» ni «a user
+granting app access». Con Facebook Login for Business esas dos pantallas EXISTEN y se pueden
+grabar. Los dos problemas —vender a público y pasar la revisión— tienen la misma solución, y
+resolverlos por separado es hacer el trabajo dos veces.
+
+**Lo que ya se puede vender hoy, sin esperar a nada.** Los cinco permisos aprobados el 7-ago
+—`whatsapp_business_messaging`, `whatsapp_business_management`, `business_management`,
+`pages_show_list`, `public_profile`— son exactamente el conjunto que necesita Embedded Signup de
+WhatsApp. Y `docs/fases/05` lo daba por bloqueado «hasta que Meta apruebe Tech Provider», que
+pasó el 4-ago: ese bloqueo ya no existe y el documento no se enteró.
+
+**El huevo y la gallina, dicho como es.** Una configuración de Facebook Login for Business no
+puede pedir un permiso que la app no tenga en Advanced Access, o el cliente sin rol en la app
+recibe un error de scopes. Para Instagram y Messenger eso significa que el diálogo real solo
+funciona con cuentas que tengan rol en la app mientras siga en modo desarrollo —que es
+suficiente para GRABAR el vídeo, pero hay que comprobar si le basta al revisor cuando lo pruebe
+él—. Sin confirmar; se comprueba antes de planificar sobre ello.
+
+**Decidido:** el orden pasa a ser WhatsApp autoservicio primero (desbloqueado hoy), y Facebook
+Login for Business después, sirviendo a la vez para el reenvío de Instagram y Messenger.
 
 ### 2026-08-23 (repaso) — El App Review llevaba dieciséis días contestado
 
@@ -542,6 +598,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   el App Review estuvo dieciséis días contestado sin que nadie lo supiera.
 - Un documento con fecha de corte se vuelve mentira sin que nadie lo edite. Si dice «al día de»,
   hay que releerlo antes de decidir con él.
+- Un bloqueo anotado en un documento de fase no se levanta solo el día que desaparece: `docs/fases/05`
+  seguía dando Embedded Signup por bloqueado por Tech Provider tres semanas después de tenerlo.
+- Dos problemas que parecen de áreas distintas —vender a público y pasar una revisión— pueden
+  tener una sola solución. Conviene buscarla antes de resolverlos por separado.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta

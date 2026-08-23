@@ -36,10 +36,18 @@ existe para distinguirlos.
 
 ### Lo que no entra
 
-- **Embedded Signup de WhatsApp.** Bloqueado hasta que Meta apruebe Tech Provider, y
-  con WhatsApp sin investigar fuera de los cinco puntos verificados de
-  `03-invariantes-meta.md`. Esta fase entrega la pantalla que fija expectativas y
-  registra el estado del trámite del cliente, no el alta técnica del número.
+- **Embedded Signup de WhatsApp.** ~~Bloqueado hasta que Meta apruebe Tech Provider~~
+  — **DESBLOQUEADO, anotado el 23-ago-2026.** Boosty Digital LLC es Tech Provider
+  verificado desde el 4-ago, y el 7-ago Meta aprobó `whatsapp_business_messaging`,
+  `whatsapp_business_management`, `business_management`, `pages_show_list` y
+  `public_profile`: justo el conjunto que Embedded Signup necesita. El bloqueo se
+  levantó solo y este documento tardó tres semanas en enterarse.
+
+  Esta fase, tal y como se escribió, entrega la pantalla que fija expectativas y
+  registra el estado del trámite del cliente, no el alta técnica del número. Eso
+  sigue siendo lo que hay HOY; el alta técnica pasa a ser trabajo posible y, por la
+  decisión del 23-ago, el primero de la cola: es la única vía por la que Kavea puede
+  venderse por suscripción sin que alguien de Boosty toque un Business Manager.
 - **Registro self-service.** El alta la conduce Boosty. La regla de dogfooding impide
   clientes durante el primer mes.
 - **Facturación por uso.**
