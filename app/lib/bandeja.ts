@@ -45,7 +45,17 @@ export type FilaBandeja = {
   last_message_at: string | null
   asignado_a: string | null
   contacts: { nombre: string | null; username: string | null } | null
-  conversations: Array<{ canal: Canal; last_incoming_at: string | null }>
+  /**
+   * `id` para la clave de React y `channels.nombre` para poder distinguirlas:
+   * desde la 0082 una tarjeta puede tener DOS conversaciones del mismo canal
+   * —dos números de WhatsApp—, y entonces `canal` ya no identifica a ninguna.
+   */
+  conversations: Array<{
+    id: string
+    canal: Canal
+    last_incoming_at: string | null
+    channels: { nombre: string | null } | null
+  }>
 }
 
 export type EntradaHilo = {
@@ -64,7 +74,8 @@ export type EntradaHilo = {
 
 const CAMPOS_LISTA =
   'id, estado, titulo, preview_texto, preview_emisor, no_leidos, last_message_at, ' +
-  'asignado_a, contacts(nombre, username), conversations(canal, last_incoming_at)'
+  'asignado_a, contacts(nombre, username), ' +
+  'conversations(id, canal, last_incoming_at, channels(nombre))'
 
 /**
  * Lista de tarjetas.

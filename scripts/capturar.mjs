@@ -7,6 +7,16 @@
  *
  * Uso:
  *   node scripts/capturar.mjs <correo> <contraseña> [carpeta]
+ *
+ * Por defecto mira PRODUCCIÓN. Para mirar el servidor de desarrollo antes de
+ * publicar —que es cuando sirve—, se le pasa el host por entorno:
+ *
+ *   KAVEA_BASE=http://boosty.localhost:3100  *   KAVEA_ADMIN=http://admin.localhost:3100  *   node scripts/capturar.mjs <correo> <clave> capturas/local
+ *
+ * El subdominio importa: `lib/dominio.ts` resuelve la organización leyendo el
+ * `Host`, así que `localhost:3100` a secas da 404 en todo lo que no sea
+ * `/entrar`. Los navegadores resuelven `*.localhost` a 127.0.0.1 sin tocar
+ * hosts.
  */
 
 import { chromium } from 'playwright'
@@ -21,8 +31,9 @@ if (!correo || !clave) {
 
 mkdirSync(carpeta, { recursive: true })
 
-const BASE = 'https://boosty.kavea.ai'
-const ADMIN = 'https://admin.kavea.ai'
+const BASE = process.env.KAVEA_BASE ?? 'https://boosty.kavea.ai'
+const ADMIN = process.env.KAVEA_ADMIN ?? 'https://admin.kavea.ai'
+console.log(`  mirando ${BASE}`)
 
 const navegador = await chromium.launch()
 const ctx = await navegador.newContext({

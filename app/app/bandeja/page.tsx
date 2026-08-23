@@ -174,16 +174,33 @@ function Fila({ t, huso }: { t: FilaBandeja; huso: string }) {
           {e.etiqueta}
         </span>
 
-        {canales.map((c) => (
-          <span
-            key={c.canal}
-            className="pildora"
-            style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}
-          >
-            <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
-            {etiquetaCanal(c.canal)}
-          </span>
-        ))}
+        {/* La clave es el id de la conversación y no el canal: desde la 0082 una
+            tarjeta puede tener dos de WhatsApp, y `key={c.canal}` daba dos
+            claves `whatsapp` iguales. Lo cazó una pasada de Playwright, no el
+            compilador.
+
+            Y cuando se repite el canal se añade el nombre concreto: dos
+            píldoras «WhatsApp» seguidas no dicen nada sobre por cuál de los
+            dos números llegó cada hilo. */}
+        {canales.map((c) => {
+          const repetido = canales.filter((o) => o.canal === c.canal).length > 1
+          const nombre = c.channels?.nombre
+          // El numero ENTERO no cabe: con tres canales la ultima pildora se
+          // salia de la columna. Bastan los cuatro ultimos digitos para
+          // distinguir dos numeros, y el completo se queda en el `title`.
+          const cola = nombre?.replace(/\D/g, '').slice(-4)
+          return (
+            <span
+              key={c.id}
+              className="pildora"
+              style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}
+              title={nombre ?? etiquetaCanal(c.canal)}
+            >
+              <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+              {repetido && cola ? `${etiquetaCanal(c.canal)} ·${cola}` : etiquetaCanal(c.canal)}
+            </span>
+          )
+        })}
 
         {!alguna && peor ? (
           <span

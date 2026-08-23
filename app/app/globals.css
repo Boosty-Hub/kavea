@@ -218,7 +218,12 @@ input[type='radio'] { accent-color: var(--k-accent); }
 
 .bandeja {
   display: grid;
-  grid-template-columns: minmax(300px, 380px) 1fr;
+  /* `minmax(0, 1fr)` y no `1fr` en la segunda columna. `1fr` es
+     `minmax(auto, 1fr)`, y ese `auto` NO baja del min-content del contenido:
+     una pista de grid se planta en lo que mida su hijo mas ancho aunque el
+     contenedor sea menor. Es el desbordamiento clasico de grid, y en
+     escritorio no se ve porque sobra sitio. */
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   height: 100dvh;
   overflow: hidden;
 }
@@ -228,6 +233,11 @@ input[type='radio'] { accent-color: var(--k-accent); }
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* Lo mismo por el otro lado: sin esto la lista impone su min-content a la
+     pista y en movil se pinta a 564 px dentro de una ventana de 390, con el
+     ultimo filtro y los enlaces de cabecera RECORTADOS —no desplazables,
+     recortados—. Medido con Playwright el 23-ago-2026. */
+  min-width: 0;
   background: var(--k-surface);
 }
 
@@ -295,7 +305,10 @@ input[type='radio'] { accent-color: var(--k-accent); }
   white-space: nowrap;
   max-width: 100%;
 }
-.fila__pie { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+/* `flex-wrap` porque una fila con tres canales y numeros dentro no cabe en la
+   columna: sin el, la ultima pildora se cortaba contra el borde y el numero
+   quedaba a medias («+1 82…»). Visto en captura el 23-ago-2026. */
+.fila__pie { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
 
 .pildora {
   display: inline-flex;
@@ -306,6 +319,13 @@ input[type='radio'] { accent-color: var(--k-accent); }
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.04em;
+  /* Una pildora no se parte NUNCA. Desde que llevan el numero de telefono
+     dentro —«+1 321-393-1397», para distinguir dos canales de WhatsApp en la
+     misma tarjeta— el navegador rompia por los guiones y la pintaba en tres
+     lineas, triplicando el alto de la fila. Se vio en una captura del
+     23-ago-2026; leyendo el CSS no se ve, porque antes ninguna etiqueta tenia
+     por donde romperse. */
+  white-space: nowrap;
 }
 .pildora__punto { width: 6px; height: 6px; border-radius: 999px; flex: none; }
 
@@ -930,7 +950,7 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
    del tamaño se declaran después de las que modifican. */
 
 @media (max-width: 860px) {
-  .bandeja { grid-template-columns: 1fr; }
+  .bandeja { grid-template-columns: minmax(0, 1fr); }
   .bandeja__hilo { display: none; }
   .bandeja--hilo .bandeja__lista { display: none; }
   .bandeja--hilo .bandeja__hilo { display: flex; }

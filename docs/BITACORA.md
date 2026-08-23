@@ -129,6 +129,39 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-23 (cierre) — Cuatro defectos que solo se vieron abriendo el navegador
+
+Gabriel pidió que la interfaz se compruebe **siempre** con Playwright y capturas antes de darla
+por hecha. La misma sesión demostró por qué: `pnpm typecheck` y `pnpm build` estaban en verde con
+los cuatro defectos de abajo dentro, y uno de ellos era un arreglo que yo ya había dado por bueno.
+
+- **El tiempo real seguía roto después de «arreglarlo».** La 0086 puso la política y cambió la
+  emisión, pero el canal seguía devolviendo `CHANNEL_ERROR`. Los frames del websocket dieron el
+  motivo exacto: el cliente lanza un `phx_join` **sin `access_token`** —se une antes de que la
+  sesión esté puesta—, cobra `Unauthorized: You do not have permissions to read from this Channel
+  topic`, y reintenta con el JWT recibiendo `status: ok`. O sea que la política era correcta y el
+  error era transitorio. Probado que **entrega**: contando las peticiones RSC, una difusión llega
+  en menos de 5 s, muy por debajo del sondeo de 15 s. El aviso de consola pasa a tener diez
+  segundos de gracia para no gritar en cada carga.
+- **Claves de React duplicadas.** `key={c.canal}` con dos conversaciones de WhatsApp en la misma
+  tarjeta daba dos claves `whatsapp`. Regresión directa de la 0082, invisible al compilador.
+- **Dos píldoras «WhatsApp» idénticas** en la fila, sin forma de saber por cuál número llegó
+  cada hilo. Ahora dicen `WhatsApp ·1397` y `WhatsApp ·3803`; el número completo queda en el
+  `title`, porque entero no cabe y la última píldora se salía de la columna. Y `white-space:
+  nowrap`, que hasta ahora no hacía falta: ninguna etiqueta tenía guiones por donde romperse, y
+  el número se pintaba en tres líneas.
+- **La lista de la bandeja, recortada en móvil.** 564 px dentro de una ventana de 390, con los
+  enlaces de cabecera y el último filtro inalcanzables —recortados, no desplazables—. La causa
+  es `grid-template-columns: 1fr`, que es `minmax(auto, 1fr)`: ese `auto` no baja del min-content
+  del contenido. Con `minmax(0, 1fr)` y `min-width: 0` en la lista, cero elementos desbordan.
+
+**Y un error mío que conviene dejar escrito:** informé de una errata «Bandeia» en el título
+leyendo una captura. No existía —el `innerText` dice «Bandeja»—, era el antialiasing de la `j`.
+Para texto se lee el DOM; los píxeles sirven para el espacio, no para las letras.
+
+`scripts/capturar.mjs` acepta ahora `KAVEA_BASE` y `KAVEA_ADMIN`: antes solo sabía mirar
+producción, que es justo cuando ya no sirve.
+
 ### 2026-08-23 (noche) — El tiempo real de la bandeja no funcionó nunca
 
 Sintoma reportado: entra un mensaje de fuera, la conversación nueva no aparece y hay que
@@ -448,6 +481,13 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   camino de reserva, algo tiene que decir en voz alta cuando se está usando.
 - Lo que devuelve `subscribe()` se mira. Una suscripción denegada y una sana se parecen mucho
   desde fuera: en las dos no pasa nada.
+- Una captura sirve para juzgar el espacio, no las letras: para texto se lee el DOM. Un
+  antialiasing convirtió «Bandeja» en una errata que no existía.
+- `1fr` en grid es `minmax(auto, 1fr)`, y ese `auto` no baja del min-content: la pista se
+  planta en lo que mida su hijo más ancho y recorta, sin barra de desplazamiento que lo
+  delate. Cuando debe poder encoger, `minmax(0, 1fr)`.
+- Un dato nuevo dentro de un componente viejo trae consigo lo que el componente nunca tuvo que
+  soportar: una clave que ya no es única, una etiqueta con guiones, un ancho que no cabía.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta

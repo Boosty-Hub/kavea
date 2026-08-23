@@ -138,10 +138,10 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
                   </span>
                   {(c.conversations ?? []).map((cv) => (
                     <span
-                      key={cv.canal}
+                      key={cv.id}
                       className="pildora__punto"
                       style={{ background: colorCanal(cv.canal) }}
-                      title={etiquetaCanal(cv.canal)}
+                      title={cv.channels?.nombre ?? etiquetaCanal(cv.canal)}
                     />
                   ))}
                   {c.no_leidos > 0 ? <span className="sinleer">{c.no_leidos}</span> : null}
