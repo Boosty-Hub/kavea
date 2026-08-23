@@ -37,20 +37,44 @@ export function Refrescador({ organizationId }: { organizationId: string }) {
       }, espera)
     }
 
-    const canal = supabase
-      .channel(`org:${organizationId}`, { config: { private: true } })
-      .on('broadcast', { event: 'cambio' }, refrescar)
-      .subscribe()
-
     /**
-     * Sondeo de seguridad.
+     * Sondeo de seguridad, con DOS cadencias.
      *
      * Un socket vivo que deja de entregar es el fallo más caro de esta pantalla:
      * el operador ve una bandeja quieta y cree que no hay trabajo. Ningún estado
      * de conexión lo delata, porque el socket está abierto. Sesenta segundos de
      * retraso son aceptables; una bandeja congelada en silencio, no.
+     *
+     * Y si el canal NO llega a suscribirse, 60 s pasan a ser el único mecanismo
+     * vivo, que es justo lo que ocurrió hasta el 23-ago-2026: la política de
+     * `realtime.messages` no existía, la suscripción privada se denegaba, y
+     * como aquí nadie miraba el estado de `subscribe()` la bandeja llevaba
+     * semanas actualizándose solo por sondeo sin que nada lo dijera. Degradar a
+     * 15 s no arregla el canal —eso es la 0086— pero deja la pantalla usable y,
+     * sobre todo, deja rastro en la consola.
      */
-    const reloj = setInterval(() => router.refresh(), 60_000)
+    let reloj: ReturnType<typeof setInterval>
+    const sondear = (ms: number) => {
+      clearInterval(reloj)
+      reloj = setInterval(() => router.refresh(), ms)
+    }
+    sondear(60_000)
+
+    const canal = supabase
+      .channel(`org:${organizationId}`, { config: { private: true } })
+      .on('broadcast', { event: 'cambio' }, refrescar)
+      .subscribe((estado, error) => {
+        if (estado === 'SUBSCRIBED') { sondear(60_000); return }
+        if (estado === 'CHANNEL_ERROR' || estado === 'TIMED_OUT') {
+          console.error(
+            `[bandeja] el canal org:${organizationId} no entrega (${estado}). ` +
+            'La pantalla pasa a sondeo cada 15 s. Suele ser autorización del canal privado: ' +
+            'mira la política de realtime.messages.',
+            error,
+          )
+          sondear(15_000)
+        }
+      })
 
     // Al volver de segundo plano el navegador pudo perder eventos mientras el
     // socket estaba dormido.

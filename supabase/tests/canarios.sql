@@ -315,4 +315,34 @@ begin
   end if;
 end $$;
 
-\echo 'Canarios: los nueve pasan.'
+-- C10 ------------------------------------------------------------------------
+-- `realtime.messages` tiene politica de SELECT, o la bandeja no se actualiza.
+--
+-- El canal privado `org:{uuid}` se autoriza con una politica RLS sobre esa
+-- tabla. RLS esta ACTIVADA ahi de fabrica, asi que sin ninguna politica la
+-- suscripcion no falla ruidosamente: se DENIEGA, el cliente no recibe nada, y
+-- la pantalla parece funcionar porque el sondeo de seguridad la sigue
+-- refrescando cada minuto. Eso es exactamente lo que paso hasta el
+-- 23-ago-2026: el tiempo real no funciono nunca y nadie lo noto.
+--
+-- Es el tipo de ausencia que no se ve leyendo codigo: no falta una linea en
+-- ningun fichero del repositorio, falta una fila en un catalogo.
+do $$
+declare v_n integer;
+begin
+  if to_regclass('realtime.messages') is null then
+    raise exception 'C10: no existe realtime.messages; el tiempo real no se puede comprobar';
+  end if;
+
+  select count(*) into v_n
+    from pg_policy
+   where polrelid = 'realtime.messages'::regclass
+     and polcmd = 'r';
+
+  if v_n = 0 then
+    raise exception
+      'C10: realtime.messages sin politica de SELECT. La suscripcion al canal privado se deniega y la bandeja solo se actualiza por sondeo.';
+  end if;
+end $$;
+
+\echo 'Canarios: los diez pasan.'

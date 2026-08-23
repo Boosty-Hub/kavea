@@ -19,14 +19,14 @@ de git de este mismo archivo.
 | Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 85 migraciones aplicadas y registradas | En `public.schema_migrations` |
+| Esquema de base de datos | ✅ 86 migraciones aplicadas y registradas | En `public.schema_migrations` |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
-| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 9/9 canarios | C8 y C9 añadidos el 23-ago; auditoría completa ese día |
+| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 añadidos el 23-ago |
 | Ingesta y normalización | ✅ Producción | 8 crones vivos, mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
-| WhatsApp — `+1 321-393-1397` | ✅ Cloud API directo, el 23-ago | Ciclo completo: entrante en la bandeja y respuesta recibida en el móvil |
+| WhatsApp — `+1 321-393-1397` | ✅ Cloud API directo, el 23-ago | Ciclo completo: entrante en la bandeja y saliente `enviado` con `wamid` de Meta |
 | WhatsApp — `+1 829-954-3803` | ✅ Retirado el 23-ago | Conexión `disconnected`, canal apagado, webhooks dados de baja en Meta |
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
@@ -36,6 +36,7 @@ de git de este mismo archivo.
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
+| Tiempo real de la bandeja | ✅ Desde la 0086 | Nunca funcionó antes: canal privado sin política y emisión por el tópico público. Lo tapaba el sondeo de 60 s |
 | Navegación | ✅ Sidebar por secciones, colapsable | Trabajo / Datos / Cuenta, con no leídos |
 | Acceso en `kavea.ai` | ✅ Página de entrada por subdominio | Antes no había ningún enlace |
 | Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
@@ -127,6 +128,46 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (noche) — El tiempo real de la bandeja no funcionó nunca
+
+Sintoma reportado: entra un mensaje de fuera, la conversación nueva no aparece y hay que
+recargar la página.
+
+No era un fallo, eran **cuatro encadenados, y los cuatro mudos**. Lo que sostenía la pantalla
+era el sondeo de seguridad de 60 s de `Refrescador`, escrito para cubrir un socket que deja de
+entregar y que en realidad llevaba desde el principio siendo el único mecanismo vivo.
+
+1. **`realtime.messages` tiene RLS activada y cero políticas.** Un canal privado se autoriza con
+   una política sobre esa tabla; sin ninguna, la suscripción se deniega. `authenticated` ya
+   tenía SELECT, INSERT y `USAGE` sobre el esquema: lo único que faltaba era la política. Es una
+   ausencia que no se ve leyendo código — no falta una línea en ningún fichero, falta una fila
+   en un catálogo.
+2. **`avisar_bandeja` emitía con `private => false`** mientras el cliente se suscribe con
+   `config: { private: true }`. Aunque lo anterior estuviera resuelto, los avisos salían por el
+   tópico público y el cliente escuchaba el privado. Medido: las 5 difusiones del día, todas con
+   `private = false`.
+3. **`Refrescador` no miraba el estado de `subscribe()`.** Un `CHANNEL_ERROR` por autorización
+   denegada no se distinguía de un canal sano.
+4. **`avisar_bandeja` se tragaba toda excepción** con `when others then return null`. El fondo
+   es correcto —un aviso que falla no puede tumbar la ingesta de un mensaje— pero mudo del todo
+   convierte cualquier rotura futura en otro mes de bandeja quieta.
+
+**Arreglado en la 0086** (política de SELECT sobre `realtime.messages` acotada a los miembros de
+la organización del tópico, y emisión con `private => true`), más el cliente, que ahora degrada a
+sondeo de 15 s y lo escribe en consola cuando el canal no entrega. El manejador de excepciones
+sigue tragándose el error, a propósito, pero deja una fila en `alertas`.
+
+La política se probó en tres casos: un miembro real ve 53 filas del tópico de su organización,
+un `sub` que no es miembro ve 0, y un tópico que no es un uuid devuelve 0 sin lanzar 22P02 —el
+`case` está ahí para eso, porque Postgres no garantiza el orden de evaluación de un `and` y el
+cast reventaría la suscripción a cualquier otro canal—. Canario **C10** para que no vuelva.
+
+**Y la pregunta del dev console, respondida:** el panel «API Setup» de la app no enseña el
++1 321-393-1397 porque está clavado a la WABA de PRUEBA de la app (`257026854152252`, que el
+propio panel muestra). El número vive en `2459716937850832`, y la app lo alcanza por suscripción
+y token de system user, no por ese selector. No hay nada que reconectar: el ciclo está probado
+en los dos sentidos, con un saliente `enviado` y `wamid` de Meta.
 
 ### 2026-08-23 (tarde) — Auditoría de la base: qué protege RLS y qué no
 
@@ -403,6 +444,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Un privilegio por defecto se arregla en dos sitios: los objetos que ya existen y el
   `alter default privileges` que gobierna los que vengan. Solo lo primero dura hasta el
   siguiente `create`.
+- Un mecanismo de respaldo que funciona esconde que el principal nunca arrancó. Si hay un
+  camino de reserva, algo tiene que decir en voz alta cuando se está usando.
+- Lo que devuelve `subscribe()` se mira. Una suscripción denegada y una sana se parecen mucho
+  desde fuera: en las dos no pasa nada.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta
