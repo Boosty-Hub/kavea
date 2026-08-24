@@ -81,8 +81,12 @@ Con el botón **Request again**; no hay que rehacer el formulario.
 **24-ago:** `scripts/grabar-screencasts.mjs` reescrito. Tres guiones grababan la pantalla
 equivocada —`instagram_manage_comments` apuntaba a `/comentarios`, que no existe desde el 21-ago—
 y ahora apuntan a lo que la nota de cada permiso pide.
-*Falta:* desplegar las pantallas nuevas, grabar, y las dos cosas que un runner no puede hacer —el
-diálogo de Meta, que pide credenciales de Facebook en el navegador, y el cliente nativo.
+**24-ago, segunda parte:** desplegado y grabado. **Once vídeos** contra producción, con los envíos
+y el ciclo de moderación comprobados en la base, más nueve PNG de hitos para auditar la tirada sin
+verlos.
+*Falta:* `human_agent` —necesita una tarjeta con canal de Instagram cuyo último entrante tenga
+entre 24 h y 7 días; hoy todos son de hace menos de 24 h—, el diálogo de Meta, que pide
+credenciales de Facebook en el navegador, y el cliente nativo.
 *Hecho cuando:* los ocho permisos salen de «Rechazado».
 
 **B4. Vigilar la bandeja de resultados. HECHO el 24-ago.**

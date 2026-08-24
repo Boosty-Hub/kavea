@@ -213,6 +213,48 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Once de los doce vídeos, grabados contra producción
+
+Con las pantallas desplegadas, `scripts/grabar-screencasts.mjs` sacó **once vídeos**, y lo que
+enseñan está comprobado en la base, no supuesto:
+
+- **`instagram_manage_comments`** — el ciclo entero sobre una publicación real: `comentario.respondido`
+  a las 10:59:00, `comentario.editado` a las 10:59:22, `comentario.borrado` a las 10:59:33.
+- **`whatsapp_business_messaging`** — envío en vivo, `estado: enviado`, `wamid.HBgMNTg0MTIxNzIyNzY3…`.
+- **`pages_messaging`** — envío en vivo, `estado: enviado`, `m_5VIxoSi2RdVRy0A8ynihT1rC9zij…`.
+- **`instagram_basic`** — handle `@boosty.digital`, ID `17841421294200897`, campos de perfil y la
+  lista etiquetada «Publicaciones de @boosty.digital».
+- **`pages_read_engagement`** — elección de Página, contenido leído en vivo y la identidad delante.
+
+**Hitos, para poder auditar sin ver doce vídeos.** Nueve PNG, uno por momento que justifica un
+permiso. Existen porque `ffmpeg` no está instalado y sin él no hay forma de sacar un fotograma
+después: tres guiones llevaban semanas grabando la pantalla equivocada y nadie lo vio porque el
+fichero salía, con su tamaño razonable.
+
+**Tres cosas del script que habrían producido un envío malo:**
+
+1. **Dos ficheros por permiso.** Playwright nombra con hash y el script pone el permiso delante,
+   así que tras dos tiradas convivían el `instagram_basic` del 6-ago —197 KB, la bandeja,
+   rechazado— con el nuevo de 2 MB. Elegir bien dependía de mirar la fecha de doce ficheros. Ahora
+   la carpeta anterior se aparta antes de grabar.
+2. **`human_agent` se saltaba en silencio** dentro de un `if` sin `else`: la tirada sacó once
+   vídeos y faltaba el duodécimo hasta contarlos.
+3. **Y luego grabó uno inútil.** Con la tarjeta puesta, el recorrido no encontró el chip de
+   Instagram, avisó y salió — y `grabar` guardó igual 930 KB de una pantalla sin Human Agent, con
+   el nombre del permiso delante y listo para subir. Ahora un recorrido puede devolver `false` y el
+   vídeo se tira.
+
+**`human_agent` no se puede grabar hoy**, y por dos razones a la vez: la tarjeta de WhatsApp que se
+usó es de un contacto que nunca escribió por Instagram, y el tag solo vale entre las 24 h y los
+7 días desde el último entrante —los tres canales tienen entrantes de hace 7 y 13 horas—. Mañana
+sí, si no entra nada nuevo que reinicie la ventana.
+
+**Y el hilo se limpió para la cámara.** Cuatro comentarios de prueba tachados eran lo primero que
+se veía. Van en un `details` nativo: se abre sin JavaScript, el rastro sigue ahí y no es lo primero.
+
+Falta de B3 lo que un runner no puede hacer: el diálogo de Meta —completar el login pide
+credenciales de Facebook en el navegador— y el cliente nativo, que son cuatro notas de rechazo.
+
 ### 2026-08-24 (cierre) — El despliegue que se canceló solo, y los rojos que no eran fallos
 
 Se subieron los cinco commits del día de golpe. Netlify **canceló el build** de la aplicación y
@@ -1196,3 +1238,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   reporta como error, el error de verdad llega camuflado entre seis iguales.
 - Un 502 en la primera petición después de desplegar es arranque en frío hasta que se repite. Un
   solo intento no distingue eso de un fallo de código.
+- Un recorrido de grabación que «avisa y sale» produce igual un fichero con el nombre correcto. El
+  aviso se lee una vez en la consola; el fichero se sube. Lo que no vale hay que borrarlo, no
+  comentarlo.
+- Dos tiradas de un generador que nombra con hash dejan dos artefactos válidos por nombre, y el
+  viejo puede ser justo el que fue rechazado. Vaciar antes de generar es parte de generar.

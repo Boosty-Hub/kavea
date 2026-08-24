@@ -155,7 +155,16 @@ async function sesion() {
   return estadoSesion
 }
 
-/** Un vídeo por permiso. El nombre del fichero ES el permiso, para no confundirlos al subirlos. */
+/**
+ * Un vídeo por permiso. El nombre del fichero ES el permiso, para no
+ * confundirlos al subirlos.
+ *
+ * SI EL RECORRIDO DEVUELVE `false`, EL VÍDEO SE TIRA. Antes un recorrido que no
+ * encontraba lo que buscaba imprimía un aviso y salía, y `grabar` guardaba de
+ * todos modos el fichero: el 24-ago `human_agent` dejó 930 KB de una pantalla sin
+ * Human Agent, con el nombre del permiso delante y listo para subir. Un vídeo que
+ * no enseña el permiso es peor que no tener vídeo, porque el hueco no se ve.
+ */
 async function grabar(permiso, recorrido) {
   const estado = await sesion()
   const ctx = await navegador.newContext({
@@ -169,8 +178,9 @@ async function grabar(permiso, recorrido) {
   ctx.on('console', (m) => { if (m.type() === 'error') errores.push(m.text().slice(0, 160)) })
 
   const p = await ctx.newPage()
+  let vale = true
   try {
-    await recorrido(p)
+    vale = (await recorrido(p)) !== false
   } finally {
     // El vídeo se escribe AL CERRAR el contexto, no antes: sin este close el
     // fichero queda de cero bytes.
@@ -182,7 +192,10 @@ async function grabar(permiso, recorrido) {
     .filter((f) => f.endsWith('.webm') && !f.includes('__'))
     .map((f) => ({ f, t: statSync(join(dirVideo, f)).mtimeMs }))
     .sort((a, b) => b.t - a.t)
-  if (recientes[0]) {
+  if (recientes[0] && !vale) {
+    rmSync(join(dirVideo, recientes[0].f), { force: true })
+    console.log(`  ${permiso.padEnd(28)} SIN VÍDEO: el recorrido no pudo enseñar el permiso`)
+  } else if (recientes[0]) {
     const destino = `${permiso}__${recientes[0].f}`
     renameSync(join(dirVideo, recientes[0].f), join(dirVideo, destino))
     const kb = Math.round(statSync(join(dirVideo, destino)).size / 1024)
@@ -320,10 +333,14 @@ if (TARJETA_WA) {
   await grabar('human_agent', async (p) => {
     await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3000)
 
+    // La tarjeta tiene que tener canal de Instagram: la feature se enseña ahí,
+    // no en WhatsApp. Una tarjeta de un contacto que solo escribió por WhatsApp
+    // no tiene ese chip, y es lo que pasó el 24-ago.
     const chip = p.locator('button.canal-chip', { hasText: 'Instagram' }).first()
     if (!(await chip.count())) {
-      console.log('     no encuentro el selector de canal: el vídeo queda sin Human Agent')
-      return
+      console.log('     esa tarjeta no tiene canal de Instagram: pon en TARJETA_WHATSAPP una')
+      console.log('     tarjeta cuyo contacto haya escrito por Instagram hace entre 24 h y 7 días')
+      return false
     }
     await chip.click()
     // Pausa larga a propósito: este es el fotograma que justifica el permiso.
