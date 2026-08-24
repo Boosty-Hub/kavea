@@ -33,7 +33,7 @@ de git de este mismo archivo.
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
 | Comentarios | ✅ Pestaña de la Bandeja, no módulo | Respuesta pública y lectura por API; el webhook sigue sin llegar |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
-| Callback de borrado de datos | 🟡 Escrito en el formulario, guardado sin confirmar | Visto en pantalla el 23-ago con *Save Changes* todavía activo. `data_deletion_url` NO es legible por Graph, así que esto no se puede verificar por API — a diferencia de `deauth_callback_url`, que sí y devuelve la función correcta |
+| Callback de borrado de datos | ✅ Guardado | Recarga del panel a las 20:59 del 23-ago: el campo persiste. No hay forma de verificarlo por API (`data_deletion_url` no es campo de Graph), a diferencia de `deauth_callback_url`, que sí |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
@@ -52,10 +52,11 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Facebook Login for Business | 🟡 Configurado, sin código | `config_id 1721663745727123` · system-user · sin caducidad · URI de retorno puesta con Strict Mode. Falta el flujo |
+| Facebook Login for Business | 🟡 Flujo construido, sin secretos en producción | `config_id 1721663745727123`. `/api/meta/oauth/start`, el callback en `conectar` y la función `meta-canje`, en `b9a94c5`. Verificado con Playwright en local; falta configurar producción y desplegar el borde |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
+| CI de GitHub Actions | ⛔ **Caída por facturación desde el 24-ago 00:21 UTC** | «recent account payments have failed or your spending limit needs to be increased». Cinco trabajos, cero pasos, 2 s. Cuatro commits sin verificar |
 | Comodín `*.kavea.ai` | ⛔ Bloqueado por Netlify | `422 invalid site`, recomprobado el 23-ago. El certificado del sitio SÍ es comodín; lo que falta es el registro DNS |
 
 Fases 0–4 operativas, fase 5 en su tarea 12.
@@ -191,6 +192,83 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 (madrugada) — El diálogo de Meta, de ida y de vuelta
+
+Construido el bloque B de la fase 5: el flujo que sustituye el token de system user de Boosty
+por uno del portafolio de cada cliente. `b9a94c5`.
+
+**La pieza que decide si esto es seguro es el `state`.** Strict Mode admite UNA sola URI de
+retorno para toda la plataforma, así que el callback no sabe de qué inquilino viene por el Host
+—siempre es el mismo— y tiene que sacarlo del `state`. Un `state` sin firmar es un parámetro que
+escribe cualquiera: bastaría con mandarle a un dueño de Kavea un enlace al diálogo con el `org`
+de otro espacio para que su autorización legítima colgara la Página del atacante de la bandeja de
+la víctima. Va firmado con HMAC-SHA256, y como una firma válida se puede reenviar, el `nonce`
+viaja ADEMÁS en una cookie de `.kavea.ai` que el callback exige y borra al usarla. La firma dice
+«esto lo emitió Kavea»; la cookie dice «y se lo emitió a este navegador».
+
+**Dos decisiones donde el código se aparta del documento de fase, a propósito:**
+
+- T5 diseñaba `/start` recibiendo `organization_id` por la URL, con la exigencia de devolver 403
+  a quien acertara el id sin ser miembro. El código no lee ese parámetro: saca la organización
+  del Host bajo RLS. Es más estricto — el id de la URL no existe como superficie de ataque.
+- T5 decía «propietario o admin». `puede(org,'conectar')` en la 0040 dice **solo owner**. Manda
+  la base, que es la única matriz de permisos del producto, y además la versión estricta es la
+  correcta: conectar toca credenciales y el kill-switch.
+
+**El paso 7 aborta el alta y deja la conexión en `degraded`, no en `connected`.** Una fila que
+dice «conectado» sin webhooks suscritos es el peor estado posible: el cliente ve verde, espera, y
+no le entra un solo mensaje. Mejor visiblemente roto que invisiblemente inútil.
+
+**Un fallo que habría aparecido en el primer alta real y no antes.** El `kid` por defecto que
+escribí era `v1`. El secreto que existe en el proyecto se llama `KAVEA_CRED_KEY_k1`, y
+`cripto.ts` compone el nombre de la variable de entorno con el `kid`. No habría fallado al
+desplegar ni al arrancar: habría fallado al cifrar el token, después de canjear el código —que es
+de un solo uso—. Comprobado contra las credenciales guardadas: las que tienen `kid` dicen `k1`.
+De paso: **ninguna fila tiene BISU todavía**, las columnas de la 0004 llevan vacías desde agosto
+porque hasta ahora no existía ningún flujo que produjera uno.
+
+**Dos copias de la misma lista.** Los campos de webhook estaban escritos en
+`reconciliar-suscripciones` y los iba a volver a escribir en `meta-canje`. Si se separan, el
+reconciliador ve campos «que faltan» cada quince minutos y corrige para siempre algo que no está
+roto. Una sola lista en `_compartido/campos.ts`.
+
+**`.boton` no existía.** `/registro`, `/crear` y la pantalla de canales la pedían por
+`className` y las tres renderizaban el botón nativo del navegador. Se vio en la captura, no en el
+código: el enlace de conectar salía subrayado en medio del texto.
+
+**Verificado con Playwright contra el servidor local**, que es lo que hizo aparecer lo anterior:
+el 302 lleva `config_id` 1721663745727123, `client_id`, `response_type=code`,
+`override_default_response_type=true` y un `state` firmado de 262 caracteres; la cookie es
+`httpOnly`, `SameSite=Lax`, y su nonce coincide con el del `state`; el callback rechaza `state`
+ausente, basura y manipulado; y un canal sin `config_id` devuelve 400 en vez de abrir un diálogo
+que Meta rechazaría con un error genérico. **Meta acepta la URL del diálogo**: redirige a
+`login.php` porque el navegador de prueba no tiene sesión en Facebook, no porque los parámetros
+estén mal.
+
+`SameSite=Lax` es correcto y no una concesión: el retorno de Meta es una navegación de primer
+nivel por GET, el único caso entre sitios en que Lax sí manda la cookie. Con `Strict` el flujo
+fallaría siempre.
+
+### 2026-08-24 (madrugada) — CI lleva rota desde antes, y por facturación
+
+Al empujar el flujo, los cinco trabajos fallaron en 2 segundos sin ejecutar un solo paso. La
+anotación de GitHub, literal:
+
+> The job was not started because recent account payments have failed or your spending limit
+> needs to be increased.
+
+No es el código. Lo delata que también falla **Sitio público**, que no toca nada de lo que se ha
+cambiado, y sobre todo que viene fallando desde `08b0c4d` (24-ago 00:21 UTC) — incluidos
+`e033126` y `276e904`, que **solo tocaban la bitácora**. Un commit de documentación no puede
+romper «Tipos, lint y build».
+
+Cuatro commits han entrado sin verificar. Lo que se ejecutó a mano en su lugar: `tsc --noEmit`,
+`next build`, `deno check` de las dos funciones tocadas, el canario C8 contra producción —las
+tres funciones nuevas salen con `postgres` y `service_role` y nadie más— y la guarda de fuga de
+secretos. Lo que NO se ejecutó: el esquema desde cero con los 61 aislamientos, y la coherencia
+entre proveedores.
+
 
 ### 2026-08-23 (noche) — La puerta que no abre, y el cliente que ya estaba dentro
 
@@ -866,6 +944,19 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   más estricta o más laxa que la restricción que dice proteger.
 - Una fricción de confirmación tiene que costar una decisión, no una transcripción. Si hay que
   copiar un identificador, la acción no existe.
+- Un valor por defecto inventado para un identificador de clave no falla al desplegar ni al
+  arrancar: falla al cifrar, en el primer alta real, con el código de OAuth ya gastado. Los
+  nombres de los secretos se leen del proyecto, no se deducen del patrón que uno usaría.
+- Cuando fallan TODOS los trabajos de CI, incluido el que no toca nada de lo cambiado, el
+  sospechoso no es el código. Y si ya fallaba en un commit que solo movía documentación, está
+  demostrado.
+- Una clase de CSS que tres pantallas invocan y nadie definió no da error en ninguna parte: da un
+  botón nativo del navegador. Se ve mirando, no compilando.
+- Antes de escribir por segunda vez una lista que ya existe en otro fichero, moverla. Dos copias
+  que se separan no rompen nada de golpe: hacen que un reconciliador corrija cada quince minutos
+  algo que no está roto.
+- Decir «voy a comprobar CI» y no comprobarlo deja pasar cuatro commits sin red. Un compromiso de
+  mirar un resultado ajeno vale lo mismo que el trámite en sí: nada, hasta que alguien mira.
 - Una pantalla en blanco no dice nada por sí sola: puede ser «no tienes esto» o puede ser un
   error del servidor. La consola distingue las dos, y solo una de ellas se arregla reintentando.
 - Cuando la interfaz de un tercero no carga, la API del mismo tercero sigue contestando. Preguntar
