@@ -90,6 +90,11 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'canal.pausado':
       return `pausó ${etiquetaCanal(String(d.canal ?? ''))}${d.motivo ? ` · ${d.motivo}` : ''}`
     case 'canal.reanudado': return `reanudó ${etiquetaCanal(String(d.canal ?? ''))}`
+    // Sin embudo = volvió al predeterminado, y se dice así en vez de «a null».
+    case 'canal.embudo':
+      return d.embudo
+        ? `mandó ${etiquetaCanal(String(d.canal ?? ''))}${d.nombre ? ` (${d.nombre})` : ''} al embudo ${d.embudo}`
+        : `devolvió ${etiquetaCanal(String(d.canal ?? ''))}${d.nombre ? ` (${d.nombre})` : ''} al embudo predeterminado`
     case 'conexion.desconectada':
       return `desconectó ${d.nombre ?? 'un canal'}${d.motivo ? ` · ${d.motivo}` : ''}`
 
