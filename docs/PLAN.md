@@ -20,12 +20,11 @@ queda es lo que separa «funciona una vez, conmigo» de «funciona siempre, con 
 `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado, primer BISU de la base,
 `subscription_ok: true` con los 9 campos, y V1–V7 en verde salvo V6.
 
-**A2. Probar que el token nuevo sirve para lo que servía el viejo.** — 🟡 **a medias.**
-`MESSAGING` está entre las `tasks` y V4 confirma que el token es válido. Pero válido no es
-entregable.
-*Hecho cuando:* sale un mensaje real por Messenger y otro por Instagram con el token nuevo, y
-entra su echo. Si falla, restaurar desde el respaldo del cifrado (`kid k1`) y anotar qué permiso
-faltaba.
+**A2. Probar que el token nuevo sirve para lo que servía el viejo.** — 🟡 **Instagram sí,
+Messenger pendiente.** El 24-ago salió un mensaje real por Instagram con el PAT del diálogo y
+volvió el echo de Meta con su `mid`.
+*Falta:* Messenger de extremo a extremo. Necesita un mensaje ENTRANTE de una persona a la Página
+—no hay ninguna conversación en ventana— y eso no se puede hacer desde Kavea.
 
 **A3. Una autenticación, y elegir dentro de Kavea.** — ✅ **HECHO el 24-ago.**
 El BISU pasó a la organización (0092), `meta-canje` solo autoriza, `meta-activos` descubre y

@@ -198,6 +198,42 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El envío probado, y otro camino que nunca pudo funcionar
+
+Con permiso de Gabriel para conectar su Página personal y mandarse mensajes.
+
+**`portafolio` → `conectar` no había funcionado nunca.** Al intentarlo:
+
+    postgrest 403 {"code":"42501","message":"Solo el equipo de Boosty."}
+
+`registrar_conexion` empieza por `if not public.es_staff()`, que mira `auth.uid()`. Esa función
+llama a PostgREST con la CLAVE DE SERVICIO, donde no hay usuario: la guarda es siempre falsa y el
+RPC siempre levantaba. La guarda no estaba de más, estaba en la capa equivocada — quien autoriza
+es `/api/portafolio`, que exige `esStaff()` y la superficie `admin` con una sesión de verdad, que
+es donde se puede preguntar quién eres. Repetirla contra un rol que por definición no tiene
+identidad no protegía nada: cerraba el camino entero. Ahora llama a
+`registrar_conexion_oauth`, que es la versión pensada para el borde.
+
+Es el **tercer camino muerto del día** y los tres estaban en la misma función.
+
+**Y una tercera copia de la lista de campos**, esta vez incompleta: a `portafolio` le faltaba
+`feed`, así que una Página conectada por el panel quedaba suscrita a ocho campos y el
+reconciliador le añadía el noveno quince minutos después. La incoherencia duraba poco y por eso
+nadie la vio. Importada de `_compartido/campos.ts` como las otras dos.
+
+**Conectada `Gabriel Montiel Toro`** (`106042974225260`, `@gabrielmontieltoro`): conexión,
+credencial cifrada, los dos canales y **las dos rutas, con `ig_business_account`**. Es la primera
+vez que esa rama se ejecuta desde la 0089 de esta mañana; antes habría abortado.
+
+**A2 PROBADO.** Se envió un mensaje real por Instagram desde la bandeja, con el PAT que vino del
+diálogo de OAuth, y **volvió el echo de Meta** con su `mid`. Un echo solo existe si Meta lo
+entregó. El riesgo de que el token del diálogo concediera menos que el de system user queda
+cerrado por medición y no por lectura de `tasks`.
+
+**Messenger sigue sin probar de extremo a extremo** y no lo puedo hacer yo: hace falta un mensaje
+ENTRANTE de una persona a la Página, y no hay ninguna conversación de Messenger en ventana. Es el
+mismo pendiente que arrastra desde el 6-ago.
+
 ### 2026-08-24 (cierre) — Por qué el diálogo no ve las 26 Páginas de clientes
 
 Gabriel notó que el selector de Meta solo le ofrecía dos Páginas y que las demás salían en gris
@@ -766,6 +802,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Una guarda de autorización contra `auth.uid()` es inútil en una función que se llama con la
+  clave de servicio: no protege, cierra. La autorización va donde hay sesión; el RPC del borde va
+  sin guarda y se le llama desde un sitio que ya preguntó quién eres.
+- Tres copias de la misma lista y la tercera incompleta. Que el reconciliador lo arreglara cada
+  quince minutos es lo que impidió verlo: un mecanismo de reparación puede esconder el defecto que
+  repara.
 - Que un permiso esté encendido no dice en qué nivel está encendido: los siete interruptores de
   «Partial access» de Meta siguen siendo parciales, y hay puertas que solo abre «Full access».
 - Un camino de alta más cómodo para el cliente puede ser más exigente para el proveedor. OAuth

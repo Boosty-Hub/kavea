@@ -17,6 +17,7 @@
  */
 
 import { cifrar, aHexPg } from '../_compartido/cripto.ts'
+import { CAMPOS_MESSENGER } from '../_compartido/campos.ts'
 
 const V = Deno.env.get('GRAPH_API_VERSION') ?? 'v26.0'
 const KID = 'k1'
@@ -30,10 +31,10 @@ const KID = 'k1'
  */
 const CAMPOS = 'id,name,tasks,access_token,instagram_business_account{id,username}'
 
-const CAMPOS_MESSENGER = [
-  'messages', 'messaging_postbacks', 'message_echoes', 'message_reads',
-  'message_reactions', 'messaging_referrals', 'messaging_optins', 'messaging_handovers',
-]
+// La lista vive en `_compartido/campos.ts`. Aquí había una TERCERA copia y
+// además incompleta: le faltaba `feed`, así que una Página conectada por el
+// panel quedaba suscrita a ocho campos y el reconciliador le añadía el noveno
+// quince minutos después. Nadie lo vio porque el resultado final coincidía.
 
 type Pagina = {
   id: string
@@ -210,7 +211,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // 1. La fila. Si la Página ya estaba conectada, el RPC lo rechaza: una
       //    Página en dos espacios metería los mensajes de un cliente en la
       //    bandeja de otro.
-      const conexion = await sql<string>('rpc/registrar_conexion', {
+      // `registrar_conexion_oauth` Y NO `registrar_conexion`, y no es un detalle.
+      //
+      // La versión con guarda empieza por `if not public.es_staff()`, que mira
+      // `auth.uid()`. Esta función llama a PostgREST con la CLAVE DE SERVICIO,
+      // donde no hay usuario: `es_staff()` es siempre falso y el RPC siempre
+      // levantaba «Solo el equipo de Boosty.». Comprobado el 24-ago-2026: la
+      // acción `conectar` del panel interno nunca pudo funcionar.
+      //
+      // La guarda no desaparece, estaba en el sitio equivocado. Quien autoriza
+      // es `/api/portafolio`, que exige `esStaff()` Y la superficie `admin`
+      // ANTES de llegar aquí — con una sesión de verdad, que es donde se puede
+      // preguntar quién eres. Repetirla contra un rol que por definición no
+      // tiene identidad no protegía nada: solo cerraba el camino entero.
+      const conexion = await sql<string>('rpc/registrar_conexion_oauth', {
         method: 'POST',
         headers: { Accept: 'application/vnd.pgrst.object+json' },
         body: JSON.stringify({
@@ -253,6 +267,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
         signal: AbortSignal.timeout(20_000),
       })
       const js = await rs.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
+
+      // Anotar QUÉ campos quedaron suscritos, no solo que la llamada salió bien.
+      // Sin esto `subscribed_fields_messenger` se queda en null y el panel no
+      // puede decir a qué está suscrita la Página; el reconciliador acababa
+      // rellenándolo quince minutos después, así que la incoherencia duraba poco
+      // y por eso nadie la vio.
+      await sql('rpc/marcar_suscripcion', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_conexion: conexion,
+          p_ok: Boolean(js.success),
+          p_campos_messenger: js.success ? CAMPOS_MESSENGER : null,
+        }),
+      }).catch(() => {})
 
       // 4. El diagnóstico, inmediatamente. Conectar y no comprobar es cómo se
       //    entrega un canal que dice «conectado» y está mudo.
