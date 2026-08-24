@@ -103,6 +103,14 @@ Qué puede y qué no puede hacer, antes de conectar: ventana de 24 h, plantillas
 número. Evita el soporte que genera cada sorpresa.
 *Hecho cuando:* aparece en el flujo de conexión de WhatsApp, antes del diálogo.
 
+**C0. Decidir qué se le pide a un cliente para el autoservicio.** *(nuevo, 24-ago)*
+El diálogo de Facebook Login for Business exige **Full access** sobre la Página. Las 26 Páginas de
+clientes que Boosty tiene asignadas como socio están en *Partial access (business tools only)* —con
+los siete interruptores puestos— y por eso NO salen en el selector. Subirlas es pedirle al cliente
+el derecho a borrar su Página y a quitar acceso a cualquiera.
+*Hecho cuando:* está decidido si el autoservicio pide Full access, si se ofrece la vía de system
+user como alternativa asistida, o las dos según el tipo de cliente.
+
 **C4. El alta completa con un portafolio ajeno a Boosty.**
 Es lo que exigen C1, C2, C4, C5, C7 y C8 de `docs/fases/05` §10, y no se puede simular desde
 dentro.

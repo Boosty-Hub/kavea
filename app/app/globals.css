@@ -720,6 +720,53 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
    tipografia es dificil de comparar cuando las lineas no estan juntas. */
 .aviso--nuevo { box-shadow: inset 3px 0 0 var(--k-accent); }
 
+/* ---------- Modal ----------
+   Lo pide la pantalla de canales: con tres conexiones y siete comprobaciones
+   cada una, la pagina era una columna de cuatro pantallas y respondia mal a la
+   unica pregunta que se hace al entrar. El detalle se abre cuando se pide. */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgb(0 0 0 / 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 6vh 16px 16px;
+  overflow-y: auto;
+}
+
+.modal__caja {
+  background: var(--k-surface);
+  border: 1px solid var(--k-border);
+  border-radius: var(--r-card);
+  width: 100%;
+  max-width: 720px;
+  /* El cuerpo se desplaza por dentro, no la caja: la cabecera con el boton de
+     cerrar tiene que seguir alcanzable con el hilo largo. */
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--k-border);
+  flex: none;
+}
+
+.modal__cuerpo { padding: 16px; overflow-y: auto; }
+
+@media (max-width: 640px) {
+  .modal { padding: 0; }
+  .modal__caja { max-width: none; max-height: 100vh; border-radius: 0; border: 0; }
+}
+
 /* ---------- Calendario ---------- */
 
 .mes {

@@ -198,6 +198,62 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Por qué el diálogo no ve las 26 Páginas de clientes
+
+Gabriel notó que el selector de Meta solo le ofrecía dos Páginas y que las demás salían en gris
+—«es extraño, en el portafolio salen todos los permisos»—. Tiene razón en lo que ve y la
+explicación cambia el modelo comercial.
+
+El selector dice, literal, sobre `Gabriel Montiel Toro` y `Spatium Coworking`:
+
+> Give Boosty Digital LLC full control to continue. **Update permissions**
+
+Y en Business Settings → Partners se ve por qué. Esa Página **no la posee Boosty**: la posee otro
+negocio (`2626518904258226`), y Boosty Digital LLC figura como **socio** con
+**Partial access (business tools only)** — con los siete interruptores encendidos: Content,
+Community activity, Messages and calls, Ads, Insights, Creator content, Creator management.
+
+Los siete puestos y aun así es «parcial». Meta tiene tres niveles y el diálogo de Facebook Login
+for Business exige el tercero:
+
+| Nivel | Qué es |
+|---|---|
+| Partial access (business tools only) | Lo que Boosty tiene hoy en esas Páginas |
+| Partial access (business tools and Facebook) | Un interruptor más |
+| **Full access — Everything (except sensitive actions)** | **Lo que el diálogo exige** |
+
+**LA CONSECUENCIA IMPORTA MÁS QUE EL DETALLE: el camino de OAuth es MÁS EXIGENTE que el del token
+de system user.** Las 26 Páginas de clientes asignadas como socio con acceso parcial funcionan hoy
+por la vía A —system user— y NO son elegibles en el autoservicio. Las dos vías de alta que
+`docs/fases/05` mantenía en paralelo no eran redundancia: son dos poblaciones distintas de
+clientes, y ahora se sabe por qué.
+
+Y hay una parte que no es técnica. Pedirle a un cliente que suba a *Full access* es pedirle el
+derecho a dar y quitar acceso a cualquiera —incluso a sí mismo— y a borrar su Página. Para un
+cliente que ya trabaja con Boosty puede ser razonable; para alguien que se registra en la web un
+martes por la noche, es una barrera de entrada que hay que decidir antes de venderlo.
+
+### 2026-08-24 (cierre) — Canales deja de ser una columna de cuatro pantallas
+
+Petición de Gabriel: que Canales enseñe una tarjeta por canal y que el detalle se abra en un
+modal, «que no sea bajar en la página, que se ve desordenado».
+
+Tenía razón y el motivo es medible: con cuatro conexiones y siete comprobaciones cada una, la
+página era una columna que no contestaba de un vistazo lo único que se viene a preguntar —«¿mis
+canales están bien?»—. Ahora son tres tarjetas —WhatsApp, Instagram, Messenger— con su cuenta y su
+veredicto, y **el peor estado manda**: una tarjeta que dijera «todo en orden» teniendo una conexión
+rota debajo sería peor que no tener tarjeta. Medido después: 860 px, una pantalla.
+
+Detalles que no se ven pero se notan al usarlo: Escape cierra, el fondo no se desplaza mientras
+hay algo encima, y el clic de fuera solo cierra si EMPIEZA fuera —sin comparar con
+`currentTarget`, arrastrar desde dentro hasta el borde cierra el modal y se lleva por delante lo
+que estuvieras haciendo—.
+
+De paso, un susto propio: la primera versión del corte se llevó por delante `Canalitos` y `Fila`
+porque busqué el final de la componente con `rindex('  )
+}')` y eso encuentra el final del
+FICHERO. Lo cazó el typecheck; se revirtió y se rehízo cortando por números de línea verificados.
+
 ### 2026-08-24 (cierre) — Una autenticación, muchos activos
 
 Gabriel probó el flujo dos veces y las dos salieron mal, cada una por un motivo distinto y los
@@ -710,6 +766,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Que un permiso esté encendido no dice en qué nivel está encendido: los siete interruptores de
+  «Partial access» de Meta siguen siendo parciales, y hay puertas que solo abre «Full access».
+- Un camino de alta más cómodo para el cliente puede ser más exigente para el proveedor. OAuth
+  pide sobre la Página lo que el token de system user no pedía, y por eso las dos vías conviven.
+- Cortar código buscando el «último cierre» encuentra el final del fichero, no el de la función.
+  Para recortar un bloque, números de línea verificados antes de escribir.
 - Repetir el mensaje de error de un tercero en la interfaz es delegar la redacción del producto:
   «Permissions error» al cancelar suena a avería y no lo es.
 - Cuando la implementación obliga al usuario a repetir un trámite, el problema no es el usuario:

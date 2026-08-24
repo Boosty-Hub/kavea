@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CanalConectado, Conexion, Verificacion } from '@/lib/conexiones'
 import { fechaHora } from '@/lib/fechas'
@@ -52,6 +52,9 @@ function nombreDe(c: Conexion): string {
 /** Lo que hay que teclear para desconectar. Fija, legible y sin signos. */
 const PALABRA = 'DESCONECTAR'
 
+/** El orden en que se enseñan los canales. Fijo, para que no baile entre cargas. */
+const ORDEN_CANALES = ['whatsapp', 'instagram', 'messenger'] as const
+
 /**
  * ¿El diagnóstico guardado es anterior al último cambio de la conexión?
  *
@@ -69,6 +72,24 @@ export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: st
   const [comprobando, setComprobando] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Qué canal tiene el detalle abierto. `null` = solo las tarjetas. */
+  const [abierto, setAbierto] = useState<string | null>(null)
+
+  // Escape cierra, como cualquier diálogo: sin esto el modal es una trampa para
+  // quien navega con teclado. Y el fondo no se desplaza mientras hay algo
+  // encima, porque si no la rueda mueve la página de detrás y al cerrar
+  // apareces en otro sitio.
+  useEffect(() => {
+    if (!abierto) return
+    const alPulsar = (e: KeyboardEvent) => { if (e.key === 'Escape') setAbierto(null) }
+    document.addEventListener('keydown', alPulsar)
+    const antes = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.removeEventListener('keydown', alPulsar)
+      document.body.style.overflow = antes
+    }
+  }, [abierto])
 
   async function comprobar(id: string) {
     setComprobando(id); setError(null)
@@ -141,90 +162,196 @@ Escribe ${PALABRA} para confirmar.`,
     )
   }
 
+  // AGRUPADO POR CANAL, NO POR CONEXIÓN. Esta pantalla era una columna con una
+  // conexión detrás de otra y sus siete comprobaciones siempre abiertas: con tres
+  // conexiones había que bajar cuatro pantallas para ver la última, y no
+  // contestaba de un vistazo lo único que se viene a preguntar —«¿mis canales
+  // están bien?»—. Ahora hay una tarjeta por canal con su veredicto, y el detalle
+  // se abre cuando se pide.
+  const grupos = ORDEN_CANALES
+    .map((canal) => ({
+      canal,
+      conexiones: conexiones.filter((c) => c.canales.some((k) => k.canal === canal)),
+    }))
+    .filter((g) => g.conexiones.length > 0)
+
+  const abiertas = grupos.find((g) => g.canal === abierto)?.conexiones ?? []
+
   return (
-    <div style={{ display: 'grid', gap: 28, marginTop: 32 }}>
-      {error ? <p className="error" role="alert">{error}</p> : null}
+    <div style={{ marginTop: 32 }}>
+      {/* Un error de una acción del modal se enseña dentro del modal, no detrás. */}
+      {error && !abierto ? <p className="error" role="alert">{error}</p> : null}
 
-      {conexiones.map((c) => (
-        <section key={c.meta_connection_id}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-            <h2 style={{ fontSize: 16, margin: 0 }}>{nombreDe(c)}</h2>
-            {c.ig_username && c.page_name ? (
-              <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>@{c.ig_username}</span>
-            ) : null}
-            <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-              {/* RECONECTAR. El BISU no se refresca: se renueva volviendo a pasar
-                  por el diálogo. Sin este enlace, un token muerto es una llamada
-                  a soporte. Solo sale cuando hace falta —`token_invalido_desde`
-                  no nulo— y solo en conexiones de Página: WhatsApp no entra por
-                  esta configuración. */}
-              {c.token_invalido_desde && c.page_id ? (
-                <a
-                  className="operar__control"
-                  style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
-                  href="/api/meta/oauth/start?canal=mensajeria"
-                >
-                  Reconectar
-                </a>
-              ) : null}
+      <ul
+        style={{
+          listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 12,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        }}
+      >
+        {grupos.map(({ canal, conexiones: cs }) => {
+          const rotas = cs.filter((c) => c.bloqueada).length
+          const avisos = cs.filter((c) => !c.bloqueada && c.en_rojo > 0).length
+          const pendientes = cs.filter((c) => viejo(c) || !c.ultima_pasada).length
+          // El peor estado manda: una tarjeta que dice «todo en orden» teniendo
+          // una conexión rota debajo es peor que no tener tarjeta.
+          const resumen = rotas
+            ? { t: rotas === 1 ? 'Una no funciona' : `${rotas} no funcionan`, c: 'var(--k-escalada-fg)' }
+            : avisos
+              ? { t: avisos === 1 ? 'Una con avisos' : `${avisos} con avisos`, c: 'var(--k-esperando-fg)' }
+              : pendientes
+                ? { t: 'Sin comprobar', c: 'var(--k-text-2)' }
+                : { t: 'Todo en orden', c: 'var(--k-resuelta-fg)' }
+          const enPausa = cs.flatMap((c) => c.canales)
+            .filter((k) => k.canal === canal && !k.activo).length
+
+          return (
+            <li key={canal}>
+              <button
+                type="button"
+                className="tarjeta"
+                onClick={() => { setAbierto(canal); setError(null) }}
+                style={{
+                  width: '100%', textAlign: 'left', cursor: 'pointer',
+                  display: 'grid', gap: 8, padding: '14px 16px',
+                  font: 'inherit', color: 'inherit',
+                }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ color: colorCanal(canal), display: 'flex' }}>
+                    <LogoCanal canal={canal} size={20} />
+                  </span>
+                  <span style={{ fontWeight: 500 }}>{etiquetaCanal(canal)}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--k-text-2)' }}>
+                    {cs.length}
+                  </span>
+                </span>
+                <span style={{ fontSize: 13, color: resumen.c }}>
+                  {resumen.t}
+                  {enPausa ? (
+                    <span style={{ color: 'var(--k-text-2)' }}>{' · '}{enPausa} en pausa</span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+
+      {abierto ? (
+        <div
+          className="modal"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Conexiones de ${etiquetaCanal(abierto)}`}
+          // Cerrar pinchando fuera, pero solo si el clic EMPIEZA fuera: sin
+          // comparar con `currentTarget`, arrastrar desde dentro hasta el borde
+          // cierra el modal y se lleva por delante lo que se estuviera haciendo.
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setAbierto(null) }}
+        >
+          <div className="modal__caja">
+            <div className="modal__cabecera">
+              <span style={{ color: colorCanal(abierto), display: 'flex' }}>
+                <LogoCanal canal={abierto} size={20} />
+              </span>
+              <h2 style={{ fontSize: 16, margin: 0 }}>{etiquetaCanal(abierto)}</h2>
               <button
                 type="button"
                 className="operar__control"
-                style={{ cursor: 'pointer', fontSize: 13 }}
-                disabled={comprobando !== null}
-                onClick={() => comprobar(c.meta_connection_id)}
+                style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 13 }}
+                onClick={() => setAbierto(null)}
               >
-                {comprobando === c.meta_connection_id ? 'Comprobando' : 'Volver a comprobar'}
+                Cerrar
               </button>
-              <button
-                type="button"
-                className="operar__control"
-                style={{ cursor: 'pointer', fontSize: 13, color: 'var(--k-escalada-fg)' }}
-                disabled={desconectando !== null}
-                onClick={() => desconectar(c)}
-              >
-                {desconectando === c.meta_connection_id ? 'Desconectando' : 'Desconectar'}
-              </button>
-            </span>
+            </div>
+
+            <div className="modal__cuerpo">
+              {error ? <p className="error" role="alert">{error}</p> : null}
+              <div style={{ display: 'grid', gap: 28 }}>
+                {abiertas.map((c) => (
+                  <section key={c.meta_connection_id}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                      <h2 style={{ fontSize: 16, margin: 0 }}>{nombreDe(c)}</h2>
+                      {c.ig_username && c.page_name ? (
+                        <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>@{c.ig_username}</span>
+                      ) : null}
+                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                        {/* RECONECTAR. El BISU no se refresca: se renueva volviendo a pasar
+                            por el diálogo. Sin este enlace, un token muerto es una llamada
+                            a soporte. Solo sale cuando hace falta —`token_invalido_desde`
+                            no nulo— y solo en conexiones de Página: WhatsApp no entra por
+                            esta configuración. */}
+                        {c.token_invalido_desde && c.page_id ? (
+                          <a
+                            className="operar__control"
+                            style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
+                            href="/api/meta/oauth/start?canal=mensajeria"
+                          >
+                            Reconectar
+                          </a>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="operar__control"
+                          style={{ cursor: 'pointer', fontSize: 13 }}
+                          disabled={comprobando !== null}
+                          onClick={() => comprobar(c.meta_connection_id)}
+                        >
+                          {comprobando === c.meta_connection_id ? 'Comprobando' : 'Volver a comprobar'}
+                        </button>
+                        <button
+                          type="button"
+                          className="operar__control"
+                          style={{ cursor: 'pointer', fontSize: 13, color: 'var(--k-escalada-fg)' }}
+                          disabled={desconectando !== null}
+                          onClick={() => desconectar(c)}
+                        >
+                          {desconectando === c.meta_connection_id ? 'Desconectando' : 'Desconectar'}
+                        </button>
+                      </span>
+                    </div>
+
+                    {/* UN VEREDICTO ANTERIOR AL ÚLTIMO CAMBIO NO SE AFIRMA. El 24-ago una
+                        reconexión correcta se leyó como fallida porque la pantalla seguía
+                        enseñando el diagnóstico del día anterior, que decía «se creó sin
+                        pasar por el diálogo» sobre una conexión que acababa de pasar por
+                        él. Con las dos fechas al lado, la pantalla puede decir que lo que
+                        enseña es viejo en vez de darlo por actual. */}
+                    {viejo(c) ? (
+                      <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
+                        La conexión cambió después de la última comprobación, así que lo de abajo describe
+                        cómo estaba antes. Pulsa «Volver a comprobar».
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
+                        {c.bloqueada
+                          ? 'Hay algo que impide que este canal funcione.'
+                          : c.en_rojo > 0
+                            ? 'Funciona, pero hay un aviso.'
+                            : 'Todo lo que se puede comprobar está en orden.'}
+                        {c.ultima_pasada ? (
+                          <> · comprobado el {fechaHora(c.ultima_pasada, huso)}</>
+                        ) : ' · sin comprobar todavía'}
+                      </p>
+                    )}
+
+                    <Canalitos canales={c.canales} huso={huso} onCambiado={() => router.refresh()} />
+
+                    <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
+                      {c.comprobaciones.length === 0 ? (
+                        <p className="ficha__vacia" style={{ padding: 16 }}>
+                          Sin comprobar. Pulsa «Volver a comprobar».
+                        </p>
+                      ) : (
+                        c.comprobaciones.map((v) => <Fila key={v.codigo} v={v} />)
+                      )}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
           </div>
-
-          {/* UN VEREDICTO ANTERIOR AL ÚLTIMO CAMBIO NO SE AFIRMA. El 24-ago una
-              reconexión correcta se leyó como fallida porque la pantalla seguía
-              enseñando el diagnóstico del día anterior, que decía «se creó sin
-              pasar por el diálogo» sobre una conexión que acababa de pasar por
-              él. Con las dos fechas al lado, la pantalla puede decir que lo que
-              enseña es viejo en vez de darlo por actual. */}
-          {viejo(c) ? (
-            <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
-              La conexión cambió después de la última comprobación, así que lo de abajo describe
-              cómo estaba antes. Pulsa «Volver a comprobar».
-            </p>
-          ) : (
-            <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
-              {c.bloqueada
-                ? 'Hay algo que impide que este canal funcione.'
-                : c.en_rojo > 0
-                  ? 'Funciona, pero hay un aviso.'
-                  : 'Todo lo que se puede comprobar está en orden.'}
-              {c.ultima_pasada ? (
-                <> · comprobado el {fechaHora(c.ultima_pasada, huso)}</>
-              ) : ' · sin comprobar todavía'}
-            </p>
-          )}
-
-          <Canalitos canales={c.canales} huso={huso} onCambiado={() => router.refresh()} />
-
-          <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
-            {c.comprobaciones.length === 0 ? (
-              <p className="ficha__vacia" style={{ padding: 16 }}>
-                Sin comprobar. Pulsa «Volver a comprobar».
-              </p>
-            ) : (
-              c.comprobaciones.map((v) => <Fila key={v.codigo} v={v} />)
-            )}
-          </div>
-        </section>
-      ))}
+        </div>
+      ) : null}
     </div>
   )
 }
