@@ -7,6 +7,7 @@ import { obtenerComentario, respuestasDe } from '@/lib/comentarios'
 import { etiquetaCanal, haceCuanto } from '@/lib/ventana'
 import { ListaComentarios } from '../lista'
 import { ResponderComentario } from '../responder'
+import { AccionesComentario } from '../acciones'
 
 export const dynamic = 'force-dynamic'
 
@@ -75,15 +76,25 @@ export default async function HiloComentario({ params }: { params: Promise<{ id:
             privado y no tiene ventana de 24 h.
           </p>
 
+          {/* Cada burbuja lleva lo que se le puede hacer. El ciclo que Meta pide
+              —publicar, editar, borrar— tiene que verse sobre el comentario
+              concreto, no en una barra al pie que no dice sobre cuál actúa. */}
           {hilo.map((c) => (
             <div key={c.id} className="burbuja">
-              <div className="burbuja__caja">
+              <div
+                className="burbuja__caja"
+                style={c.borrado_en ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}
+              >
                 {c.texto ?? <em style={{ color: 'var(--k-text-2)' }}>Sin texto: solo una imagen o un sticker.</em>}
               </div>
               <div className="burbuja__meta">
-                {c.autor_username ? `@${c.autor_username}` : 'Sin identificar'} · {enHuso(c.created_at, huso)}
+                {c.propio ? 'Kavea' : c.autor_username ? `@${c.autor_username}` : 'Sin identificar'}
+                {' · '}{enHuso(c.created_at, huso)}
+                {c.editado_en ? ' · editado' : ''}
                 {c.oculto ? ' · oculto en Meta' : ''}
+                {c.borrado_en ? ` · borrado de ${etiquetaCanal(c.canal)}` : ''}
               </div>
+              <AccionesComentario c={c} />
             </div>
           ))}
 

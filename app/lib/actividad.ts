@@ -164,6 +164,16 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     // de canal: es de quién lo lee.
     case 'comentario.respondido':
       return `respondió en público a un comentario de ${d.canal === 'messenger' ? 'Facebook' : 'Instagram'}`
+    // El ciclo de moderación de la 0097. Se dice qué comentario, no su id:
+    // el identificador de Meta no le dice nada a quien lee la actividad.
+    case 'comentario.oculto':
+      return 'ocultó un comentario'
+    case 'comentario.mostrado':
+      return 'volvió a mostrar un comentario'
+    case 'comentario.editado':
+      return 'cambió el texto de un comentario publicado desde Kavea'
+    case 'comentario.borrado':
+      return 'borró un comentario publicado desde Kavea'
     case 'comentario.marcado':
       return d.estado === 'ignorado' ? 'ignoró un comentario' : 'reabrió un comentario'
 

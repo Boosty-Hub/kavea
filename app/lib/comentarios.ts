@@ -29,17 +29,34 @@ export type Comentario = {
   oculto: boolean
   respondido_en: string | null
   created_at: string
+  /** Lo publicó Kavea. Es lo único que se puede editar o borrar (0097). */
+  propio: boolean
+  borrado_en: string | null
+  editado_en: string | null
 }
+
+/**
+ * Los campos, en un sitio.
+ *
+ * Estaban escritos tres veces palabra por palabra, y al añadir `propio` en la
+ * 0097 las tres tenían que cambiar a la vez. Dos que se separan no rompen nada
+ * de golpe: hacen que una pantalla no vea una columna que la otra sí.
+ */
+const CAMPOS =
+  'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
+  'estado, oculto, respondido_en, created_at, propio, borrado_en, editado_en'
 
 export const listarComentarios = cache(async (estado?: string): Promise<Comentario[]> => {
   const supabase = await crearClienteServidor()
 
   let c = supabase
     .from('comentarios')
-    .select(
-      'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
-      'estado, oculto, respondido_en, created_at',
-    )
+    .select(CAMPOS)
+    // LA LISTA ES UNA COLA DE TRABAJO, no el registro de todo lo que existe. Lo
+    // que publicó Kavea no es una tarea de nadie, y lo borrado ya no está en
+    // Instagram: los dos siguen en el hilo, que es donde cuentan la historia.
+    .eq('propio', false)
+    .is('borrado_en', null)
     // Los nuevos primero, que es el orden en que hay que atenderlos. Es también
     // el orden del índice `comentarios_bandeja_idx`.
     .order('created_at', { ascending: false })
@@ -62,10 +79,7 @@ export const obtenerComentario = cache(async (id: string): Promise<Comentario | 
   const supabase = await crearClienteServidor()
   const { data } = await supabase
     .from('comentarios')
-    .select(
-      'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
-      'estado, oculto, respondido_en, created_at',
-    )
+    .select(CAMPOS)
     .eq('id', id)
     .maybeSingle()
   return (data as Comentario | null) ?? null
@@ -75,10 +89,7 @@ export const respuestasDe = cache(async (commentId: string): Promise<Comentario[
   const supabase = await crearClienteServidor()
   const { data } = await supabase
     .from('comentarios')
-    .select(
-      'id, canal, comment_id, parent_id, post_id, autor_username, texto, ' +
-      'estado, oculto, respondido_en, created_at',
-    )
+    .select(CAMPOS)
     .eq('parent_id', commentId)
     .order('created_at', { ascending: true })
   return (data ?? []) as unknown as Comentario[]
@@ -86,7 +97,11 @@ export const respuestasDe = cache(async (commentId: string): Promise<Comentario[
 
 export const contarComentarios = cache(async (): Promise<Record<string, number>> => {
   const supabase = await crearClienteServidor()
-  const { data } = await supabase.from('comentarios').select('estado')
+  // Se cuenta lo mismo que se lista, o el número del filtro no cuadra con las
+  // filas que hay debajo y quien lo mira deja de fiarse de los dos.
+  const { data } = await supabase
+    .from('comentarios').select('estado')
+    .eq('propio', false).is('borrado_en', null)
   const n: Record<string, number> = { nuevo: 0, respondido: 0, ignorado: 0 }
   for (const f of (data ?? []) as Array<{ estado: string }>) {
     n[f.estado] = (n[f.estado] ?? 0) + 1

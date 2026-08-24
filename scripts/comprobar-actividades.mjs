@@ -111,7 +111,7 @@ for (const f of readdirSync(dirMigraciones).filter((n) => n.endsWith('.sql'))) {
     malNombrados.add(`${f}: '${lit[1]}'`)
   }
   // Los que escribe un trigger construyendo el literal en un `case`.
-  for (const t of sql.matchAll(/then\s+'((?:tarjeta|conversacion|contacto|documento|archivo|campo|identidad|mensaje|nota|embudo|etapa|breakglass|tarjetas)\.[a-záéíóúñ_]+)'/gi)) {
+  for (const t of sql.matchAll(/then\s+'((?:tarjeta|conversacion|contacto|documento|archivo|campo|identidad|mensaje|nota|embudo|etapa|breakglass|tarjetas|comentario)\.[a-záéíóúñ_]+)'/gi)) {
     escritos.add(t[1])
   }
 

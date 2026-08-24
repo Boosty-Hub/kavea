@@ -198,6 +198,55 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El ciclo de moderación, y la Página que se elegía sola
+
+**Lo que Meta pidió, verbatim:** «a complete comment moderation loop… add a comment from your app,
+edit that comment, and delete it. Then, open the native client to confirm the final state on that
+post». Kavea sabía responder y nada más.
+
+**Editar no existe en Instagram.** La arista de un comentario de IG acepta `hide` y `DELETE`; el
+texto no se cambia. Así que editar es publicar el nuevo y borrar el viejo, EN ESE ORDEN: si falla
+el segundo paso quedan dos comentarios —visibles, y se arreglan—, y al revés no quedaría ninguno.
+De los dos fallos posibles se elige el que deja rastro. La pantalla lo dice con esas palabras
+antes de pulsar, porque el resultado se ve en público y el enlace del comentario cambia.
+
+Editar y borrar solo en lo que publicó Kavea (`propio`); ocultar y mostrar en lo demás. Un botón
+de borrar sobre el comentario de un cliente, en una bandeja compartida y sin vuelta atrás, se
+pulsa por error un día.
+
+**Y LA PÁGINA SE ELEGÍA SOLA.** `sincronizar-comentarios` y `responder-comentario` resolvían la
+cuenta con `meta_asset_routes?tipo=eq.page&limit=1`: la primera fila de la tabla ENTERA. Con una
+Página conectada acierta siempre y parece correcto; desde ayer hay tres, de dos organizaciones.
+Pulsar «Traer de Meta» en un espacio leía la cuenta que devolviera Postgres. No era un permiso mal
+puesto —RLS seguía en pie— era una pregunta mal hecha con una respuesta plausible, que es lo que
+la mantuvo invisible dieciocho días. Ahora la organización llega resuelta desde el servidor y se
+recorren TODAS sus cuentas: la primera pasada arreglada trajo **49 comentarios que nunca habían
+entrado**.
+
+**De dónde sale el token, en orden:** la credencial cifrada de la conexión, y solo si Meta la
+rechaza por permiso, la derivada del portafolio —y entonces AVISA—. Importa cuál gana: el ciclo
+entero se probó y salió `via: "conexion"`, así que un cliente de autoservicio, que no está en el
+portafolio de Boosty y del que no se puede derivar nada, también puede moderar.
+
+**Probado contra Instagram de verdad**, no contra un ejemplo: publicar (`18349773871172333`),
+editar (`17981634636116725`, id nuevo), borrar. Los dos ids consultados después en Graph: «does
+not exist». El ciclo no deja nada puesto.
+
+**El fallo del intermedio.** La 0097 insertaba la fila de la respuesta propia y se olvidó de
+`raw`, que es `not null` desde la 0066. Reventó con 23502 DESPUÉS de que Meta ya hubiera
+publicado: quedó un comentario suelto en Instagram que Kavea no sabía que era suyo y por tanto no
+podía borrar. Lo dijo el aviso «salió en Meta pero no se pudo guardar aquí», que está puesto justo
+para eso; sin él la pantalla habría dicho «publicado» y ya. Se limpió a mano por Graph y se
+arregló en la 0098.
+
+**El guardián tenía un punto ciego.** Los cuatro tipos nuevos se construían como
+`'comentario.' || case …`, y el comprobador de actividades busca literales: dijo «63 tipos, todos
+traducidos» de cuatro que no sabía que existían. Ahora el nombre se escribe entero y el guardián
+conoce el prefijo. 67 tipos.
+
+**La lista es una cola de trabajo.** Lo que publica Kavea y lo borrado ya no salen en la lista de
+comentarios —no son tareas de nadie— pero siguen en el hilo, que es donde cuentan la historia.
+
 ### 2026-08-24 (cierre) — B1: las dos pantallas que Meta dijo que no vio
 
 Los ocho permisos se rechazaron el 7-ago con notas que describen pantallas, no código. Dos de
@@ -1005,3 +1054,13 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Las notas de rechazo de una revisión describen pantallas, no permisos. Se leen como una
   especificación literal —«identity visibly displayed», «labeled for that account»— y lo que no
   esté en el encuadre no cuenta, aunque el permiso funcione.
+- «La primera fila de la tabla» es una pregunta que acierta mientras solo haya una fila. El día
+  que hay tres sigue sin dar error: da la respuesta de otro. Un `limit=1` sin `where` que ate al
+  dueño es una bomba de relojería con temporizador de crecimiento.
+- Un nombre de tipo construido concatenando es invisible para cualquier guardián que busque
+  literales, y el guardián dirá que todo está bien. Lo que se vigila con grep hay que escribirlo
+  entero.
+- Cuando el paso caro es irreversible y el barato no, hacer primero el barato: publicar el nuevo
+  comentario antes de borrar el viejo deja dos si algo falla, y al revés deja cero.
+- Una columna `not null` añadida hace veinte migraciones no aparece al escribir un `insert` nuevo;
+  aparece en la primera prueba real, después de que el efecto externo ya haya ocurrido.
