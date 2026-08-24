@@ -17,42 +17,14 @@
 
 import { descifrar, desdeHexPg } from '../_compartido/cripto.ts'
 import { alertar } from '../_compartido/almacen.ts'
+import { CAMPOS_MESSENGER } from '../_compartido/campos.ts'
 
 const V = Deno.env.get('GRAPH_API_VERSION') ?? 'v26.0'
 const APP_ID = Deno.env.get('META_APP_ID') ?? ''
 
-const CAMPOS_MESSENGER = [
-  'messages',
-  'messaging_postbacks',
-  'message_echoes',
-  'message_reads',
-  'message_reactions',
-  'messaging_referrals',
-  'messaging_optins',
-  'messaging_handovers',
-
-  // SONDA DE COMENTARIOS, 2 de agosto de 2026.
-  //
-  // Los comentarios ENTRAN EN V1 desde el 3 de agosto de 2026 por decisión de
-  // Gabriel, recogida en docs/03. Kavea todavía no los procesa: `aplanar` solo
-  // lee messaging[] y standby[], así que un `changes[]` se guarda crudo en
-  // `webhook_events` y produce cero efectos. Eso es lo correcto mientras nada
-  // los consuma.
-  //
-  // Lo que sigue vigente del análisis original es la forma del dato, y es la
-  // razón de que la ingesta de comentarios sea un camino aparte y no un caso
-  // más: no tienen ventana de 24 h, no tienen conversación, y traen comment_id
-  // en vez de PSID o IGSID.
-  //
-  // Se suscriben igualmente para PODER MEDIR si llegan y con qué forma exacta.
-  // Suscribirse a un campo usa `pages_manage_metadata`, que ya tenemos, y NO
-  // añade ningún permiso al App Review pendiente: eso importa, porque pedir
-  // scopes de más es causa documentada de rechazo.
-  //
-  // La fase de comentarios arranca con la forma real del payload en la mano en
-  // vez de con dos páginas de Meta contradiciéndose.
-  'feed',
-]
+// La lista vive en `_compartido/campos.ts`: la suscribe también el alta
+// (`meta-canje`) y dos copias que se separan hacen que este reconciliador vea
+// campos «que faltan» en cada pasada y corrija para siempre algo que no está roto.
 
 // PROBADO Y DESCARTADO, 2 de agosto de 2026: `comments` NO es un campo válido
 // de `subscribed_apps` de una Página. Meta rechaza el POST entero con él en la
