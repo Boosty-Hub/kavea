@@ -213,6 +213,44 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Alguien mira el App Review, y el encuadre del envío estaba caduco
+
+**B4.** La respuesta del App Review del 7-ago estuvo **dieciséis días** sin leerse. No fue
+descuido: no hay webhook de esto, el correo de Meta cae donde nadie mira a diario y el panel hay
+que abrirlo a propósito. Ahora `vigilar-revision` pregunta cada día a
+`GET /{app-id}/permissions` con **token de app** —`{id}|{secreto}`, que no caduca y no depende de
+ninguna persona—, compara contra lo último visto (0099) y manda correo si cambió algo.
+
+Los rechazados no aparecen en esa lista, así que la comparación funciona en las dos direcciones:
+un permiso que **aparece** es una aprobación y uno que **desaparece** es una revocación. La segunda
+importa más — es la que avisaría de que Kavea se quedó sin poder mandar nada.
+
+Tres decisiones que hacen que se le pueda hacer caso:
+- **La primera pasada siembra y calla.** Con la tabla vacía todo parece un cambio; un vigilante
+  que grita el día que lo instalas es un vigilante al que se deja de hacer caso.
+- **Sin `data` no se anota nada.** Un error de red tratado como respuesta buena diría que se
+  perdieron los trece permisos de golpe. Misma guarda que `verificar-autorizaciones`.
+- **El correo se marca después de que Resend acepte.** Una alerta marcada como notificada sin
+  correo enviado sale de la lista de pendientes y nadie vuelve a mirarla.
+
+Probado de punta a punta, no solo el camino feliz: primera pasada `primera_vez: true` sin avisar ·
+segunda `cambios: 0` · se falseó un estado guardado y la tercera detectó el cambio, escribió la
+alerta 112 y **entregó el correo** (`avisado: true`) · la cuarta volvió al silencio. Hicieron falta
+dos secretos nuevos en el proyecto: `RESEND_API_KEY` y `KAVEA_CORREO_ALERTAS`.
+
+**B2, y aquí había un error de documento.** `docs/07` decía «Kavea no tiene ninguno de los dos, y
+no es un olvido: es la arquitectura». Era verdad el 7-ago y dejó de serlo el 24, cuando Facebook
+Login for Business entró en producción. Enviar con ese encuadre habría sido declarar que no
+tenemos algo que sí tenemos, y renunciar al argumento más fuerte que hay. Son **dos caminos**:
+autoservicio, donde el login de Meta y la pantalla de consentimiento se ven completos, y clientes
+del portafolio con token de system user, donde no los hay —y ese es el caso que contempla el
+quinto punto de la propia lista de Meta—. El texto del envío está escrito en inglés y listo para
+pegar en *Request again*, con lo que enseña cada vídeo, permiso por permiso.
+
+Lo que ese texto NO promete: que los vídeos de los permisos que solo se usan por el camino del
+portafolio enseñen un login. Prometer de más en el formulario es cómo se consigue un segundo
+rechazo con la misma nota.
+
 ### 2026-08-24 (cierre) — El ciclo de moderación, y la Página que se elegía sola
 
 **Lo que Meta pidió, verbatim:** «a complete comment moderation loop… add a comment from your app,
@@ -1079,3 +1117,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   comentario antes de borrar el viejo deja dos si algo falla, y al revés deja cero.
 - Una columna `not null` añadida hace veinte migraciones no aparece al escribir un `insert` nuevo;
   aparece en la primera prueba real, después de que el efecto externo ya haya ocurrido.
+- Un vigilante hay que probarlo provocando lo que vigila. Las tres pasadas que salen bien no
+  demuestran nada: la única que importa es la que tenía que gritar, y para verla hay que falsear
+  el estado a propósito.
+- Un documento que explica una limitación de la arquitectura caduca el día que la limitación se
+  arregla, y nadie lo relee porque suena a verdad. Antes de enviar algo escrito hace semanas,
+  comprobar si sigue siendo cierto lo que afirma del producto.

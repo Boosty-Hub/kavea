@@ -55,18 +55,91 @@ Meta lista cinco requisitos para cada grabación, y los dos primeros son:
 > 1. The complete Meta login flow.
 > 2. A user granting app access to the permission or feature.
 
-**Kavea no tiene ninguno de los dos, y no es un olvido: es la arquitectura.** Conecta como Tech
-Provider con un token de system user, así que no existe una pantalla donde un usuario inicie
-sesión con Meta ni conceda permisos. Los vídeos no podían enseñar algo que el producto no tiene.
+**El 7 de agosto Kavea no tenía ninguno de los dos, y no era un olvido: era la arquitectura.**
+Conectaba como Tech Provider con un token de system user, así que no existía una pantalla donde un
+usuario iniciara sesión con Meta ni concediera permisos. Los vídeos no podían enseñar algo que el
+producto no tenía.
 
-Y la salida la da el propio quinto punto de Meta, que estaba en la lista y no se aplicó:
+**Eso cambió el 24 de agosto.** Facebook Login for Business está en producción y se estrenó con un
+canje real de extremo a extremo: `conectar.kavea.ai` → diálogo de Meta → código → BISU cifrado →
+elección de activos dentro de Kavea. Los dos requisitos que hundieron los ocho vídeos ya se pueden
+grabar, porque ya existen.
+
+Y siguen existiendo **dos caminos**, no uno, que es lo que hay que declarar sin que el revisor
+tenga que deducirlo:
+
+1. **Autoservicio** — Facebook Login for Business. El cliente inicia sesión con Meta, concede
+   permisos en el diálogo y después elige, dentro de Kavea, cuáles de sus Páginas e Instagram
+   quiere conectar. Aquí los requisitos 1 y 2 se ven completos.
+2. **Clientes del portafolio de Boosty** — token de system user, servidor a servidor. Aquí NO hay
+   login visible, y es el caso que el quinto punto de la propia lista de Meta contempla:
 
 > 5. If your app is a server-to-server app OR your app is using system user token to access Meta
 >    API, please indicate it in your next submission so that we're aware that frontend Meta login
 >    authentication flow is not visible.
 
-**Declarar eso es el arreglo sistémico.** Sin ello, volver a grabar los ocho vídeos vuelve a
-chocar contra los mismos dos requisitos.
+**Declarar los dos caminos es el arreglo sistémico.** Sin ello, volver a grabar los ocho vídeos
+vuelve a chocar contra los mismos dos requisitos.
+
+### El texto del envío, para pegar en «Request again»
+
+En inglés y en primera persona del plural, que es como Meta lee estos formularios. Va aquí y no en
+la cabeza de nadie: es lo único que no se puede reconstruir mirando el producto.
+
+```
+How users authenticate with Meta in our app
+-------------------------------------------
+Kavea supports two connection paths, and which requirements are visible in a
+screencast depends on which one the customer uses.
+
+1. Self-service customers connect through Facebook Login for Business. The
+   customer signs in with Meta, grants the permissions in Meta's own dialog, and
+   is returned to our app, where they choose which of their Pages and Instagram
+   professional accounts to connect. The complete Meta login flow and the consent
+   screen are both part of this path and are shown in the screencasts.
+
+2. Customers whose assets are already in our Tech Provider portfolio are
+   connected server to server with a system user token. There is no frontend
+   login for this path, by design: the business grants us access on the Meta side
+   and our backend uses the system user token. Per point 5 of your screencast
+   requirements, we are indicating this explicitly so it is clear that a frontend
+   Meta login flow is not visible in that case.
+
+Our previous submission was rejected on all eight permissions for "Screencast Not
+Aligned with Use Case Details". At that time path 1 did not exist and the
+screencasts could not show a login that the product did not have. Path 1 is now
+in production and the new recordings show it.
+
+What each screencast shows
+--------------------------
+- instagram_manage_comments: a complete moderation loop on a real Instagram post
+  of the connected professional account: we publish a comment from our app, edit
+  it, and delete it. Instagram's Graph API does not allow editing the text of a
+  comment, so our app publishes the replacement and deletes the previous one, and
+  the UI states this before the user confirms. The final state is then confirmed
+  in the native Instagram app.
+- pages_read_engagement: Page selection, then the Page's posts, photos and events
+  retrieved live from Graph and rendered in our UI with the Page name, category,
+  followers and Page ID visible in the header.
+- instagram_basic: the selected Instagram professional account with its handle
+  and its numeric ID visible, its profile fields (name, biography, followers,
+  following, media count, website), and its media list labelled for that account.
+- pages_messaging and instagram_manage_messages: the connected asset is visible
+  with its name and ID, a message is sent live from our app, and the delivered
+  message is shown in the native client.
+- pages_manage_metadata: the screen where our app subscribes the Page to webhook
+  fields, followed by an event for that same Page arriving in our inbox.
+- pages_utility_messaging: selecting a utility template, filling its placeholders,
+  sending it, and the delivered template message in the native client.
+- Human Agent: a conversation past the 24 hour window, where our UI marks it as
+  human-agent only and the reply is sent with the HUMAN_AGENT tag.
+
+Data handling has not changed since the approved submission.
+```
+
+**Lo que este texto NO dice, a propósito:** no promete que los vídeos enseñen el login en los
+permisos que solo se usan por el camino del portafolio. Prometer de más en el formulario es cómo se
+consigue un segundo rechazo con la misma nota.
 
 ### Y además, lo que pide cada revisor, con sus palabras
 

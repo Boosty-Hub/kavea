@@ -68,20 +68,24 @@ de medios. Detalle verbatim en `docs/07` §1.
 pestaña de Instagram (perfil + medios)—, verificadas contra Boosty.digital. **24-ago:** hecha tambien la de comentarios —publicar, editar, ocultar y borrar desde el hilo,
 probado contra Instagram de verdad—. B1 cerrada.
 
-**B2. Declarar el modelo en el envío.**
-Kavea es server-to-server con token de system user. Es el quinto punto de la propia lista de Meta
-y explica por qué los vídeos no enseñaban el login. Con el flujo de la fase A ya en pie, además,
-sí se puede enseñar.
-*Hecho cuando:* el texto del envío lo dice antes de que el revisor lo pregunte.
+**B2. Declarar el modelo en el envío. HECHO el 24-ago.**
+Y el encuadre cambió: `docs/07` afirmaba que Kavea «no tiene» el login de Meta, y eso dejó de ser
+verdad con la fase A. Son DOS caminos —autoservicio con Facebook Login for Business, donde el
+login y el consentimiento sí se ven, y clientes del portafolio con token de system user, donde no—
+y hay que declarar los dos. El texto del envío, en inglés y listo para pegar en *Request again*,
+está en `docs/07` §1.
+*Falta:* pegarlo el día del envío.
 
 **B3. Regrabar los ocho vídeos y volver a enviar.**
 Con el botón **Request again**; no hay que rehacer el formulario.
 *Hecho cuando:* los ocho permisos salen de «Rechazado».
 
-**B4. Vigilar la bandeja de resultados.**
-La respuesta del 7-ago estuvo dieciséis días sin leerse porque nada avisa.
-*Hecho cuando:* existe una comprobación —cron o correo encaminado— que avisa de un cambio de
-estado en el App Review.
+**B4. Vigilar la bandeja de resultados. HECHO el 24-ago.**
+`vigilar-revision` pregunta cada día a `GET /{app-id}/permissions` con token de app, compara con
+lo último visto (0099) y manda correo si algo cambió. Un permiso que aparece es una aprobación;
+uno que desaparece es una revocación, y esa avisa de que un canal se quedó sin poder enviar. La
+primera pasada siembra y calla. Probado de punta a punta: cambio detectado, alerta 112 escrita y
+correo entregado.
 
 ---
 
