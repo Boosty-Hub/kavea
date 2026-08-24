@@ -3,7 +3,7 @@ import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { HUSO_POR_DEFECTO, hora as enHuso } from '@/lib/fechas'
 import { misNotificaciones, sinLeer } from '@/lib/agenda'
-import { obtenerComentario, respuestasDe } from '@/lib/comentarios'
+import { obtenerComentario, respuestasDe, type Comentario } from '@/lib/comentarios'
 import { etiquetaCanal, haceCuanto } from '@/lib/ventana'
 import { ListaComentarios } from '../lista'
 import { ResponderComentario } from '../responder'
@@ -47,6 +47,8 @@ export default async function HiloComentario({ params }: { params: Promise<{ id:
 
   const e = ESTADOS[comentario.estado] ?? ESTADOS.nuevo!
   const hilo = [comentario, ...respuestas]
+  const vivos = hilo.filter((c) => !c.borrado_en)
+  const borrados = hilo.filter((c) => c.borrado_en)
 
   return (
     <div className="bandeja bandeja--hilo">
@@ -79,24 +81,25 @@ export default async function HiloComentario({ params }: { params: Promise<{ id:
           {/* Cada burbuja lleva lo que se le puede hacer. El ciclo que Meta pide
               —publicar, editar, borrar— tiene que verse sobre el comentario
               concreto, no en una barra al pie que no dice sobre cuál actúa. */}
-          {hilo.map((c) => (
-            <div key={c.id} className="burbuja">
-              <div
-                className="burbuja__caja"
-                style={c.borrado_en ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}
-              >
-                {c.texto ?? <em style={{ color: 'var(--k-text-2)' }}>Sin texto: solo una imagen o un sticker.</em>}
+          {vivos.map((c) => <Burbuja key={c.id} c={c} huso={huso} />)}
+
+          {/* LOS BORRADOS SE GUARDAN PERO NO ESTORBAN. Se quedan en la base para
+              que el hilo pueda contar lo que pasó, y eso sigue valiendo; lo que
+              no vale es que cuatro comentarios tachados sean lo primero que se
+              ve. Va en un `details` nativo: se abre sin JavaScript y sin pedirle
+              una pantalla nueva a nadie. */}
+          {borrados.length ? (
+            <details style={{ margin: '4px 0 12px' }}>
+              <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--k-text-2)' }}>
+                {borrados.length === 1
+                  ? 'Un comentario borrado'
+                  : `${borrados.length} comentarios borrados`}
+              </summary>
+              <div style={{ marginTop: 8 }}>
+                {borrados.map((c) => <Burbuja key={c.id} c={c} huso={huso} />)}
               </div>
-              <div className="burbuja__meta">
-                {c.propio ? 'Kavea' : c.autor_username ? `@${c.autor_username}` : 'Sin identificar'}
-                {' · '}{enHuso(c.created_at, huso)}
-                {c.editado_en ? ' · editado' : ''}
-                {c.oculto ? ' · oculto en Meta' : ''}
-                {c.borrado_en ? ` · borrado de ${etiquetaCanal(c.canal)}` : ''}
-              </div>
-              <AccionesComentario c={c} />
-            </div>
-          ))}
+            </details>
+          ) : null}
 
           {comentario.respondido_en ? (
             <p className="traza">
@@ -107,6 +110,39 @@ export default async function HiloComentario({ params }: { params: Promise<{ id:
 
         <ResponderComentario c={comentario} />
       </section>
+    </div>
+  )
+}
+
+/**
+ * Una burbuja del hilo.
+ *
+ * Se saca de la página porque ahora se pinta en dos sitios —las vivas y, dentro
+ * del desplegable, las borradas— y dos copias del mismo marcado se separan el
+ * día que una gana un campo.
+ */
+function Burbuja({
+  c, huso,
+}: {
+  c: Comentario
+  huso: string
+}) {
+  return (
+    <div className="burbuja">
+      <div
+        className="burbuja__caja"
+        style={c.borrado_en ? { opacity: 0.55, textDecoration: 'line-through' } : undefined}
+      >
+        {c.texto ?? <em style={{ color: 'var(--k-text-2)' }}>Sin texto: solo una imagen o un sticker.</em>}
+      </div>
+      <div className="burbuja__meta">
+        {c.propio ? 'Kavea' : c.autor_username ? `@${c.autor_username}` : 'Sin identificar'}
+        {' · '}{enHuso(c.created_at, huso)}
+        {c.editado_en ? ' · editado' : ''}
+        {c.oculto ? ' · oculto en Meta' : ''}
+        {c.borrado_en ? ` · borrado de ${etiquetaCanal(c.canal)}` : ''}
+      </div>
+      <AccionesComentario c={c} />
     </div>
   )
 }

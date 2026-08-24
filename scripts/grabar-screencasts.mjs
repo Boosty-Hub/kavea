@@ -59,7 +59,7 @@
  */
 
 import { chromium } from 'playwright'
-import { mkdirSync, readdirSync, renameSync, statSync } from 'node:fs'
+import { mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const [correo, clave, carpeta = 'screencasts'] = process.argv.slice(2)
@@ -73,7 +73,31 @@ const ADMIN = 'https://admin.kavea.ai'
 
 mkdirSync(carpeta, { recursive: true })
 const dirVideo = join(carpeta, 'video')
+
+/**
+ * LA CARPETA SE VACÍA ANTES DE GRABAR, y no es limpieza: es evitar subir el
+ * vídeo equivocado.
+ *
+ * Playwright nombra con un hash y este script le pone el permiso delante, así
+ * que tras dos tiradas quedan DOS ficheros por permiso con el mismo prefijo y
+ * distinto hash. El 24-ago convivían el `instagram_basic` del 6-ago —197 KB, la
+ * bandeja, rechazado— con el nuevo de 2 MB. Elegir bien al subirlos dependía de
+ * mirar la fecha de doce ficheros.
+ *
+ * Se mueve, no se borra: una tirada que sale mal no debe destruir la anterior.
+ */
+if (readdirSync(carpeta).includes('video')) {
+  const previo = join(carpeta, 'video-anterior')
+  rmSync(previo, { recursive: true, force: true })
+  renameSync(dirVideo, previo)
+  console.log('Los vídeos de la tirada anterior están en video-anterior/')
+}
 mkdirSync(dirVideo, { recursive: true })
+
+/** Los hitos: un PNG por momento que justifica el permiso. Ver `hito()`. */
+const dirHitos = join(carpeta, 'hitos')
+rmSync(dirHitos, { recursive: true, force: true })
+mkdirSync(dirHitos, { recursive: true })
 
 const navegador = await chromium.launch()
 
@@ -175,6 +199,25 @@ async function ver(p, url, ms = 3200) {
   await p.waitForTimeout(ms)
 }
 
+/**
+ * Un PNG del momento que justifica el permiso.
+ *
+ * POR QUÉ, si ya hay vídeo: porque un vídeo no se puede revisar de un vistazo y
+ * `ffmpeg` no está instalado, así que no hay forma de sacar un fotograma después.
+ * El 24-ago tres guiones llevaban semanas grabando la pantalla equivocada
+ * —`/comentarios`, que ya no existe— y nadie lo vio porque el fichero salía, con
+ * su tamaño razonable. Un artefacto que se produce siempre parece que funcionó.
+ *
+ * Con esto, revisar una tirada es mirar una carpeta de imágenes en vez de ver
+ * doce vídeos, y el vídeo equivocado se nota antes de subirlo.
+ */
+let nHito = 0
+async function hito(p, permiso, momento) {
+  nHito += 1
+  const nombre = `${String(nHito).padStart(2, '0')}-${permiso}-${momento}.png`
+  await p.screenshot({ path: join(dirHitos, nombre) }).catch(() => {})
+}
+
 // ---------------------------------------------------------------- los vídeos
 console.log('\nGrabando:')
 
@@ -268,6 +311,11 @@ if (TARJETA_WA) {
  * de ese tramo el compositor cierra —correctamente— y el vídeo enseñaría un
  * canal bloqueado, así que conviene mirar la ventana antes de grabar.
  */
+// Un `if` sin `else` deja de grabar un permiso SIN DECIRLO: la tirada del
+// 24-ago sacó once vídeos y nadie notó que faltaba el duodécimo hasta contarlos.
+if (!TARJETA_WA) {
+  console.log('  human_agent'.padEnd(30) + 'OMITIDO: falta TARJETA_WHATSAPP')
+}
 if (TARJETA_WA) {
   await grabar('human_agent', async (p) => {
     await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3000)
@@ -370,6 +418,7 @@ await grabar('instagram_manage_comments', async (p) => {
   await p.waitForTimeout(1400)
   await p.getByRole('button', { name: /^publicar$/i }).first().click()
   await p.waitForTimeout(9000)
+  await hito(p, 'instagram_manage_comments', '1-publicado')
 
   // 2. EDITAR. Instagram no deja cambiar el texto, así que Kavea publica el
   //    nuevo y borra el anterior; la pantalla lo dice y el aviso sale en cámara,
@@ -390,6 +439,7 @@ await grabar('instagram_manage_comments', async (p) => {
   await p.waitForTimeout(1600)
   await p.getByRole('button', { name: /publicar el cambio/i }).click()
   await p.waitForTimeout(10000)
+  await hito(p, 'instagram_manage_comments', '2-editado')
 
   // 3. BORRAR, con la confirmación a la vista.
   const borrar = p.getByRole('button', { name: /^borrar$/i }).last()
@@ -398,6 +448,7 @@ await grabar('instagram_manage_comments', async (p) => {
     await p.waitForTimeout(2400)
     await p.getByRole('button', { name: /borrar de verdad/i }).click()
     await p.waitForTimeout(9000)
+    await hito(p, 'instagram_manage_comments', '3-borrado')
   }
   // El estado final se queda en pantalla: tachado y «borrado de Instagram». El
   // revisor tiene que abrir el cliente nativo justo después, y eso lo hace una
@@ -497,8 +548,10 @@ await grabar('pages_read_engagement', async (p) => {
   // Cuatro llamadas a Graph en paralelo. Se le da aire para que el vídeo enseñe
   // el resultado y no la espera.
   await p.waitForTimeout(9000)
+  await hito(p, 'pages_read_engagement', 'identidad-y-contenido')
   await p.mouse.wheel(0, 700); await p.waitForTimeout(2600)
   await p.mouse.wheel(0, 900); await p.waitForTimeout(2600)
+  await hito(p, 'pages_read_engagement', 'publicaciones-y-fotos')
   await p.mouse.wheel(0, 900); await p.waitForTimeout(3000)
 })
 
@@ -519,13 +572,17 @@ await grabar('pages_manage_metadata', async (p) => {
     await tarjeta.click()
     await p.waitForTimeout(5000)
     await p.mouse.wheel(0, 500); await p.waitForTimeout(3000)
+    await hito(p, 'pages_manage_metadata', 'suscripcion-de-la-pagina')
     await p.keyboard.press('Escape').catch(() => {})
     await p.waitForTimeout(900)
   }
   // Y el evento de esa misma Página, ya dentro: la bandeja con lo que entró.
   await ver(p, `${BASE}/bandeja`, 4200)
   const hilo = p.locator('a[href^="/bandeja/"]').first()
-  if (await hilo.count()) { await hilo.click(); await p.waitForTimeout(4500) }
+  if (await hilo.count()) {
+    await hilo.click(); await p.waitForTimeout(4500)
+    await hito(p, 'pages_manage_metadata', 'evento-de-esa-pagina')
+  }
 })
 
 /**
@@ -549,7 +606,9 @@ await grabar('instagram_basic', async (p) => {
   }
   await pestana.click()
   await p.waitForTimeout(9000)
+  await hito(p, 'instagram_basic', 'handle-id-y-campos')
   await p.mouse.wheel(0, 600); await p.waitForTimeout(2800)
+  await hito(p, 'instagram_basic', 'lista-de-medios')
   await p.mouse.wheel(0, 900); await p.waitForTimeout(3200)
 })
 
