@@ -223,6 +223,45 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Los cuatro alias borrados, y el cliente nativo no lo puede tocar un runner
+
+**Ejecutado el paso que Netlify pedía.** `kavea-app` se queda solo con el primario `admin.kavea.ai`;
+`boosty`, `cuenta`, `conectar` y `demostracion` fuera. Comprobado inmediatamente después: los cuatro
+dan **404**, y `admin` (307), `www` (301 al ápice) y `kavea.ai` (200) intactos, tal como Netlify
+anticipó. **Mientras esto siga así no se puede grabar nada**: los guiones apuntan a
+`boosty.kavea.ai`. Contestado a Romeo para que active el comodín.
+
+**El cliente nativo no se puede automatizar desde aquí, y no por falta de ganas.** Gabriel dejó
+abiertos WhatsApp Web del `+58 412 172 2767` e Instagram de `@eficienzia.ai` para que Kavea
+escribiera y se viera llegar. No hay herramienta de navegador en esta sesión, y la vía técnica
+—atacharse a su Chrome por CDP— está cerrada: el proceso corre sin `--remote-debugging-port` y desde
+Chrome 136 ese flag está **bloqueado con el perfil por defecto**, que es justo el que tiene las
+sesiones. Un perfil nuevo no está logueado, así que no hay atajo.
+
+Y aunque lo hubiera, el vídeo saldría partido: Playwright graba UN contexto, y el cliente nativo vive
+en otro navegador. Los cuatro «delivered message in the native client» son una grabación de pantalla
+de una persona, con Kavea en una pestaña y el cliente en la otra.
+
+**Lo que sí se pudo averiguar, y cambia el plan:**
+
+- **`+58 412 172 2767` SÍ está en la bandeja** —tarjeta `202c9cae…`, entrante de hace 14,1 h— así que
+  la ventana de 24 h está abierta. Es el número al que ya salió el envío de
+  `whatsapp_business_messaging`: el `wamid.HBgMNTg0MTIxNzIyNzY3…` lleva `584121722767` dentro.
+- **`@eficienzia.ai` NO está en la bandeja.** No hay conversación de Instagram con esa cuenta, y no
+  puede haberla: la mensajería de Instagram solo permite responder dentro de la ventana que abre el
+  usuario. **Tiene que escribir un DM a `@boosty.digital` primero.**
+- **`human_agent` SÍ se puede grabar hoy.** La tarjeta `7ecc5529…` tiene un entrante de Instagram de
+  hace **37,2 h**: dentro del tramo de 24 h a 7 días. Lo de ayer no falló por la ventana, falló por
+  la tarjeta.
+
+**Y el guion tenía un segundo fallo debajo del primero.** Buscaba `button.canal-chip` para elegir
+Instagram, pero el compositor **solo pinta ese botón cuando la tarjeta tiene más de una
+conversación**; con una sola pone una línea de texto. La tarjeta buena tiene exactamente un canal, así
+que el arreglo de ayer habría vuelto a fallar por otro motivo. Ahora: variable propia
+`TARJETA_HUMAN_AGENT` —el requisito no tiene nada que ver con el de WhatsApp—, el chip se clica solo
+si existe, y **se comprueba que el compositor anuncia intervención humana antes de escribir**. Sin esa
+comprobación, un entrante de menos de 24 h produce un vídeo que parece correcto y no enseña la feature.
+
 ### 2026-08-24 (cierre) — Netlify o Vercel, con los números medidos
 
 Investigado a peticion de Gabriel. Lo que decide no es la comparativa de las webs de cada uno, es
@@ -1344,3 +1383,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   trabajo escale, y el fallo llegará como un 504 sin autor.
 - «¿Puede la plataforma X sustituir a CI?» casi nunca se responde con sí o no: hay que contar los
   trabajos. Aquí, de cinco, dos serían nativos, dos irían al build y uno no se mueve de sitio.
+- Reutilizar un parámetro para dos requisitos parecidos los confunde el día que dejan de ser
+  parecidos. `TARJETA_WHATSAPP` valía para el envío de WhatsApp y no para Human Agent, que necesita
+  Instagram y una ventana distinta; el nombre no lo decía y el guion no lo comprobaba.
+- Un arreglo verificado solo por «ya no pasa lo de antes» puede fallar por lo siguiente en la misma
+  línea: el chip de canal no estaba porque la tarjeta era de WhatsApp, y tampoco habría estado con la
+  tarjeta correcta, porque solo se pinta con más de un canal.
+- Antes de prometer automatizar un navegador ajeno, comprobar si se puede: Chrome bloquea la
+  depuración remota sobre el perfil por defecto, que es el único que tiene las sesiones.

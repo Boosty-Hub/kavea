@@ -244,6 +244,17 @@ console.log('\nGrabando:')
  */
 const TARJETA_WA = process.env.TARJETA_WHATSAPP ?? ''
 
+/**
+ * La tarjeta para Human Agent, con variable propia y no la de WhatsApp.
+ *
+ * El requisito es OTRO: hace falta una conversación de INSTAGRAM cuyo último
+ * entrante tenga entre 24 h y 7 días, que es el único tramo donde el tag vale.
+ * Reutilizar `TARJETA_WHATSAPP` fue lo que hizo que el 24-ago se grabara una
+ * pantalla sin Human Agent: aquella tarjeta era de un contacto que nunca había
+ * escrito por Instagram.
+ */
+const TARJETA_HA = process.env.TARJETA_HUMAN_AGENT ?? ''
+
 /** La tarjeta con la conversación viva de Messenger. Misma regla que la de WhatsApp. */
 const TARJETA_MSG = process.env.TARJETA_MESSENGER ?? ''
 
@@ -326,26 +337,50 @@ if (TARJETA_WA) {
  */
 // Un `if` sin `else` deja de grabar un permiso SIN DECIRLO: la tirada del
 // 24-ago sacó once vídeos y nadie notó que faltaba el duodécimo hasta contarlos.
-if (!TARJETA_WA) {
-  console.log('  human_agent'.padEnd(30) + 'OMITIDO: falta TARJETA_WHATSAPP')
+if (!TARJETA_HA) {
+  console.log('  human_agent'.padEnd(30) + 'OMITIDO: falta TARJETA_HUMAN_AGENT')
 }
-if (TARJETA_WA) {
+if (TARJETA_HA) {
   await grabar('human_agent', async (p) => {
-    await ver(p, `${BASE}/bandeja/${TARJETA_WA}`, 3000)
+    await ver(p, `${BASE}/bandeja/${TARJETA_HA}`, 3000)
 
-    // La tarjeta tiene que tener canal de Instagram: la feature se enseña ahí,
-    // no en WhatsApp. Una tarjeta de un contacto que solo escribió por WhatsApp
-    // no tiene ese chip, y es lo que pasó el 24-ago.
+    /**
+     * EL SELECTOR DE CANAL SOLO EXISTE SI HAY MÁS DE UNO. El compositor pinta
+     * `button.canal-chip` cuando la tarjeta tiene varias conversaciones y, con
+     * una sola, pone una línea de texto en su lugar. La versión anterior
+     * clicaba el chip a ciegas: con una tarjeta de un solo canal —que es el caso
+     * más probable de un contacto que solo escribió por Instagram— no había nada
+     * que clicar.
+     */
     const chip = p.locator('button.canal-chip', { hasText: 'Instagram' }).first()
-    if (!(await chip.count())) {
-      console.log('     esa tarjeta no tiene canal de Instagram: pon en TARJETA_WHATSAPP una')
-      console.log('     tarjeta cuyo contacto haya escrito por Instagram hace entre 24 h y 7 días')
+    if (await chip.count()) {
+      await chip.click()
+    } else if (!(await p.locator('.compositor').first().innerText()).match(/instagram/i)) {
+      console.log('     esa tarjeta no tiene conversación de Instagram. Pon en')
+      console.log('     TARJETA_HUMAN_AGENT una cuyo último entrante de Instagram tenga')
+      console.log('     entre 24 h y 7 días: fuera de ese tramo el tag no vale.')
       return false
     }
-    await chip.click()
+
     // Pausa larga a propósito: este es el fotograma que justifica el permiso.
     // El aviso de la ventana tiene que dar tiempo a leerse entero.
     await p.waitForTimeout(4500)
+
+    /**
+     * Y SE COMPRUEBA QUE LA VENTANA ESTÁ DONDE TIENE QUE ESTAR. Si el entrante
+     * tiene menos de 24 h el compositor responde como conversación normal y el
+     * vídeo no enseña Human Agent en ninguna parte; si pasó de 7 días, cierra.
+     * Los dos casos producen un vídeo que parece correcto, y es el fallo que
+     * este permiso ya sufrió una vez.
+     */
+    const compositor = await p.locator('.compositor').first().innerText()
+    if (!/intervención humana|fuera de (la )?ventana|human/i.test(compositor)) {
+      console.log('     el compositor no anuncia intervención humana: el último entrante')
+      console.log('     tiene menos de 24 h o más de 7 días. Fuera de ese tramo no hay')
+      console.log('     Human Agent que grabar.')
+      return false
+    }
+    await hito(p, 'human_agent', 'aviso-de-la-ventana')
 
     const caja = p.locator('textarea[aria-label="Mensaje"]').first()
     await caja.click()
@@ -355,6 +390,7 @@ if (TARJETA_WA) {
     await p.waitForTimeout(1200)
     await p.locator('button[type="submit"]').first().click()
     await p.waitForTimeout(9000)
+    await hito(p, 'human_agent', 'enviado-con-el-tag')
   })
 }
 
