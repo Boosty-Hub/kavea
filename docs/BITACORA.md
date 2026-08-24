@@ -223,6 +223,41 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El montador, y el login se graba una vez
+
+`ffmpeg` instalado (9.0.1 por scoop) y `scripts/montar-screencasts.mjs` escrito. Pega las tomas en
+orden y saca los ocho vídeos del envío en `screencasts/entrega/`.
+
+**Por qué existe.** Meta pide cinco cosas en CADA screencast y las dos primeras son el login de Meta
+y la pantalla de consentimiento. Grabar eso ocho veces es absurdo: se graba **una vez** y el script
+lo pega delante de los ocho. Cuatro de los ocho —`human_agent`, `pages_read_engagement`,
+`instagram_basic`, `pages_manage_metadata`— quedan **completos con solo esa toma**, porque el resto
+del metraje ya lo grabó el runner.
+
+Los otros cuatro necesitan cliente nativo, que no lo puede grabar un runner: `pages_messaging`,
+`instagram_manage_messages`, `pages_utility_messaging` y el cierre de
+`instagram_manage_comments` —«Then, open the native client to confirm the final state»—.
+
+**Se normaliza antes de pegar, y no es cosmético.** `concat` exige mismo códec, tamaño, fps y pista
+de audio. Los vídeos de Playwright son VP8 1440x900 a 25 fps y **sin audio**; una grabación de
+pantalla es H.264 a la resolución del monitor y con audio. Pegarlos en crudo da un fichero que unos
+reproductores abren y otros no, y el del revisor de Meta es justo el que no se puede probar. Todo
+pasa por 1440x900, 25 fps, H.264 y una pista silenciosa. Y se escala con `pad` en vez de estirar:
+lo que el revisor tiene que hacer con este vídeo es LEER.
+
+**No monta vídeos a medias.** Si a un permiso le falta una toma, no se genera y se dice cuál falta
+por su nombre. Un fichero incompleto con el nombre correcto es lo que se sube sin mirar — ya pasó
+hoy con los 930 KB de `human_agent`.
+
+Probado de punta a punta con un clip de prueba: los cuatro que solo necesitan el login se montaron,
+los otros cuatro se reportaron por su nombre, y el resultado sale en 1440x900 H.264 con audio y con
+el segundo tramo en su sitio, comprobado extrayendo fotogramas.
+
+**Y la duda del botón:** no hay que desconectar nada para grabar el login. Con la autorización ya
+hecha, la pantalla de canales enseña «Elegir qué conectar» y debajo **«Autorizar otra cuenta»**, que
+apunta al mismo `/api/meta/oauth/start` que el botón de la primera vez. Lo que sí hace falta es una
+ventana sin sesión de Facebook —de incógnito— o el diálogo se salta el login, que es el requisito 1.
+
 ### 2026-08-24 (cierre) — El comodín entró, y los doce vídeos
 
 **`*.kavea.ai` está vivo.** Netlify lo habilitó tras borrar los cuatro alias. Comprobado nombre por
@@ -1454,3 +1489,7 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   contestó la aplicación, no el CDN, y eso cambia a quién se le reporta el fallo.
 - Antes de escribir a soporte de un tercero por un comportamiento raro, probar la ruta que el
   servicio SÍ sirve. Dos superficies sin inquilino no tienen raíz, y su 404 es lo correcto.
+- Un requisito que se repite en ocho entregables se produce una vez y se compone, no se graba ocho
+  veces. Lo que cambia entre los ocho es el resto.
+- Pegar vídeos de dos orígenes sin normalizar produce un fichero que abre en el reproductor de quien
+  lo montó. El único reproductor que importa es el que no se puede probar.
