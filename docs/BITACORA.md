@@ -33,7 +33,7 @@ de git de este mismo archivo.
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
 | Comentarios | ✅ Pestaña de la Bandeja, no módulo | Respuesta pública y lectura por API; el webhook sigue sin llegar |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
-| Callback de borrado de datos | ⚠️ Desplegado, **sin pegar** | `meta-borrado` responde 200; el campo *Data Deletion Request URL* está VACÍO |
+| Callback de borrado de datos | 🟡 Escrito en el formulario, guardado sin confirmar | Visto en pantalla el 23-ago con *Save Changes* todavía activo. `data_deletion_url` NO es legible por Graph, así que esto no se puede verificar por API — a diferencia de `deauth_callback_url`, que sí y devuelve la función correcta |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
@@ -45,6 +45,7 @@ de git de este mismo archivo.
 | Claves legacy de Supabase (JWT) | ✅ Deshabilitadas | `api-keys/legacy` responde `enabled:false`; la app usa `sb_publishable_*` y `sb_secret_*`, con guardián en CI |
 | Privilegios de `anon` y `authenticated` | ✅ Auditados el 23-ago | RLS activo y forzado en las 33 tablas; TRUNCATE retirado en la 0085 |
 | **Tech Provider** | ✅ Verificado el 4-ago | `Submitted → Reviewed → Verified` en 12 h |
+| WABA de un tercero en el portafolio | ✅ Ya existe una, sin descubrir hasta el 23-ago | `755757354157392` «Platinium Insurance group corp», `ownership_type: CLIENT_OWNED`, negocio propio `24123447600679995` verificado y APPROVED. **`subscribed_apps` vacío**: nadie recibe sus webhooks |
 | App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1 |
 | WhatsApp para terceros | ✅ Aprobado por Meta | `whatsapp_business_messaging` y `whatsapp_business_management` |
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
@@ -53,7 +54,7 @@ de git de este mismo archivo.
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
 | Facebook Login for Business | 🟡 Configurado, sin código | `config_id 1721663745727123` · system-user · sin caducidad · URI de retorno puesta con Strict Mode. Falta el flujo |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
-| Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago) y los permisos de WhatsApp (7-ago) ya están; `docs/fases/05` aún lo da por bloqueado |
+| Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | Comodín `*.kavea.ai` | ⛔ Bloqueado por Netlify | `422 invalid site`, recomprobado el 23-ago. El certificado del sitio SÍ es comodín; lo que falta es el registro DNS |
 
@@ -81,9 +82,13 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
   respondieron en segundos; `demostracion` seguía sin existir para el autoritativo quince
   minutos después. Hasta entender por qué, `/crear` no redirige. Medir cuánto tarda de verdad
   con dos o tres altas más.
-- **Pedir el comodín `*.kavea.ai` a soporte de Netlify.** La API lo rechaza (`422 invalid site`)
-  y el certificado del sitio ya lo cubre. Con él sobran los alias por inquilino y el alta deja
-  de depender de una llamada a Netlify.
+- **El comodín `*.kavea.ai`: ticket abierto y contestado, pendiente de responderle.** Netlify
+  acusó recibo el 23-ago como **#1097522** y pide confirmar el encuadre antes de asignar agente.
+  Su resumen se queda corto —dice «configurar registros DNS para kavea.ai en el sitio
+  kavea-app»—, y contestar «yes» a secas manda al agente un ticket vago. Hay que confirmar Y
+  precisar: lo que se pide es un registro **comodín** para los subdominios de inquilino, que la
+  API rechaza con `422 invalid site` aunque el certificado del sitio ya sea `*.kavea.ai`. Con él
+  sobran los alias por inquilino y el alta deja de depender de una llamada a Netlify.
 - **Los plantillas de correo de Supabase están en inglés** («Confirm your email address») en un
   producto en español.
 - Cuando haya varios inquilinos, mirar el tope de alias por sitio de Netlify antes de chocar
@@ -104,10 +109,20 @@ permisos aún no aprobados. Para GRABAR el vídeo basta una cuenta con rol; para
 no se sabe.
 
 ### Bloqueado por Meta
-- **Pegar la URL de borrado de datos** en Facebook Login for Business → Settings →
-  *Data Deletion Request URL*: `https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-borrado`.
-  La función está ACTIVE y responde 200; el campo está vacío. El de desautorización sí está
-  puesto, comprobado el 23-ago.
+- **Confirmar que la URL de borrado de datos quedó GUARDADA.** El 23-ago se vio escrita en
+  Facebook Login for Business → Settings → *Data Deletion Request URL*
+  (`https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-borrado`), pero con la barra
+  *Discard / Save Changes* todavía en pie: en ese panel eso significa cambio sin guardar. Y no
+  hay forma de comprobarlo por API — `data_deletion_url` no existe como campo en Graph, mientras
+  que `deauth_callback_url` sí y devuelve la función correcta. Aquí solo vale volver a abrir la
+  pantalla y mirar.
+- **Tech Provider onboarding no se puede leer: la página revienta en el servidor de Meta.** No
+  está vacía. La consola del navegador enseña la petición del pagelet
+  (`view: wa-dev-quickstart`, `tab: onboard`, `page: whatsapp-business`,
+  `use_case_enum: WHATSAPP_BUSINESS_MESSAGING`) devolviendo **error 1007 «Something went wrong»**.
+  Es un fallo de Meta, así que reintentar tiene sentido: otro navegador, sesión limpia, otro día.
+  Todo lo demás de esa consola es ruido — el CSP del propio Facebook bloqueando sus propios
+  píxeles de telemetría.
 - Nadie vigila la bandeja de resultados del App Review. La respuesta del 7-ago estuvo dieciséis
   días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación en el cron de
   diagnóstico. Mientras no lo haya, se mira a mano.
@@ -176,6 +191,63 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (noche) — La puerta que no abre, y el cliente que ya estaba dentro
+
+Tres cosas: una página de Meta que se cayó, un ticket de Netlify que contestó, y un hallazgo en
+el propio portafolio que cambia el orden de lo que queda.
+
+**Tech Provider onboarding no está vacío: está roto.** Salía en blanco, y la consola dice por
+qué. La petición del pagelet del panel —`view: wa-dev-quickstart`, `tab: onboard`,
+`page: whatsapp-business`, `use_case_enum: WHATSAPP_BUSINESS_MESSAGING`— devuelve
+**`error 1007: Something went wrong`**. Eso es un fallo del servidor de Meta, no una sección sin
+contenido, y la diferencia importa: una sección vacía sería una respuesta («no tienes esto»);
+un 1007 no es respuesta ninguna. Se reintenta. Los cientos de líneas rojas que la acompañan son
+ruido: el CSP de `developers.facebook.com` bloqueando los píxeles de telemetría del propio
+Facebook contra `*.run.app` y `*.on.aws`. Ni una sola tiene que ver con Kavea.
+
+**Y mientras la puerta no abría, resulta que ya habíamos entrado.** Preguntando por API en vez
+de por pantalla:
+
+    GET /2167414613399354/client_whatsapp_business_accounts
+    → { "id": "755757354157392", "name": "Platinium Insurance group corp", ... }
+
+`client_whatsapp_business_accounts` es la arista de WABAs que NO son del portafolio y que un
+tercero ha compartido contigo. Tiene una. La WABA declara `ownership_type: CLIENT_OWNED`, su
+negocio dueño es `24123447600679995` —distinto de Boosty—, y está `verified` y `APPROVED`. O
+sea: la relación proveedor↔cliente que Embedded Signup construye **ya existe en esta cuenta**,
+con un cliente real dentro, montada por otra vía y antes de que este proyecto la buscara.
+
+Lo que falta es lo de siempre, el cable: **`GET /755757354157392/subscribed_apps` devuelve `[]`**.
+Ninguna aplicación está suscrita a esa WABA, así que sus mensajes no llegan a ningún sitio.
+El patrón del día repetido por tercera vez —la pieza construida y el enchufe suelto—, pero
+esta vez con la pieza puesta por Meta y el cliente esperando al otro lado.
+
+Alrededor, lo que sí se pudo verificar por API: Boosty Digital LLC (`2167414613399354`) está
+`business_verification_status: verified`; la WABA propia `2459716937850832` está `APPROVED`; y
+el token de system user lleva **`manage_app_solution`** entre sus dieciocho permisos y no caduca
+(`expires_at: 0`). La arista `/{app-id}/whatsapp_business_solutions` **existe** y devuelve `[]`
+—no da error, que es la diferencia entre «no puedes» y «no tienes»—, lo cual encaja con haber
+descartado Partner Solutions ayer por otro motivo.
+
+**El callback de desautorización, confirmado por API y no por captura:**
+
+    GET /1623464799201071?fields=deauth_callback_url
+    → "https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-desautorizar"
+
+El de borrado no se puede comprobar así: `data_deletion_url` no es un campo de Graph
+(`(#100) Tried accessing nonexisting field`). En la captura está escrito, pero con la barra
+*Discard / Save Changes* todavía en pie — que en ese panel significa cambio pendiente. Queda
+como «escrito, guardado sin confirmar» hasta que alguien reabra la pantalla. Que un campo se vea
+relleno no quiere decir que esté guardado, y aquí no hay segunda fuente que lo desmienta.
+
+**Netlify contestó el ticket del comodín**, **#1097522**, en 28 minutos, con un mensaje de
+encuadre: resume la petición como «configurar registros DNS para tu dominio kavea.ai con tu
+sitio kavea-app» y pide un «yes» para asignar agente. El resumen no es falso, pero es más ancho
+que el problema: lo que hace falta es el registro **comodín** para los subdominios de inquilino,
+que es exactamente lo que la API rechaza con `422 invalid site`. Contestar «yes» a secas manda
+al agente a mirar DNS en general. Se contesta confirmando y precisando en la misma frase.
+
 
 ### 2026-08-23 (tarde-noche) — El panel de Login, revisado campo a campo
 
@@ -794,5 +866,18 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   más estricta o más laxa que la restricción que dice proteger.
 - Una fricción de confirmación tiene que costar una decisión, no una transcripción. Si hay que
   copiar un identificador, la acción no existe.
+- Una pantalla en blanco no dice nada por sí sola: puede ser «no tienes esto» o puede ser un
+  error del servidor. La consola distingue las dos, y solo una de ellas se arregla reintentando.
+- Cuando la interfaz de un tercero no carga, la API del mismo tercero sigue contestando. Preguntar
+  por API respondió en un minuto lo que la pantalla llevaba días sin enseñar.
+- Un campo relleno en un formulario no es un campo guardado. Si queda una barra de «guardar
+  cambios» en pie, lo que se ve es un borrador; y si la API no expone ese campo, no hay segunda
+  fuente que lo desmienta.
+- Una arista de API que devuelve `[]` y otra que devuelve error no dicen lo mismo: la primera es
+  «no tienes», la segunda «no puedes». Antes de dar una capacidad por cerrada, mirar cuál de las dos.
+- El inventario de lo que uno ya tiene se consulta, no se recuerda: había una WABA de un cliente
+  ajeno en el portafolio, compartida y verificada, que ningún documento del proyecto mencionaba.
+- Un resumen ajeno que es casi correcto es más peligroso que uno equivocado: se firma con un «sí»
+  y el trabajo se hace contra el encuadre que no era.
 - Un parámetro que se recibe y no se usa al buscar —solo al insertar— es una clave incompleta
   esperando a que aparezca el segundo caso.
