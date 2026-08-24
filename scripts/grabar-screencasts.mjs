@@ -23,8 +23,24 @@
  * ffmpeg`—, y por eso el script avisa al final en vez de dejarlo por descubrir el
  * día de la entrega.
  *
- * LO QUE ESTE SCRIPT NO PUEDE GRABAR: nada, desde el 6 de agosto de 2026. Los
- * doce permisos que necesitan vídeo tienen recorrido.
+ * LO QUE ESTE SCRIPT NO PUEDE GRABAR, y hay que hacer a mano:
+ *
+ *   · EL LOGIN DE META Y LA PANTALLA DE CONSENTIMIENTO. Existen desde el 24-ago
+ *     —Facebook Login for Business, en `/ajustes/canales` → Conectar—, que es
+ *     justo lo que hundió los ocho vídeos del 7-ago. Pero completar el diálogo
+ *     pide credenciales de Facebook en el navegador, y eso no lo automatiza un
+ *     runner ni debe intentarlo.
+ *   · EL CLIENTE NATIVO. Cuatro notas de rechazo piden ver el resultado en
+ *     Messenger, Instagram o WhatsApp. Eso es un teléfono en la mano.
+ *
+ * REVISADO EL 24-AGO, y tres guiones estaban grabando la pantalla equivocada:
+ * `instagram_manage_comments` apuntaba a `/comentarios`, que dejó de existir el
+ * 21-ago; `pages_read_engagement` grababa la lista del portafolio en vez de
+ * contenido de la Página; `instagram_basic` grababa la bandeja en vez del perfil.
+ * Los tres se rechazaron, y ahora se entiende por qué.
+ *
+ * ESTE SCRIPT GRABA CONTRA PRODUCCIÓN. Las pantallas nuevas tienen que estar
+ * desplegadas antes de grabar, o el vídeo enseña un 404 con mucha calma.
  *
  * LO QUE SÍ SE PUEDE DESDE EL 6 DE AGOSTO, y antes no:
  *
@@ -325,31 +341,68 @@ if (TARJETA_MSG) {
  * colgando del comentario, que es exactamente lo que concede el permiso.
  */
 await grabar('instagram_manage_comments', async (p) => {
-  await ver(p, `${BASE}/comentarios`, 3500)
+  // La lista vive en la Bandeja desde el 21-ago. `/comentarios` ya no existe, y
+  // este guion apuntaba ahi: grababa un 404 y nadie lo miro antes de subirlo.
+  await ver(p, `${BASE}/bandeja?vista=comentarios`, 3000)
 
+  const hilo = p.locator('a[href*="/bandeja/comentario/"]').first()
+  if (!(await hilo.count())) {
+    console.log('     no hay comentarios: el vídeo queda vacío')
+    return
+  }
+  await hilo.click()
+  await p.waitForTimeout(2200)
+
+  // Traer de Meta ANTES de nada. Sin este clic el vídeo enseña una tabla, y una
+  // tabla no prueba que el permiso se use.
   const traer = p.getByRole('button', { name: /traer de meta/i }).first()
   if (await traer.count()) {
     await traer.click()
-    await p.waitForTimeout(5000)
+    await p.waitForTimeout(6000)
   }
 
-  // Responder al primero que siga en «nuevo».
-  const responder = p.getByRole('button', { name: /responder en público/i }).first()
-  if (!(await responder.count())) {
-    console.log('     no hay comentarios sin responder: el vídeo queda solo con la lectura')
-    return
-  }
-  await responder.click()
-  await p.waitForTimeout(1200)
-
-  const caja = p.locator('textarea[aria-label="Respuesta al comentario"]').first()
+  // 1. AÑADIR. «add a comment from your app».
+  const caja = p.locator('textarea[aria-label*="Respuesta"]').first()
   await caja.click()
   await caja.pressSequentially(
-    'Gracias por comentar. Le escribimos por mensaje directo con el detalle.', { delay: 50 },
+    'Gracias por comentar. Le escribimos por mensaje directo con el detalle.', { delay: 45 },
   )
-  await p.waitForTimeout(1200)
-  await p.getByRole('button', { name: /publicar respuesta/i }).click()
-  await p.waitForTimeout(8000)
+  await p.waitForTimeout(1400)
+  await p.getByRole('button', { name: /^publicar$/i }).first().click()
+  await p.waitForTimeout(9000)
+
+  // 2. EDITAR. Instagram no deja cambiar el texto, así que Kavea publica el
+  //    nuevo y borra el anterior; la pantalla lo dice y el aviso sale en cámara,
+  //    que es lo que evita que el revisor lea el cambio de id como un truco.
+  const editar = p.getByRole('button', { name: /^editar$/i }).last()
+  if (!(await editar.count())) {
+    console.log('     no salió el botón de editar: la respuesta no se guardó')
+    return
+  }
+  await editar.click()
+  await p.waitForTimeout(2600)
+  const nueva = p.locator('textarea[aria-label*="Texto nuevo"]').first()
+  await nueva.click()
+  await nueva.fill('')
+  await nueva.pressSequentially(
+    'Gracias por comentar. Ya le hemos escrito por mensaje directo.', { delay: 45 },
+  )
+  await p.waitForTimeout(1600)
+  await p.getByRole('button', { name: /publicar el cambio/i }).click()
+  await p.waitForTimeout(10000)
+
+  // 3. BORRAR, con la confirmación a la vista.
+  const borrar = p.getByRole('button', { name: /^borrar$/i }).last()
+  if (await borrar.count()) {
+    await borrar.click()
+    await p.waitForTimeout(2400)
+    await p.getByRole('button', { name: /borrar de verdad/i }).click()
+    await p.waitForTimeout(9000)
+  }
+  // El estado final se queda en pantalla: tachado y «borrado de Instagram». El
+  // revisor tiene que abrir el cliente nativo justo después, y eso lo hace una
+  // persona.
+  await p.waitForTimeout(3000)
 })
 
 // Los canales, con su marca y si están activos. Es la pantalla que enseña que
@@ -428,17 +481,76 @@ await grabar('business_management', async (p) => {
   await ver(p, `${ADMIN}/admin/espacios`, 3600)
 })
 
+/**
+ * Contenido de la Página, que es lo que la nota pide y el portafolio no era.
+ *
+ * El guion anterior grababa `/admin/portafolio` con scroll: una lista de Páginas.
+ * La nota pide «(1) Page selection, (2) the retrieval of Page content such as
+ * posts, photos, events, and (3) the rendered results in your app UI with the
+ * Page identity visibly displayed». Una lista de nombres no es ninguna de las
+ * tres. `/contenido` sí: se elige, se lee en vivo de Graph y se pinta con el
+ * nombre, la categoría, los seguidores y el ID de la Página en la cabecera.
+ */
 await grabar('pages_read_engagement', async (p) => {
-  await ver(p, `${ADMIN}/admin/portafolio`, 4200)
-  await p.mouse.wheel(0, 500); await p.waitForTimeout(2200)
+  await ver(p, `${BASE}/contenido`, 3800)
+  await p.locator('li.tarjeta a').first().click()
+  // Cuatro llamadas a Graph en paralelo. Se le da aire para que el vídeo enseñe
+  // el resultado y no la espera.
+  await p.waitForTimeout(9000)
+  await p.mouse.wheel(0, 700); await p.waitForTimeout(2600)
+  await p.mouse.wheel(0, 900); await p.waitForTimeout(2600)
+  await p.mouse.wheel(0, 900); await p.waitForTimeout(3000)
 })
 
+/**
+ * Dónde Kavea suscribe la Página a los eventos, y un evento de esa misma Página.
+ *
+ * La nota pide las dos cosas atadas: «(1) where your app subscribes to Page
+ * events or updates Page settings, and (2) a sample webhook event (for example, a
+ * new comment notification) arriving in your app, tied to the same Page shown
+ * during setup». El guion anterior solo enseñaba la pantalla de canales, que es
+ * la mitad de (1) y ninguna parte de (2).
+ */
 await grabar('pages_manage_metadata', async (p) => {
-  await ver(p, `${BASE}/ajustes/canales`, 4800)
+  await ver(p, `${BASE}/ajustes/canales`, 3000)
+  // La tarjeta del canal abre el modal con las conexiones y sus campos suscritos.
+  const tarjeta = p.getByRole('button', { name: /messenger/i }).first()
+  if (await tarjeta.count()) {
+    await tarjeta.click()
+    await p.waitForTimeout(5000)
+    await p.mouse.wheel(0, 500); await p.waitForTimeout(3000)
+    await p.keyboard.press('Escape').catch(() => {})
+    await p.waitForTimeout(900)
+  }
+  // Y el evento de esa misma Página, ya dentro: la bandeja con lo que entró.
+  await ver(p, `${BASE}/bandeja`, 4200)
+  const hilo = p.locator('a[href^="/bandeja/"]').first()
+  if (await hilo.count()) { await hilo.click(); await p.waitForTimeout(4500) }
 })
 
+/**
+ * El perfil de Instagram con su handle, su ID y su lista de medios.
+ *
+ * El guion anterior grababa `/bandeja`, que es mensajería y no tiene nada de lo
+ * que la nota nombra: «(1) the selected Instagram professional account with its
+ * handle or ID visible, (2) a sample of profile fields (name, bio, followers,
+ * etc.), and (3) a media list displayed in your app UI labeled for that
+ * account». Las tres están en la pestaña de Instagram de `/contenido`, y el
+ * encabezado de la lista dice literalmente «Publicaciones de @handle».
+ */
 await grabar('instagram_basic', async (p) => {
-  await ver(p, `${BASE}/bandeja`, 4200)
+  await ver(p, `${BASE}/contenido`, 3200)
+  await p.locator('li.tarjeta a').first().click()
+  await p.waitForTimeout(7000)
+  const pestana = p.getByRole('button', { name: /^instagram$/i }).first()
+  if (!(await pestana.count())) {
+    console.log('     esa conexión no tiene Instagram vinculado')
+    return
+  }
+  await pestana.click()
+  await p.waitForTimeout(9000)
+  await p.mouse.wheel(0, 600); await p.waitForTimeout(2800)
+  await p.mouse.wheel(0, 900); await p.waitForTimeout(3200)
 })
 
 await grabar('instagram_manage_messages', async (p) => {

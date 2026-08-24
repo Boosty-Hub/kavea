@@ -78,6 +78,11 @@ está en `docs/07` §1.
 
 **B3. Regrabar los ocho vídeos y volver a enviar.**
 Con el botón **Request again**; no hay que rehacer el formulario.
+**24-ago:** `scripts/grabar-screencasts.mjs` reescrito. Tres guiones grababan la pantalla
+equivocada —`instagram_manage_comments` apuntaba a `/comentarios`, que no existe desde el 21-ago—
+y ahora apuntan a lo que la nota de cada permiso pide.
+*Falta:* desplegar las pantallas nuevas, grabar, y las dos cosas que un runner no puede hacer —el
+diálogo de Meta, que pide credenciales de Facebook en el navegador, y el cliente nativo.
 *Hecho cuando:* los ocho permisos salen de «Rechazado».
 
 **B4. Vigilar la bandeja de resultados. HECHO el 24-ago.**

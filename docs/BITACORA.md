@@ -213,6 +213,32 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Tres de los ocho vídeos grababan la pantalla equivocada
+
+Al reescribir `scripts/grabar-screencasts.mjs` para B3 apareció algo que la nota de rechazo no
+decía y que explica más que ella:
+
+- **`instagram_manage_comments`** grababa `${BASE}/comentarios`. Esa ruta **dejó de existir el
+  21-ago**, cuando los comentarios pasaron a ser una pestaña de la Bandeja. El vídeo enseñaba un
+  404, con mucha calma y en buena resolución.
+- **`pages_read_engagement`** grababa `/admin/portafolio` con scroll: una lista de nombres de
+  Páginas. La nota pide elegir una Página, leer su contenido y pintarlo con su identidad delante.
+  Una lista de nombres no es ninguna de las tres cosas.
+- **`instagram_basic`** grababa `/bandeja`. Es mensajería: no tiene handle, ni campos de perfil,
+  ni lista de medios. Nada de lo que la nota nombra.
+
+Los tres se rechazaron. La causa que Meta puso —«Screencast Not Aligned with Use Case Details»—
+era literal, y se leyó como si fuera solo el asunto del login. Era las dos cosas.
+
+Reescritos contra las pantallas que ahora existen: el ciclo completo en el hilo del comentario,
+`/contenido` para el contenido de la Página, y su pestaña de Instagram para el perfil. Y la
+cabecera del script dice ahora **qué no puede grabar**: el login de Meta y la pantalla de
+consentimiento —existen desde el 24-ago, pero completar el diálogo pide credenciales de Facebook
+en el navegador— y el cliente nativo, que son cuatro notas de rechazo y un teléfono en la mano.
+
+**No se ha grabado nada todavía**: el script apunta a producción y las pantallas nuevas están en
+tres commits sin desplegar.
+
 ### 2026-08-24 (cierre) — Alguien mira el App Review, y el encuadre del envío estaba caduco
 
 **B4.** La respuesta del App Review del 7-ago estuvo **dieciséis días** sin leerse. No fue
@@ -1123,3 +1149,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Un documento que explica una limitación de la arquitectura caduca el día que la limitación se
   arregla, y nadie lo relee porque suena a verdad. Antes de enviar algo escrito hace semanas,
   comprobar si sigue siendo cierto lo que afirma del producto.
+- Un guion de grabación apunta a una URL, y una URL se puede quedar sin pantalla detrás sin que
+  nada falle: el vídeo sale, pesa lo que tiene que pesar y enseña un 404. Lo que produce un
+  artefacto siempre parece que funcionó.
+- Cuando un revisor da un motivo que encaja con una causa que ya sospechabas, es tentador parar de
+  buscar. Aquí el motivo era literal y había una segunda causa debajo, en el mismo texto.
