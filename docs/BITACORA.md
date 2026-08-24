@@ -198,6 +198,41 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — B1: las dos pantallas que Meta dijo que no vio
+
+Los ocho permisos se rechazaron el 7-ago con notas que describen pantallas, no código. Dos de
+ellas no existían y hoy existen: `pages_read_engagement` («Page selection, the retrieval of Page
+content such as posts, photos, events, and the rendered results in your app's UI with the Page
+identity visibly displayed») e `instagram_basic` («the selected Instagram professional account
+with its handle or ID visible, a sample of profile fields, and a media list labeled for that
+account»). Las dos piden lo mismo con palabras distintas: **elegir un activo y luego verlo con su
+identidad delante**. Por eso son lista → detalle, y por eso el identificador numérico está a la
+vista: es lo que deja a un revisor comprobar que lo pintado es de la cuenta que dice ser.
+
+- **`meta-contenido`** (función nueva). Existe porque el Page Access Token está cifrado en
+  `private.meta_credentials` y la clave vive en el almacén del borde; descifrarlo es lo único que
+  no puede hacer Next. Acción `instagram`: perfil (nueve campos) + doce medios. Acción `pagina`:
+  identidad + publicaciones, fotos y eventos **en paralelo**, con un aviso por sección: una Página
+  sin eventos y una Página cuyo permiso de eventos falló se ven igual en pantalla si nadie lo dice.
+  No cachea nada: una foto borrada en Instagram no puede seguir viéndose en Kavea.
+- **`/contenido`** y **`/contenido/[conexion]`**. La conexión se busca en `conexionesDe(org.id)`,
+  que lee bajo RLS: un id de otro inquilino no aparece y responde 404. La ruta de API repite la
+  comprobación con el cliente del usuario antes de proxyar con la clave de servicio.
+- **Quién puede: cualquier miembro.** Es leer lo que el negocio ya publicó. Pedir `conectar` aquí
+  habría sido la misma confusión que hoy costó un camino muerto: la guarda pesa lo que pesa la
+  acción.
+
+Verificado contra producción, no contra un ejemplo: `@boosty.digital · 1625 seguidores · 327
+publicaciones`, doce medios pintados; `Boosty.digital · Agencia de marketing · 172 seguidores`,
+diez publicaciones y diez fotos, cero eventos, sin avisos. Trece imágenes cargadas, cero errores
+de consola.
+
+**El fallo que solo se ve pulsando.** La primera pasada reventó con `Cannot read properties of
+undefined (reading 'profile_picture_url')`. Al cambiar de pestaña, React repinta con la pestaña ya
+cambiada y los datos todavía de la anterior; el bloque de Instagram leía el perfil de una Página.
+Un fotograma de vida. Ahora el dato viaja con la pestaña a la que pertenece y no hay pareja
+imposible que pintar.
+
 ### 2026-08-24 (cierre) — Fase A cerrada, y cada canal a su embudo
 
 **A2 completa.** Con permiso de Gabriel para mandarse mensajes, se envió uno real por **Instagram**
@@ -965,3 +1000,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   y el trabajo se hace contra el encuadre que no era.
 - Un parámetro que se recibe y no se usa al buscar —solo al insertar— es una clave incompleta
   esperando a que aparezca el segundo caso.
+- Un estado que decide QUÉ pintar y otro que trae CON QUÉ pintarlo se desincronizan durante un
+  repintado, y ahí se pinta la pareja imposible. O viajan juntos, o hay un fotograma que revienta.
+- Las notas de rechazo de una revisión describen pantallas, no permisos. Se leen como una
+  especificación literal —«identity visibly displayed», «labeled for that account»— y lo que no
+  esté en el encuadre no cuenta, aunque el permiso funcione.

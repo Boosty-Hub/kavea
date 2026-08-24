@@ -64,6 +64,9 @@ Editar y borrar un comentario propio · leer y pintar contenido de la Página (p
 eventos) con la identidad de la Página visible · un perfil de Instagram con sus campos y su lista
 de medios. Detalle verbatim en `docs/07` §1.
 *Hecho cuando:* las tres se pueden recorrer con un contacto real, sin datos de mentira.
+**24-ago:** hechas las dos de lectura —`/contenido` (Página: identidad, posts, fotos, eventos) y su
+pestaña de Instagram (perfil + medios)—, verificadas contra Boosty.digital. Falta la de
+comentarios: editar y borrar uno propio.
 
 **B2. Declarar el modelo en el envío.**
 Kavea es server-to-server con token de system user. Es el quinto punto de la propia lista de Meta

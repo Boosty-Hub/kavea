@@ -60,6 +60,7 @@ const SECCIONES_CLIENTE: Seccion[] = [
     titulo: 'Datos',
     entradas: [
       { href: '/contactos', etiqueta: 'Contactos', icono: '◍' },
+      { href: '/contenido', etiqueta: 'Contenido', icono: '▣' },
       { href: '/actividad', etiqueta: 'Actividad', icono: '◷' },
     ],
   },
