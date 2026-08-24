@@ -10,19 +10,18 @@ de git de este mismo archivo.
 
 ---
 
-## 1. Estado actual — al 23-ago-2026
+## 1. Estado actual — al 24-ago-2026
 
 | Pieza | Estado | Evidencia |
 |---|---|---|
 | Sitio público `kavea.ai` | ✅ Producción, con `/demo` | Formulario probado de extremo a extremo |
 | Páginas legales | ✅ Publicadas | Rastreables por Meta |
-| Repositorio | ✅ `Boosty-Hub/kavea`, privado | Monorepo, despliegue automático |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ 86 migraciones aplicadas y registradas | En `public.schema_migrations` |
+| Esquema de base de datos | ✅ **88** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
 | Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 añadidos el 23-ago |
-| Ingesta y normalización | ✅ Producción | 8 crones vivos, mensajes reales entrando |
+| Ingesta y normalización | ✅ Producción | **9** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
@@ -52,15 +51,16 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
+| Página de Boosty (`1790677317841377`) | ✅ Conectada, pero **por el camino viejo** | `config_id` a null: se aprovisionó con el token de system user. Su PAT se cifró el 2-ago y nunca se ha rotado; no tiene BISU |
 | Facebook Login for Business | ✅ **En producción, sin estrenar** | `config_id 1721663745727123`. Verificado en `boosty.kavea.ai` el 24-ago: 302 correcto, `redirect_uri` a `conectar.kavea.ai`, cookie del nonce en `.kavea.ai` y **vista desde `conectar`**. Falta que un cliente real complete el diálogo |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | CI de GitHub Actions | 🟡 Restaurada abriendo el repositorio | Se agotaron los 3.000 minutos del plan; Gabriel puso `Boosty-Hub/kavea` en **público** el 24-ago para recuperar minutos gratis |
-| Repositorio | 🟡 **Público desde el 24-ago** | Historial auditado: cero credenciales en los 150 commits. Lo que sí queda expuesto son nombres de clientes reales y 27 identificadores de activos de Meta |
-| Comodín `*.kavea.ai` | 🟡 **Registro puesto, esperando a Netlify** | El `CNAME *.kavea.ai → kavea-app.netlify.app` creado el 24-ago; resuelve. Los otros cinco requisitos ya se cumplían. Falta que Netlify lo habilite del lado del sitio: hoy un host desconocido da el 404 de Netlify, no llega a Kavea |
+| Repositorio | 🟡 `Boosty-Hub/kavea`, **público desde el 24-ago** | Se abrió para recuperar minutos de Actions; el plan es volver a cerrarlo. Historial auditado: cero credenciales en los 150 commits. Sí quedan expuestos nombres de clientes reales y 27 identificadores de activos de Meta, y Gabriel decidió dejarlos |
+| Comodín `*.kavea.ai` | 🟡 **Todo hecho por nuestra parte, esperando a Netlify** | `CNAME *.kavea.ai → kavea-app.netlify.app` creado el 24-ago y resuelve; los otros cinco requisitos ya se cumplían; respondido el ticket #1097522 el 24-ago. Falta que lo habiliten del lado del sitio: hoy un host desconocido recibe el 404 de Netlify, no llega a Kavea |
 
-Fases 0–4 operativas, fase 5 en su tarea 12.
+Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firmado, T5 `/start`, T6 `/callback` + `meta-canje`, T7 cifrado con `kid`). Sigue abierto el bloque de WhatsApp, que depende de Embedded Signup.
 
 ---
 
@@ -84,11 +84,11 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
   respondieron en segundos; `demostracion` seguía sin existir para el autoritativo quince
   minutos después. Hasta entender por qué, `/crear` no redirige. Medir cuánto tarda de verdad
   con dos o tres altas más.
-- **El comodín `*.kavea.ai`: el registro ya está, falta que Netlify lo habilite.** De los seis
-  requisitos del ticket #1097522, cinco se cumplían y el sexto se hizo el 24-ago: `CNAME`
-  `*.kavea.ai → kavea-app.netlify.app`, ttl 3600, en la zona de Netlify. **Queda responder al
-  ticket** para que lo activen del lado del sitio; hasta entonces un subdominio no listado resuelve
-  pero recibe el 404 propio de Netlify, porque el sitio todavía no reclama ese host.
+- **El comodín `*.kavea.ai`: hecho todo lo nuestro, pendiente de Netlify.** De los seis
+  requisitos del ticket #1097522, cinco se cumplían; el sexto —`CNAME *.kavea.ai →
+  kavea-app.netlify.app`, ttl 3600— se creó el 24-ago y resuelve, y el ticket quedó contestado
+  ese mismo día. Falta que lo habiliten del lado del sitio: hasta entonces un subdominio no
+  listado resuelve pero recibe el 404 propio de Netlify, porque el sitio no reclama ese host.
   Cuando esté, `/crear` deja de depender de una llamada a la API de Netlify por cada alta y
   desaparece el tope de alias por sitio.
 - **Los plantillas de correo de Supabase están en inglés** («Confirm your email address») en un
@@ -111,13 +111,6 @@ permisos aún no aprobados. Para GRABAR el vídeo basta una cuenta con rol; para
 no se sabe.
 
 ### Bloqueado por Meta
-- **Confirmar que la URL de borrado de datos quedó GUARDADA.** El 23-ago se vio escrita en
-  Facebook Login for Business → Settings → *Data Deletion Request URL*
-  (`https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-borrado`), pero con la barra
-  *Discard / Save Changes* todavía en pie: en ese panel eso significa cambio sin guardar. Y no
-  hay forma de comprobarlo por API — `data_deletion_url` no existe como campo en Graph, mientras
-  que `deauth_callback_url` sí y devuelve la función correcta. Aquí solo vale volver a abrir la
-  pantalla y mirar.
 - **Tech Provider onboarding no se puede leer: la página revienta en el servidor de Meta.** No
   está vacía. La consola del navegador enseña la petición del pagelet
   (`view: wa-dev-quickstart`, `tab: onboard`, `page: whatsapp-business`,
@@ -130,9 +123,6 @@ no se sabe.
   diagnóstico. Mientras no lo haya, se mira a mano.
 - Cablear las plantillas de WhatsApp. Las 25 aprobadas viven en la WABA `1415042803155441`, que
   se retira: para el número nuevo hay que crearlas de cero en `2459716937850832`.
-- Facebook Login for Business: crear `config_id`, decidir qué host fijo lleva el OAuth callback
-  (Strict Mode exige coincidencia exacta; el `state` firmado ya lleva `organization_id`, así que
-  un solo host basta). Bloquea la fase 5, no el App Review.
 - Incertidumbres de Meta sin resolver: TTL de las URLs `lookaside.fbsbx.com` · límite real del
   Send API de Instagram (100 o 300/s) · suelo de `4800×impresiones` para cuentas nuevas ·
   disponibilidad regional (VE/RD/MX) de Human Agent, private replies y Conversation Routing ·
@@ -147,12 +137,17 @@ no se sabe.
 - Si se puede cambiar el subdominio de un cliente: sin decisión.
 - Impersonación con registro, para soporte: sin construir.
 
-### Trabajo sin bloqueo — fase 5 (autoservicio, 24/26 tareas)
-Dos configs de Facebook Login for Business por canal · `/api/meta/oauth/start` + `/callback` ·
-token BISU con rotación por `kid` y cron diario de `debug_token` · enlace de conexión firmado,
-un solo uso, 72 h, sin sesión de Kavea · máquina de estados por (organización, canal) ·
-Conversation Routing (`primary_receiver`, `thread_owner`, los seis endpoints) · árbol de
-diagnóstico diferencial · pantalla de expectativas de WhatsApp.
+### Trabajo sin bloqueo — fase 5 (autoservicio)
+**Cerrado el 24-ago:** `/api/meta/oauth/start` y `/callback`, el `state` firmado, `meta-canje` con
+los siete pasos, y el cifrado del BISU con `kid` (0088).
+
+**Sigue abierto:** la segunda config de Facebook Login for Business, la de WhatsApp —depende de
+Embedded Signup— · **cron diario de `debug_token`** por conexión, que es lo que detecta un token
+muerto antes que el cliente · enlace de conexión firmado, un solo uso, 72 h, sin sesión de Kavea ·
+máquina de estados por (organización, canal) · Conversation Routing (`primary_receiver`,
+`thread_owner`, los seis endpoints) · árbol de diagnóstico diferencial · pantalla de expectativas
+de WhatsApp · **selección de Página cuando el cliente autoriza más de una**: hoy `meta-canje`
+rechaza el alta con un mensaje que lo explica, en vez de elegir por él.
 
 ### Trabajo sin bloqueo — resto
 - Borrar del portafolio la WABA vacía «Gabriel Montiel Toro» (`1621952576167448`), sin números.
@@ -175,6 +170,19 @@ diagnóstico diferencial · pantalla de expectativas de WhatsApp.
 - Guarda de tipos en CI para las Edge Functions (hoy Deno no se typechequea en ningún job).
 - Reconciliar `docs/fases/` contra lo ya ejecutado — hoy varios documentos dicen «sin código»
   sobre partes que están en producción.
+
+### Pendiente que nació hoy
+- **El flujo de OAuth no ha completado nunca un canje real.** Los pasos 2 a 7 de `meta-canje`
+  —canje del código, lectura de Páginas, Instagram vinculado, cifrado, suscripción— están escritos
+  y con tipos correctos, pero jamás se han ejecutado contra una respuesta de Meta. Lo verificado
+  es la ida hasta el diálogo y todos los caminos de rechazo.
+- **Conectar la Página de Boosty por el flujo nuevo SOBRESCRIBE su token actual.** Es una
+  reconexión: mismo `page_id`, mismo espacio, así que la 0088 actualiza en vez de dar de alta. El
+  PAT que se guarde vendrá del diálogo, y sus permisos son los de la configuración
+  `kavea-mensajeria`, no los del system user. Si esa configuración concede menos de lo que hace
+  falta para enviar, el envío de Boosty se rompe hasta restaurar. Hay respaldo del cifrado actual
+  (`kid k1`, 224 bytes) y se restaura con una llamada a `guardar_credencial`.
+- **Volver el repositorio a privado** cuando la facturación de Actions esté resuelta.
 
 ### Deuda que va a doler si se deja
 - Rotar los tokens que pasaron por chat: el de portafolio primero (escribe en nombre de 39
