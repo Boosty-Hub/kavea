@@ -18,10 +18,10 @@ de git de este mismo archivo.
 | Páginas legales | ✅ Publicadas | Rastreables por Meta |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ **88** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
+| Esquema de base de datos | ✅ **98** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
 | Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 añadidos el 23-ago |
-| Ingesta y normalización | ✅ Producción | **9** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
+| Ingesta y normalización | ✅ Producción | **10** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
@@ -30,9 +30,11 @@ de git de este mismo archivo.
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
-| Comentarios | ✅ Pestaña de la Bandeja, no módulo | Respuesta pública y lectura por API; el webhook sigue sin llegar |
+| Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar; la lectura por API lo suple |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
 | Callback de borrado de datos | ✅ Guardado | Recarga del panel a las 20:59 del 23-ago: el campo persiste. No hay forma de verificarlo por API (`data_deletion_url` no es campo de Graph), a diferencia de `deauth_callback_url`, que sí |
+| Contenido de Página e Instagram | ✅ `/contenido`, desde el 24-ago | Lista → detalle con la identidad delante. Verificado contra producción: `@boosty.digital` 1625 seguidores / 327 publicaciones con 12 medios, y `Boosty.digital` 172 seguidores con 10 posts y 10 fotos |
+| Token de una conexión | ✅ Se resuelve por su dueño | La credencial cifrada de la conexión primero, y solo si Meta la rechaza por permiso se deriva del portafolio, avisando. El ciclo de moderación salió `via: conexion`, así que un cliente de autoservicio también podrá moderar |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
@@ -45,7 +47,7 @@ de git de este mismo archivo.
 | Privilegios de `anon` y `authenticated` | ✅ Auditados el 23-ago | RLS activo y forzado en las 33 tablas; TRUNCATE retirado en la 0085 |
 | **Tech Provider** | ✅ Verificado el 4-ago | `Submitted → Reviewed → Verified` en 12 h |
 | WABA de un tercero en el portafolio | ✅ Ya existe una, sin descubrir hasta el 23-ago | `755757354157392` «Platinium Insurance group corp», `ownership_type: CLIENT_OWNED`, negocio propio `24123447600679995` verificado y APPROVED. **`subscribed_apps` vacío**: nadie recibe sus webhooks |
-| App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1 |
+| App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1. **B1 cerrada el 24-ago**: las tres pantallas que los vídeos tenían que enseñar ya existen y se recorren con datos reales |
 | WhatsApp para terceros | ✅ Aprobado por Meta | `whatsapp_business_messaging` y `whatsapp_business_management` |
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
@@ -58,7 +60,7 @@ de git de este mismo archivo.
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | CI de GitHub Actions | 🟡 Restaurada abriendo el repositorio | Se agotaron los 3.000 minutos del plan; Gabriel puso `Boosty-Hub/kavea` en **público** el 24-ago para recuperar minutos gratis |
 | Repositorio | 🟡 `Boosty-Hub/kavea`, **público desde el 24-ago** | Se abrió para recuperar minutos de Actions; el plan es volver a cerrarlo. Historial auditado: cero credenciales en los 150 commits. Sí quedan expuestos nombres de clientes reales y 27 identificadores de activos de Meta, y Gabriel decidió dejarlos |
-| Comodín `*.kavea.ai` | 🟡 **Todo hecho por nuestra parte, esperando a Netlify** | `CNAME *.kavea.ai → kavea-app.netlify.app` creado el 24-ago y resuelve; los otros cinco requisitos ya se cumplían; respondido el ticket #1097522 el 24-ago. Falta que lo habiliten del lado del sitio: hoy un host desconocido recibe el 404 de Netlify, no llega a Kavea |
+| Comodín `*.kavea.ai` | 🟡 **Netlify puso condición: borrar los cuatro alias** | Ticket #1097522. Piden dejar solo el primario `admin.kavea.ai` y borrar `boosty`, `cuenta`, `conectar` y `demostracion`; luego habilitan el comodín y esos nombres vuelven solos. Comprobado que durante el hueco un host no reclamado da TLS válido y el 404 de Netlify —ni error de certificado ni pérdida de datos: los webhooks van a Supabase—. Preguntado si el comodín se lleva `www.kavea.ai`, que es del OTRO sitio (`kaveaai`) y hoy hace 301 al ápice. Correo enviado el 24-ago, esperando respuesta |
 
 Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firmado, T5 `/start`, T6 `/callback` + `meta-canje`, T7 cifrado con `kid`). Sigue abierto el bloque de WhatsApp, que depende de Embedded Signup.
 
@@ -72,10 +74,11 @@ Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firma
   lista de Meta y explica por qué los vídeos no pueden enseñar el login de Meta ni la pantalla de
   consentimiento —los dos primeros requisitos que se incumplieron en los ocho—. Con el botón
   **Request again**; no hay que rehacer el formulario.
-- **Y antes de eso, construir tres cosas que los vídeos tienen que enseñar y no existen:** editar
-  y borrar un comentario propio · leer y pintar contenido de la Página (posts, fotos, eventos)
-  con la identidad de la Página visible · una pantalla de perfil de Instagram con sus campos y su
-  lista de medios. Detalle verbatim en `docs/07` §1.
+- **Las tres pantallas que los vídeos tenían que enseñar: HECHAS el 24-ago.** Ciclo de
+  moderación de un comentario (publicar, editar, ocultar, borrar) · contenido de la Página con su
+  identidad delante · perfil de Instagram con sus campos y su lista de medios. Las tres se
+  recorren con datos reales y sin datos de mentira. Queda **grabar**, que no lo puede hacer un
+  runner.
 - **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
   después, hay que repetirlas antes.
 
@@ -84,13 +87,16 @@ Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firma
   respondieron en segundos; `demostracion` seguía sin existir para el autoritativo quince
   minutos después. Hasta entender por qué, `/crear` no redirige. Medir cuánto tarda de verdad
   con dos o tres altas más.
-- **El comodín `*.kavea.ai`: hecho todo lo nuestro, pendiente de Netlify.** De los seis
-  requisitos del ticket #1097522, cinco se cumplían; el sexto —`CNAME *.kavea.ai →
-  kavea-app.netlify.app`, ttl 3600— se creó el 24-ago y resuelve, y el ticket quedó contestado
-  ese mismo día. Falta que lo habiliten del lado del sitio: hasta entonces un subdominio no
-  listado resuelve pero recibe el 404 propio de Netlify, porque el sitio no reclama ese host.
-  Cuando esté, `/crear` deja de depender de una llamada a la API de Netlify por cada alta y
-  desaparece el tope de alias por sitio.
+- **El comodín `*.kavea.ai`: Netlify puso condición.** Del ticket #1097522: hay que borrar los
+  cuatro alias (`boosty`, `cuenta`, `conectar`, `demostracion`) y dejar solo el primario
+  `admin.kavea.ai`; después habilitan el comodín y esos nombres vuelven solos. El orden importa:
+  entre el borrado y la habilitación esos cuatro hosts dan el 404 de Netlify —con TLS válido,
+  porque el certificado `*.kavea.ai` ya está emitido—, y dos de ellos no son decorativos:
+  `conectar.kavea.ai` es la redirect URI registrada en Meta con coincidencia estricta y
+  `boosty.kavea.ai` es el espacio vivo. Los mensajes siguen entrando: los webhooks van a Supabase,
+  no a `kavea.ai`. Preguntado además si el comodín de `kavea-app` se lleva `www.kavea.ai`, que
+  pertenece al otro sitio (`kaveaai`) y hoy hace 301 al ápice. Cuando esté, `/crear` deja de
+  depender de una llamada a la API de Netlify por cada alta y desaparece el tope de alias.
 - **Los plantillas de correo de Supabase están en inglés** («Confirm your email address») en un
   producto en español.
 - Cuando haya varios inquilinos, mirar el tope de alias por sitio de Netlify antes de chocar
@@ -118,9 +124,9 @@ no se sabe.
   Es un fallo de Meta, así que reintentar tiene sentido: otro navegador, sesión limpia, otro día.
   Todo lo demás de esa consola es ruido — el CSP del propio Facebook bloqueando sus propios
   píxeles de telemetría.
-- Nadie vigila la bandeja de resultados del App Review. La respuesta del 7-ago estuvo dieciséis
-  días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación en el cron de
-  diagnóstico. Mientras no lo haya, se mira a mano.
+- Nadie vigila la bandeja de resultados del App Review (**B4** del plan). La respuesta del 7-ago
+  estuvo dieciséis días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación
+  en el cron de diagnóstico. Mientras no lo haya, se mira a mano.
 - Cablear las plantillas de WhatsApp. Las 25 aprobadas viven en la WABA `1415042803155441`, que
   se retira: para el número nuevo hay que crearlas de cero en `2459716937850832`.
 - Incertidumbres de Meta sin resolver: TTL de las URLs `lookaside.fbsbx.com` · límite real del
@@ -141,13 +147,16 @@ no se sabe.
 **Cerrado el 24-ago:** `/api/meta/oauth/start` y `/callback`, el `state` firmado, `meta-canje` con
 los siete pasos, y el cifrado del BISU con `kid` (0088).
 
+**Cerrado también el 24-ago:** el cron diario de `debug_token` por autorización
+(`kavea-verificar-autorizaciones`, 04:41) y la **selección de activos**: una autenticación con
+Facebook y luego, dentro de Kavea, se eligen las Páginas y los Instagram (0092/0093 y
+`meta-activos`). Ya no se rechaza un alta por tener más de una Página.
+
 **Sigue abierto:** la segunda config de Facebook Login for Business, la de WhatsApp —depende de
-Embedded Signup— · **cron diario de `debug_token`** por conexión, que es lo que detecta un token
-muerto antes que el cliente · enlace de conexión firmado, un solo uso, 72 h, sin sesión de Kavea ·
+Embedded Signup— · enlace de conexión firmado, un solo uso, 72 h, sin sesión de Kavea ·
 máquina de estados por (organización, canal) · Conversation Routing (`primary_receiver`,
 `thread_owner`, los seis endpoints) · árbol de diagnóstico diferencial · pantalla de expectativas
-de WhatsApp · **selección de Página cuando el cliente autoriza más de una**: hoy `meta-canje`
-rechaza el alta con un mensaje que lo explica, en vez de elegir por él.
+de WhatsApp.
 
 ### Trabajo sin bloqueo — resto
 - Borrar del portafolio la WABA vacía «Gabriel Montiel Toro» (`1621952576167448`), sin números.
@@ -172,13 +181,19 @@ rechaza el alta con un mensaje que lo explica, en vez de elegir por él.
   sobre partes que están en producción.
 
 ### Pendiente que nació hoy
-- **Falta probar un ENVÍO real con el token del diálogo.** El canje del 24-ago dejó `MESSAGING`
-  entre las `tasks` y V4 dice que el token sirve, pero eso verifica que es válido, no que entregue.
-  Hasta que salga un mensaje por Messenger y otro por Instagram con él, A2 está a medias.
+- ~~Probar un envío real con el token del diálogo~~ **hecho el 24-ago**: salieron mensajes por
+  Instagram y por Messenger con el token del canje, con eco de Meta y `mid`. A2 cerrada.
 - **Nadie ajeno a Boosty ha completado el diálogo.** El canje real se hizo desde el propio
   portafolio, con una cuenta que tiene rol en la app y en modo desarrollo. Es lo que exigen C1, C2,
   C4, C5, C7 y C8 de `docs/fases/05` §10, y no se puede simular desde dentro.
-- **Volver el repositorio a privado** cuando la facturación de Actions esté resuelta.
+- **Volver el repositorio a privado** cuando la facturación de Actions esté resuelta. Y antes de
+  eso, **abaratar CI**: los cinco trabajos corren en cada push sin un solo filtro `paths:`, y ahí
+  se fueron los 3.000 minutos. Poner filtros —el de base de datos solo cuando cambie
+  `supabase/**`, el del sitio público solo con `web/**`— recorta la mayor parte sin mover nada.
+  La alternativa de meter los guardianes en el `command` de Netlify tiene un agujero concreto:
+  los dos sitios llevan `ignore = "git diff --quiet HEAD^ HEAD -- ."`, así que un commit que solo
+  toque `supabase/` o `scripts/` no dispara ningún build y no se comprobaría nada. Y el trabajo de
+  esquema necesita Docker, que Netlify no tiene: ese no se mueve.
 
 ### Deuda que va a doler si se deja
 - Rotar los tokens que pasaron por chat: el de portafolio primero (escribe en nombre de 39
