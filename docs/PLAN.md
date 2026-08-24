@@ -27,10 +27,12 @@ entregable.
 entra su echo. Si falla, restaurar desde el respaldo del cifrado (`kid k1`) y anotar qué permiso
 faltaba.
 
-**A3. Selección de Página cuando el cliente autoriza varias.**
-Hoy `meta-canje` aborta con un mensaje que lo explica, porque elegir por él conectaría la
-equivocada en silencio. Hace falta la pantalla intermedia.
-*Hecho cuando:* autorizando dos Páginas, Kavea las lista y conecta la que se marque.
+**A3. Una autenticación, y elegir dentro de Kavea.** — ✅ **HECHO el 24-ago.**
+El BISU pasó a la organización (0092), `meta-canje` solo autoriza, `meta-activos` descubre y
+activa, y `/ajustes/canales/elegir` es la pantalla. Probado con la autorización real: lista las
+dos Páginas con su estado y su Instagram.
+*Queda:* activar Centromarca Mercedes es decisión de Gabriel — es de un cliente y sus DMs
+empezarían a entrar en la bandeja de Boosty.
 
 **A4. Botón «Reconectar» en Ajustes → Canales.** — ✅ **HECHO el 24-ago.**
 Sale solo cuando `token_invalido_desde` no es nulo y la conexión es de Página. Verificado

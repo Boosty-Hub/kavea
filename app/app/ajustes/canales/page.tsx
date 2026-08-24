@@ -33,6 +33,12 @@ export default async function PaginaCanales({
     accion: 'conectar',
   })
 
+  // Si ya autorizó, el botón principal deja de ser «autoriza» y pasa a ser
+  // «elige»: repetir el diálogo de Meta cuando ya hay permiso concedido es
+  // hacerle pasar cinco pantallas para nada.
+  const { data: autorizacion } = await supabase.rpc('hay_autorizacion_meta', { p_org: org.id })
+  const yaAutorizo = Array.isArray(autorizacion) ? autorizacion.length > 0 : Boolean(autorizacion)
+
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
       <NavAjustes actual="canales" />
@@ -62,20 +68,26 @@ export default async function PaginaCanales({
 
       {puedeConectar === true ? (
         <p style={{ margin: '0 0 24px' }}>
-          <a className="boton" href="/api/meta/oauth/start?canal=mensajeria">
-            Conectar una Página de Facebook
-          </a>
-          <span
-            style={{
-              display: 'block',
-              marginTop: 8,
-              fontSize: 13,
-              color: 'var(--k-text-2)',
-            }}
-          >
-            Se abre Meta para que autorices. Si la Página tiene Instagram vinculado, entran
-            los dos canales de una vez.
-          </span>
+          {yaAutorizo ? (
+            <>
+              <a className="boton" href="/ajustes/canales/elegir">Elegir qué conectar</a>
+              <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>
+                Ya autorizaste tu cuenta de Facebook. Desde ahí activas las Páginas e Instagram
+                que quieras, sin volver a pasar por Meta.{' '}
+                <a href="/api/meta/oauth/start?canal=mensajeria">Autorizar otra cuenta</a>.
+              </span>
+            </>
+          ) : (
+            <>
+              <a className="boton" href="/api/meta/oauth/start?canal=mensajeria">
+                Conectar con Facebook
+              </a>
+              <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>
+                Una sola autorización. Después eliges aquí qué Páginas e Instagram quieres
+                atender desde Kavea.
+              </span>
+            </>
+          )}
         </p>
       ) : null}
 

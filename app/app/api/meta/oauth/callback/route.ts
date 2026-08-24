@@ -70,11 +70,14 @@ export async function GET(req: Request) {
   //    fallo: se limpia y se le devuelve sin dramatismo.
   const errMeta = url.searchParams.get('error')
   if (errMeta || !code) {
+    // NO SE REPITE EL TEXTO DE META. Al pulsar «Cancelar», Meta devuelve
+    // `error_description=Permissions error`, que en pantalla es peor que no
+    // decir nada: está en inglés, suena a avería y describe un permiso que
+    // nadie denegó. Lo que pasó es que la persona cambió de opinión, y eso se
+    // dice en una frase.
     const r = aCanales(slug, {
       conexion: 'cancelada',
-      motivo:
-        url.searchParams.get('error_description') ??
-        'No se completó la autorización en Meta.',
+      motivo: 'No se completó la autorización en Meta. No se conectó nada.',
     })
     r.cookies.delete({ name: COOKIE_NONCE, domain: `.${RAIZ}`, path: '/' })
     return r
@@ -82,7 +85,8 @@ export async function GET(req: Request) {
 
   // 4. ¿Sigue pudiendo? Sesión y rol se vuelven a mirar AHORA, no cuando se
   //    firmó el `state`.
-  if (!(await usuarioActual())) {
+  const usuario = await usuarioActual()
+  if (!usuario) {
     return aCanales(slug, {
       conexion: 'error',
       motivo: 'Se cerró la sesión durante la conexión. Entra otra vez y repite.',
@@ -110,7 +114,10 @@ export async function GET(req: Request) {
     const r = await fetch(`${base}/meta-canje`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secreto}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, organizacion: org, canal, config_id: cfg, redirect_uri: uriDeRetorno() }),
+      body: JSON.stringify({
+        code, organizacion: org, canal, config_id: cfg,
+        redirect_uri: uriDeRetorno(), usuario: usuario.id,
+      }),
       // El canje son cinco llamadas a Graph encadenadas. Se le da aire, pero no
       // infinito: si Meta se atasca, el cliente merece una pantalla antes de que
       // el proxy corte por su cuenta con un 502 sin explicación.
@@ -121,8 +128,11 @@ export async function GET(req: Request) {
     resultado = { error: 'Meta tardó demasiado en responder. Vuelve a intentarlo.' }
   }
 
+  // AUTORIZAR NO ES CONECTAR. El diálogo concede acceso al portafolio entero;
+  // qué se activa lo elige el cliente en Kavea, con la lista delante. Por eso
+  // el retorno correcto lleva a la pantalla de elegir y no a la de canales.
   const r = resultado?.ok === true
-    ? aCanales(slug, { conexion: 'ok' })
+    ? NextResponse.redirect(`https://${slug}.${RAIZ}/ajustes/canales/elegir`, 302)
     : aCanales(slug, {
         conexion: 'error',
         // El paso concreto viaja a la interfaz: la fase 5 §T6 lo pide

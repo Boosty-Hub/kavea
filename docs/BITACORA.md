@@ -198,6 +198,51 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Una autenticación, muchos activos
+
+Gabriel probó el flujo dos veces y las dos salieron mal, cada una por un motivo distinto y los
+dos míos:
+
+- **Al cancelar**, la pantalla decía «Permissions error». Es el `error_description` de Meta
+  repetido tal cual: en inglés, con pinta de avería, y describiendo un permiso que nadie denegó.
+  Lo que pasó es que cambió de opinión.
+- **Al autorizar dos Páginas**, el alta abortó con «Kavea todavía conecta una por vez: repite el
+  diálogo». Eso lo escribí yo a propósito, y estaba mal.
+
+Su diagnóstico, y tiene razón: *«La conexión debería ser una sola, que es la cuenta de Facebook, y
+después dentro de Kavea habilitar las páginas de Messenger y los Instagram que tenga vinculados
+esa cuenta. Para que el usuario solo haga una autenticación con Facebook.»*
+
+Pedirle a alguien que repita un diálogo de OAuth una vez por Página es cobrarle el precio de
+nuestra implementación: son cinco pantallas de Meta por activo. **El modelo correcto es autorizar
+una vez y elegir después, con la lista delante** — que además es el único momento en que puede ver
+qué hay, qué ya está conectado y qué no se puede.
+
+**Lo que se movió de sitio.** El BISU deja de colgar de una conexión y pasa a la organización
+(`private.meta_autorizaciones`, 0092). Era lo que fue siempre: el diálogo no autoriza una Página,
+autoriza un portafolio. Guardarlo bajo una conexión obligaba a que existiera una conexión antes de
+poder mirar qué había. El Page Access Token no se mueve: ese sí es por Página.
+
+**Las piezas quedan así:**
+
+| | |
+|---|---|
+| `meta-canje` | Solo canjea y guarda la autorización. Ya no crea conexiones ni aborta por número de Páginas |
+| `meta-activos` | Lista lo que la autorización deja ver, y activa Páginas de una en una. **No necesita el App Secret** |
+| `/ajustes/canales/elegir` | La pantalla que faltaba |
+
+Activar es por Página a propósito: un fallo en la tercera no puede deshacer las dos anteriores ni
+dejar la pantalla sin saber cuál falló.
+
+**Probado de extremo a extremo** con la autorización que Gabriel ya había dado: `listar` devuelve
+sus dos Páginas con el estado correcto —Boosty.digital `conectada`, Centromarca Mercedes
+`sin_conectar` con `@kia.caracas`—, y la pantalla las pinta con su botón. El BISU que estaba
+guardado bajo la conexión se movió a la tabla nueva para no obligarle a reautorizar.
+
+Un detalle del modelo que conviene tener presente: la lista **solo trae lo que se compartió en el
+diálogo**, no las 27 Páginas del portafolio. Meta decide qué se comparte; Kavea decide qué se
+activa. Son dos permisos distintos y está bien que lo sean.
+
 ### 2026-08-24 (cierre) — El hilo enseñaba los 100 mensajes más ANTIGUOS
 
 Gabriel escribió a Boosty por Instagram. El mensaje entró, apareció en la lista de conversaciones
@@ -665,6 +710,13 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Repetir el mensaje de error de un tercero en la interfaz es delegar la redacción del producto:
+  «Permissions error» al cancelar suena a avería y no lo es.
+- Cuando la implementación obliga al usuario a repetir un trámite, el problema no es el usuario:
+  un diálogo de OAuth por activo son cinco pantallas de Meta por activo.
+- Autorizar y activar son dos decisiones distintas y de dos dueños distintos: Meta decide qué se
+  comparte, el cliente decide qué se enciende. Fundirlas en un paso quita la elección al que la
+  tiene que tomar.
 - Un `limit` sin pensar en el orden devuelve el extremo equivocado. `ascending: true` + tope son
   los más VIEJOS, y en un hilo eso significa esconder lo último sin dar ningún síntoma.
 - Un fallo que solo aparece pasado un umbral —cien entradas— no se ve en desarrollo ni en las
