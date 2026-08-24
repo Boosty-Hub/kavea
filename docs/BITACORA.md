@@ -30,7 +30,7 @@ de git de este mismo archivo.
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
-| Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar; la lectura por API lo suple |
+| Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar, pero **no por falta de suscripción** —está puesta, comprobado el 24-ago— sino por modo desarrollo y el permiso rechazado; la lectura por API lo suple |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
 | Callback de borrado de datos | ✅ Guardado | Recarga del panel a las 20:59 del 23-ago: el campo persiste. No hay forma de verificarlo por API (`data_deletion_url` no es campo de Graph), a diferencia de `deauth_callback_url`, que sí |
 | Contenido de Página e Instagram | ✅ `/contenido`, desde el 24-ago | Lista → detalle con la identidad delante. Verificado contra producción: `@boosty.digital` 1625 seguidores / 327 publicaciones con 12 medios, y `Boosty.digital` 172 seguidores con 10 posts y 10 fotos |
@@ -222,6 +222,35 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 (cierre) — El DM de @eficienzia.ai no llegó, y no es un fallo de Kavea
+
+Gabriel mandó un DM desde `@eficienzia.ai` y no apareció en la bandeja. Diagnóstico, en este orden:
+
+1. **El último webhook de Instagram es de las 04:06.** Nada después. El mensaje no llegó a Kavea,
+   así que no hay nada que arreglar en la ingesta.
+2. **Las suscripciones están bien.** El objeto `instagram` tiene `messages`, `comments`,
+   `message_reactions`, `messaging_postbacks`, `messaging_referral`, `messaging_seen` y `standby`, y
+   la Página tiene sus nueve campos. La app entrega DM: 61 eventos de `instagram`, el último hoy.
+3. **La app está en modo desarrollo y solo tiene DOS roles**, los dos administradores. Ningún
+   tester. En modo desarrollo Meta entrega eventos únicamente de quien tiene rol en la app: por eso
+   los DM de `@gabrielmontieltoro` entran y los de `@eficienzia.ai` no.
+
+**Preguntarle a Graph no era una opción**, y eso también es un dato: `GET
+/{ig-id}/conversations` responde `(#3) Application does not have the capability to make this API
+call`, porque `instagram_manage_messages` está rechazado. El permiso que falta impide comprobar el
+problema causado por el permiso que falta.
+
+**Corrección de la bitácora.** Se venía diciendo que el webhook de comentarios no llega por «falta
+la suscripción al campo `comments` del objeto `instagram`». **La suscripción está.** De 61 eventos de
+`instagram`, ninguno es un comentario. La explicación que encaja es la misma que la del DM ajeno:
+modo desarrollo y `instagram_manage_comments` rechazado. Se arregla con la aprobación, no tocando el
+panel.
+
+**Salida para el vídeo:** no pelearse con los roles. `@gabrielmontieltoro` ya entrega, tiene la
+ventana de 24 h abierta (entrante de hace 8,7 h, tarjeta `da6c1b3e…`) y sirve igual como cliente
+nativo. Si algún día hace falta `@eficienzia.ai`, hay que añadir su cuenta de Facebook como tester
+de la app y aceptar la invitación.
 
 ### 2026-08-24 (cierre) — Los cuatro alias borrados, y el cliente nativo no lo puede tocar un runner
 
@@ -1391,3 +1420,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   tarjeta correcta, porque solo se pinta con más de un canal.
 - Antes de prometer automatizar un navegador ajeno, comprobar si se puede: Chrome bloquea la
   depuración remota sobre el perfil por defecto, que es el único que tiene las sesiones.
+- Cuando un evento no llega, la primera pregunta no es «¿está mal la ingesta?» sino «¿llegó?». La
+  tabla de webhooks lo dice en una consulta, y descarta medio sistema.
+- «Falta la suscripción» es una explicación cómoda que sobrevive meses sin comprobarse. Estaba
+  puesta; lo que faltaba era el permiso aprobado y el rol en modo desarrollo.
+- Un permiso rechazado puede impedir diagnosticar el problema que ese mismo permiso causa: la arista
+  de conversaciones responde «capability» justo cuando querrías usarla para entenderlo.
