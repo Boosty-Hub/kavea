@@ -202,6 +202,43 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 — El primer canje real falló, y el fallo llevaba desde el 6-ago
+
+Gabriel completó el diálogo con la Página de Boosty. Meta autorizó —«Boosty Digital LLC has been
+connected to kavea»— y el flujo llegó entero hasta el paso 6. Ahí murió:
+
+    registrar_conexion_oauth 400 {"code":"23514", ...
+      Failing row contains (17841421294200897, instagram, ...)
+      new row for relation "meta_asset_routes" violates check constraint
+
+`meta_asset_routes.tipo` admite tres valores desde la 0003: `page`, `ig_business_account` y
+`whatsapp_phone_number`. Las funciones de alta escriben `instagram`. No es ninguno de los tres.
+
+**El fallo NO es de la 0088: es de la 0058, del 6-ago.** `registrar_conexion` —la ruta que usa el
+staff— tiene la misma línea. La heredé al copiarme de ella. O sea que dar de alta a mano cualquier
+Página con Instagram vinculado llevaba dieciocho días abortando, y nadie lo había pisado: la
+Página de Boosty ya estaba conectada de antes por el aprovisionamiento con token de system user
+—su fila de ruta dice `ig_business_account`, escrita por ese otro camino— y el alta del 6-ago no
+llegó a esta rama.
+
+**Dos vocabularios a dos columnas de distancia.** El CANAL se llama `instagram` (lo fija el enum
+`canal_meta`) y el ACTIVO se llama `ig_business_account`. Las dos inserciones están a seis líneas
+una de otra dentro de la misma función, y la de arriba usa la palabra correcta para su tabla.
+
+**`on conflict (asset_id) do nothing` no salvaba nada.** Esa cláusula resuelve conflictos de
+unicidad; un CHECK aborta siempre. Estaba ahí dando una falsa sensación de tolerancia.
+
+**Lo que sí funcionó: la transacción.** La función es una sola llamada, así que revirtió entera.
+Comprobado después del fallo: `config_id` sigue a null, el PAT sigue siendo el cifrado el 2-ago
+con `rotado_en` a null, y no hay BISU. El token de producción **no se tocó**, y el respaldo que se
+había tomado por precaución no hizo falta. Que el paso 6 escriba en la base antes de que el 7
+suscriba webhooks es incómodo, pero que cada paso sea atómico es lo que evitó dejar la conexión a
+medias.
+
+Arreglado en la **0089**, las dos funciones a la vez. Arreglar solo la nueva habría dejado la del
+staff esperando al primer cliente con Instagram.
+
+
 ### 2026-08-24 — El registro comodín, puesto y medido
 
 Creado el `CNAME` `*.kavea.ai → kavea-app.netlify.app` (ttl 3600) en la zona de Netlify. La zona
@@ -1105,6 +1142,16 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Copiar una función que funciona no garantiza copiar código que funciona: puede que la parte
+  copiada nunca se haya ejecutado. La 0058 llevaba dieciocho días con una inserción imposible
+  porque esa rama no se había pisado.
+- Cuando una tabla y un enum nombran la misma cosa distinto —`instagram` el canal,
+  `ig_business_account` el activo—, el error no se ve leyendo: las dos inserciones están a seis
+  líneas y cada una necesita una palabra diferente.
+- `on conflict do nothing` solo cubre unicidad. Delante de una restricción CHECK no tolera nada, y
+  leerlo por encima da una sensación de robustez que no existe.
+- Una función que hace varias escrituras es una transacción, y eso es lo que convierte un fallo en
+  el paso 6 en «no pasó nada» en vez de en «media conexión». Se nota el día que falla.
 - Un valor por defecto inventado para un identificador de clave no falla al desplegar ni al
   arrancar: falla al cifrar, en el primer alta real, con el código de OAuth ya gastado. Los
   nombres de los secretos se leen del proyecto, no se deducen del patrón que uno usaría.

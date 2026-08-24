@@ -1,0 +1,165 @@
+# Kavea — Plan de ejecución
+
+Lo pendiente, ordenado para hacerse. Complementa la bitácora: allí está **lo que pasó**, aquí
+**lo que sigue**. Si un punto de aquí se ejecuta, se tacha aquí y se anota allí.
+
+**Regla de orden:** primero lo que desbloquea a otras cosas, después lo que tiene fecha, después
+lo que solo cuesta trabajo. Lo que depende de un tercero no ocupa sitio en las fases: vive al
+final, en la lista de espera, porque no se puede planificar encima de ello.
+
+Cada tarea lleva **cómo se sabe que está hecha**. Sin eso una tarea es una intención.
+
+---
+
+## Fase A — Cerrar el flujo de conexión
+
+*El bloque B de la fase 5 está construido y desplegado pero no ha completado un canje real. Hasta
+que lo haga, todo lo que dependa de él es una promesa.*
+
+**A1. Primer canje real, con la Página de Boosty.**
+Reintentar tras la 0089. Es una reconexión: mismo `page_id`, mismo espacio.
+*Hecho cuando:* `meta_connections.config_id` deja de ser null, aparece el primer
+`bisu_token_cipher` que existirá en la base, `subscription_ok` sigue en true, y la actividad
+registra `canal.conectado` con `via: oauth`.
+
+**A2. Probar que el token nuevo sirve para lo que servía el viejo.**
+El PAT que llega por el diálogo trae los permisos de la configuración `kavea-mensajeria`, no los
+del system user. Es la única forma de saber si son suficientes.
+*Hecho cuando:* sale un mensaje real por Messenger y otro por Instagram con el token nuevo, y
+entra su echo. Si falla, restaurar desde el respaldo del cifrado (`kid k1`) y anotar qué permiso
+faltaba.
+
+**A3. Selección de Página cuando el cliente autoriza varias.**
+Hoy `meta-canje` aborta con un mensaje que lo explica, porque elegir por él conectaría la
+equivocada en silencio. Hace falta la pantalla intermedia.
+*Hecho cuando:* autorizando dos Páginas, Kavea las lista y conecta la que se marque.
+
+**A4. Botón «Reconectar» en Ajustes → Canales.**
+El BISU no se refresca, se renueva reautorizando. Sin este botón, un token muerto obliga a
+soporte.
+*Hecho cuando:* la tarjeta de una conexión con `token_invalid_since` no nulo enseña el botón y
+rehace el flujo.
+
+**A5. Cron diario de `debug_token`.**
+Es lo que detecta un token muerto antes que el cliente. «No expira» no es «no se invalida»: muere
+igual cuando el cliente revoca la app o quien autorizó pierde su rol.
+*Hecho cuando:* el cron escribe `token_last_verified_at` en cada conexión, y una app revocada en
+una cuenta de prueba deja la conexión en `disconnected` en menos de 24 h sin que nadie intervenga.
+
+---
+
+## Fase B — App Review
+
+*Tiene fecha: las llamadas de prueba caducan el **5-sep-2026**. Si el envío sale después, hay que
+repetirlas antes. Y el flujo de la fase A es lo que hace grabables el login de Meta y la pantalla
+de consentimiento, que son los dos requisitos que incumplieron los ocho vídeos.*
+
+**B1. Las tres pantallas que los vídeos tienen que enseñar y no existen.**
+Editar y borrar un comentario propio · leer y pintar contenido de la Página (posts, fotos,
+eventos) con la identidad de la Página visible · un perfil de Instagram con sus campos y su lista
+de medios. Detalle verbatim en `docs/07` §1.
+*Hecho cuando:* las tres se pueden recorrer con un contacto real, sin datos de mentira.
+
+**B2. Declarar el modelo en el envío.**
+Kavea es server-to-server con token de system user. Es el quinto punto de la propia lista de Meta
+y explica por qué los vídeos no enseñaban el login. Con el flujo de la fase A ya en pie, además,
+sí se puede enseñar.
+*Hecho cuando:* el texto del envío lo dice antes de que el revisor lo pregunte.
+
+**B3. Regrabar los ocho vídeos y volver a enviar.**
+Con el botón **Request again**; no hay que rehacer el formulario.
+*Hecho cuando:* los ocho permisos salen de «Rechazado».
+
+**B4. Vigilar la bandeja de resultados.**
+La respuesta del 7-ago estuvo dieciséis días sin leerse porque nada avisa.
+*Hecho cuando:* existe una comprobación —cron o correo encaminado— que avisa de un cambio de
+estado en el App Review.
+
+---
+
+## Fase C — Que un cliente ajeno se dé de alta solo
+
+*Hoy el autoservicio llega hasta crear el espacio. Conectar canales todavía no lo ha hecho nadie
+de fuera de Boosty.*
+
+**C1. Enlace de conexión firmado.**
+Un solo uso, 72 h, sin sesión de Kavea: para que el dueño del portafolio del cliente pueda
+autorizar sin ser usuario de Kavea.
+*Hecho cuando:* alguien sin cuenta completa el diálogo desde el enlace y la conexión queda hecha.
+
+**C2. Máquina de estados por (organización, canal).**
+`sin_conectar → autorizado → suscrito → verificado`, con los caminos de vuelta. Hoy el estado es
+un `text` con tres valores y la lógica está repartida.
+*Hecho cuando:* la pantalla de canales pinta el estado desde la máquina, no desde columnas
+sueltas.
+
+**C3. Pantalla de expectativas de WhatsApp.**
+Qué puede y qué no puede hacer, antes de conectar: ventana de 24 h, plantillas, calidad del
+número. Evita el soporte que genera cada sorpresa.
+*Hecho cuando:* aparece en el flujo de conexión de WhatsApp, antes del diálogo.
+
+**C4. El alta completa con un portafolio ajeno a Boosty.**
+Es lo que exigen C1, C2, C4, C5, C7 y C8 de `docs/fases/05` §10, y no se puede simular desde
+dentro.
+*Hecho cuando:* un negocio que no es Boosty tiene su espacio, su subdominio y su canal recibiendo
+mensajes.
+
+---
+
+## Fase D — Cobro
+
+*Sin esto Kavea es una herramienta, no un producto. Es lo único de la lista que no tiene ni una
+línea escrita, y no depende de Meta ni de nadie.*
+
+**D1. Decidir tarifas y márgenes.** Decisión de Gabriel, no de código. Bloquea todo lo demás de
+esta fase.
+**D2. Pasarela y ciclo de suscripción.** Alta, cobro recurrente, fallo de pago, baja.
+**D3. Límites por plan**, atados a lo que ya se mide en el panel de uso.
+**D4. Qué pasa al dejar de pagar.** Hoy no está decidido: ni el periodo de gracia, ni si se
+apagan los canales, ni la retención de datos tras la baja.
+
+---
+
+## Fase E — Operación y deuda
+
+*Nada de esto bloquea a un cliente hoy. Todo va a doler si se deja.*
+
+**E1. Rotar los tokens que pasaron por chat.** El de portafolio primero: escribe en nombre de 39
+Páginas de clientes. Después el PAT de Supabase, Resend, Netlify, la clave secreta y la contraseña
+de la app.
+**E2. Plantillas de correo de Supabase en español.** Hoy dicen «Confirm your email address» en un
+producto en español.
+**E3. Rehacer las plantillas de WhatsApp** en la WABA `2459716937850832`. Las 25 aprobadas viven
+en la que se retiró.
+**E4. Guarda de tipos de Deno en CI.** Hoy ninguna función de borde se typechequea en ningún job;
+se comprueba a mano y por costumbre.
+**E5. Volver el repositorio a privado** cuando la facturación de Actions esté resuelta.
+**E6. Kill-switches** (global / tenant / canal) y `GET /api/estado` con banner en menos de 30 s.
+**E7. Marcar caducados** los mensajes que perdieron la ventana de 24 h, en vez de tirarlos en
+silencio.
+**E8. Circuit breaker** de límites a `call_count > 80`: hoy se reacciona, no se previene.
+**E9. Reconciliar `docs/fases/`** contra lo ejecutado. Varios documentos dicen «sin código» sobre
+cosas que están en producción, y ya provocó una vez dar por bloqueado algo que no lo estaba.
+
+---
+
+## En espera de terceros
+
+No se planifica encima de esto. Se comprueba de vez en cuando.
+
+- **Netlify** — habilitar el comodín `*.kavea.ai`. Todo lo nuestro está hecho: los seis
+  requisitos cumplidos y el ticket #1097522 contestado el 24-ago. Cuando llegue, `/crear` deja de
+  depender de una llamada por alta.
+- **Meta** — Tech Provider onboarding. La página revienta con error 1007 desde su servidor. Es lo
+  único que bloquea Embedded Signup de WhatsApp, y con él la segunda configuración de Facebook
+  Login for Business.
+- **GitHub** — facturación de Actions. Mientras, el repositorio público suple los minutos.
+- **Meta** — el nombre a mostrar de `+1 321-393-1397`, en `PENDING_REVIEW`. No bloquea enviar; es
+  lo que ve el contacto.
+
+## Decisiones abiertas, sin fecha
+
+Si un cliente puede cambiar su subdominio · suscribir la WABA de Platinium Insurance, que ya está
+compartida y sin ninguna app escuchándola · impersonación con registro para soporte · carril de
+acuse automático sub-30 s · retención de `webhook_events` · nivel de PITR en producción ·
+retención tras la baja de un cliente.
