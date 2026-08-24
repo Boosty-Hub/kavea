@@ -128,6 +128,33 @@ no está terminada, está abandonada.
 
 ### Bloque A — Configuraciones de Facebook Login for Business
 
+> **HECHO EL 23-AGO-2026, Y CON UNA DESVIACIÓN.** Existe una sola configuración,
+> `kavea-mensajeria`, `config_id` **1721663745727123**, que cubre Messenger e
+> Instagram juntos en vez de dos separadas. El motivo: hoy los ocho permisos de
+> ambos canales están RECHAZADOS y van a reenviarse juntos, así que separarlos no
+> protege de ningún «Invalid Scopes» y duplica el diálogo al cliente. Si la
+> próxima ronda aprueba unos y rechaza otros, hay que partirla en dos.
+>
+> Lo que quedó fijado y **no se puede cambiar** en esa configuración:
+> variación de login `General` —la única que ofrece Meta—, token de
+> **system-user** y caducidad **Never**.
+>
+> Nueve permisos: `pages_show_list`, `pages_manage_metadata`, `pages_messaging`,
+> `pages_read_engagement`, `pages_utility_messaging`, `instagram_basic`,
+> `instagram_manage_messages`, `instagram_manage_comments`, `business_management`.
+>
+> Activos: `Pages` **obligatorio**; `Instagram accounts`, `Ad accounts`,
+> `Catalogs` y `Pixels` opcionales. Los tres últimos se conceden sin pedir su
+> permiso: se incluyen ahora para no tener que pedir consentimiento otra vez a
+> todos los clientes el día que existan catálogos o CAPI. En `Ad accounts` se
+> eligió **ANALYZE** a propósito: el valor por defecto era **MANAGE**, que da
+> control sobre los ajustes y las FINANZAS de la cuenta publicitaria del cliente.
+>
+> **Y WhatsApp no va por aquí.** El paso de activos no ofrece ninguna cuenta de
+> WhatsApp, aunque el de permisos sí liste `whatsapp_business_*`. Permiso sin
+> activo no sirve: el cliente no tendría dónde elegir su WABA. Embedded Signup es
+> otra vía, pendiente de explorar en Use cases → Connect on WhatsApp.
+
 **T1. Crear dos configuraciones separadas, una por canal.**
 
 `03` §`invariantes` es explícito: pedir scopes de más rompe el App Review. Chatwoot pedía
@@ -997,7 +1024,7 @@ trata igual que uno que Kavea invoca directamente.
 | Permiso | Por qué está | Dependencia declarada de | Estado de la evidencia |
 |---|---|---|---|
 | `pages_show_list` | `GET /me/accounts`, raíz del grafo | — | Confirmado |
-| `pages_read_user_content` | Dependencia de `instagram_basic`. Kavea no lo invoca | — | Confirmado como dependencia; sin confirmar si lleva submission propio |
+| ~~`pages_read_user_content`~~ | **NO HACE FALTA.** Medido el 23-ago-2026 | — | El selector de permisos de la configuración no lo ofrece, y con `instagram_basic` marcado Meta no lo autoañade pese a decir que autoañade dependencias. Duda cerrada |
 | `instagram_basic` | Lectura de la cuenta profesional vinculada | `pages_read_user_content` + `pages_show_list` | Confirmado |
 | `pages_read_engagement` | Dependencia de `instagram_manage_messages` | `pages_show_list` | Confirmado |
 | `instagram_manage_messages` | Habilita la bandeja de Instagram | `instagram_basic` + `pages_read_engagement` + `pages_show_list` | Confirmado |

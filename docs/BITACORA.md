@@ -50,7 +50,8 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Facebook Login for Business | ⛔ Cero configuraciones, redirect URIs vacío | Camino único para vender a público, **y** lo que hace grabables los dos requisitos que tumbaron los 8 permisos |
+| Facebook Login for Business | 🟡 `kavea-mensajeria` creada el 23-ago | `config_id 1721663745727123` · system-user · sin caducidad. Falta la URI de retorno y el código del flujo |
+| Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago) y los permisos de WhatsApp (7-ago) ya están; `docs/fases/05` aún lo da por bloqueado |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | Comodín `*.kavea.ai` | ⛔ Bloqueado por Netlify | `422 invalid site`, recomprobado el 23-ago. El certificado del sitio SÍ es comodín; lo que falta es el registro DNS |
@@ -171,6 +172,49 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (cierre) — La primera configuración de Facebook Login for Business
+
+Creada `kavea-mensajeria`, `config_id` **1721663745727123**. Es la pieza que sustituye al token
+de system user de Boosty por uno del portafolio de cada cliente.
+
+**Lo irreversible, que el asistente avisa dos veces:** variación de login `General` —la única
+que Meta ofrece—, token de **system-user** y caducidad **Never**.
+
+Lo de `Never` va contra la recomendación de Meta, que propone 60 días, y es a conciencia: **no
+hay endpoint de refresco del BISU**, así que renovar significa que el cliente vuelva a pasar por
+el diálogo. Con 60 días eso es cada cliente cada dos meses, y el día que no lo haga su canal
+deja de entregar sin decir nada. A cambio nos toca sostener la seguridad que Meta compraba con
+la caducidad, y eso ya está construido: AES-256-GCM con la clave fuera de la base, `kid` desde
+el primer día, el esquema `private` que PostgREST no expone, y el cron diario de `debug_token`.
+**Queda pendiente** asegurarse de que ese cron mire también los tokens BISU de clientes.
+
+**Nueve permisos y una desviación del diseño.** `docs/fases/05` pedía dos configuraciones, una
+por canal, para no pedir scopes de más. Se hizo una sola para Messenger e Instagram: hoy los
+ocho permisos de ambos están rechazados y se reenvían juntos, así que separarlos no protege de
+nada y duplica el diálogo al cliente. Si la próxima ronda los aprueba por separado, hay que
+partirla.
+
+**Sobre los activos, un punto medio.** `Pages` obligatorio; `Instagram accounts`, `Ad accounts`,
+`Catalogs` y `Pixels` opcionales y **sin pedir sus permisos**. La razón de incluirlos ya: añadir
+un permiso después obliga a que TODOS los clientes vuelvan a consentir. La razón de no pedir sus
+permisos: un permiso sin función que enseñar es el rechazo número nueve, con constancia en el
+historial de la app. En `Ad accounts` se eligió **ANALYZE**; el valor por defecto era **MANAGE**,
+que incluye los ajustes y las finanzas de la cuenta publicitaria del cliente.
+
+**Dos cosas medidas que cierran preguntas abiertas:**
+
+- **`pages_read_user_content` no hace falta.** El diseño lo daba como dependencia de
+  `instagram_basic` con la nota «sin confirmar». El selector no lo ofrece y Meta no lo autoañade
+  pese a decir que autoañade dependencias.
+- **WhatsApp no se conecta por Facebook Login for Business.** El paso de activos no ofrece
+  ninguna cuenta de WhatsApp, aunque el de permisos sí liste `whatsapp_business_*`. Permiso sin
+  activo no sirve. Y la única plantilla de Embedded Signup que ofrece Meta entrega un **token de
+  60 días**, que es justo lo que no queremos.
+
+**Y por fin verificado por API en vez de por captura**, ahora que el App Secret está en el
+entorno: `GET /{app-id}/permissions` devuelve **cinco** permisos `live`, exactamente los cinco
+aprobados el 7-ago. Los ocho rechazados no están.
 
 ### 2026-08-23 (noche) — El registro se abre de verdad, y el subdominio no llega solo
 
@@ -702,6 +746,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   Entre el 201 y el servicio funcionando hay un tiempo que hay que medir, no suponer.
 - Abrir una puerta nueva destapa lo que ya estaba roto detrás: el espacio de demostración
   llevaba diecisiete días sin subdominio y su alta había dicho «hecho».
+- Un valor por defecto en un formulario ajeno puede ser el más peligroso de la lista: el de
+  «asset task permissions» era MANAGE, o sea las finanzas de la cuenta publicitaria del cliente.
+- Lo que se pide en el consentimiento se pide una vez: añadir un permiso después obliga a que
+  todos los clientes vuelvan a pasar por el diálogo. Conviene decidirlo mirando doce meses, no uno.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta
