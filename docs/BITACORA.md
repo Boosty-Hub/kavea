@@ -213,6 +213,23 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El canario C1 cazó una tabla sin RLS
+
+La 0099 creó `private.revision_permisos` y se dejó las dos líneas que llevan todas las demás
+tablas. Lo dijo CI, no una persona: «C1: tablas sin RLS activo y forzado:
+private.revision_permisos». Tres despliegues seguidos en rojo por eso, con los otros cuatro
+trabajos en verde.
+
+Estar en `private` —que PostgREST no expone— hace que no fuera alcanzable desde fuera, y por eso
+el olvido no rompió nada visible. Es exactamente la razón por la que el canario existe: una tabla
+que hoy nadie puede leer desde fuera es una tabla que mañana alguien expone sin saber que no tenía
+red. Y `force` importa más que `enable` aquí, porque todo lo que la toca son funciones
+`security definer`, que corren como el dueño y sin `force` se saltan sus propias políticas.
+
+Arreglado en la 0100, y comprobado que el vigilante sigue funcionando con RLS forzado:
+`relrowsecurity` y `relforcerowsecurity` en `true`, y la pasada siguiente devolvió
+`cambios: 0` como debe.
+
 ### 2026-08-24 (cierre) — Once de los doce vídeos, grabados contra producción
 
 Con las pantallas desplegadas, `scripts/grabar-screencasts.mjs` sacó **once vídeos**, y lo que
@@ -1243,3 +1260,6 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   comentarlo.
 - Dos tiradas de un generador que nombra con hash dejan dos artefactos válidos por nombre, y el
   viejo puede ser justo el que fue rechazado. Vaciar antes de generar es parte de generar.
+- Una tabla nueva en un esquema que no se expone parece que no necesita RLS, y es cuando más fácil
+  es olvidarla: nada falla al crearla y nada falla al usarla. Lo que la protege es el canario, no
+  el criterio del que la escribió.
