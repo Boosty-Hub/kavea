@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import type { CanalConectado, Conexion, Verificacion } from '@/lib/conexiones'
+import type { CanalConectado, Conexion, EmbudoBreve, Verificacion } from '@/lib/conexiones'
 import { fechaHora } from '@/lib/fechas'
 import { colorCanal, etiquetaCanal } from '@/lib/ventana'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
@@ -67,7 +67,9 @@ function viejo(c: Conexion): boolean {
   return new Date(c.cambiada_en).getTime() > new Date(c.ultima_pasada).getTime()
 }
 
-export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: string }) {
+export function Canales({
+  conexiones, huso, embudos,
+}: { conexiones: Conexion[]; huso: string; embudos: EmbudoBreve[] }) {
   const router = useRouter()
   const [comprobando, setComprobando] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState<string | null>(null)
@@ -189,9 +191,13 @@ Escribe ${PALABRA} para confirmar.`,
         }}
       >
         {grupos.map(({ canal, conexiones: cs }) => {
-          const rotas = cs.filter((c) => c.bloqueada).length
-          const avisos = cs.filter((c) => !c.bloqueada && c.en_rojo > 0).length
-          const pendientes = cs.filter((c) => viejo(c) || !c.ultima_pasada).length
+          // Las desconectadas se cuentan aparte: no están rotas —lo están a
+          // propósito— y decir «todo en orden» incluyéndolas sería falso.
+          const fuera = cs.filter((c) => c.estado === 'disconnected')
+          const vivas = cs.filter((c) => c.estado !== 'disconnected')
+          const rotas = vivas.filter((c) => c.bloqueada).length
+          const avisos = vivas.filter((c) => !c.bloqueada && c.en_rojo > 0).length
+          const pendientes = vivas.filter((c) => viejo(c) || !c.ultima_pasada).length
           // El peor estado manda: una tarjeta que dice «todo en orden» teniendo
           // una conexión rota debajo es peor que no tener tarjeta.
           const resumen = rotas
@@ -200,7 +206,9 @@ Escribe ${PALABRA} para confirmar.`,
               ? { t: avisos === 1 ? 'Una con avisos' : `${avisos} con avisos`, c: 'var(--k-esperando-fg)' }
               : pendientes
                 ? { t: 'Sin comprobar', c: 'var(--k-text-2)' }
-                : { t: 'Todo en orden', c: 'var(--k-resuelta-fg)' }
+                : vivas.length === 0
+                  ? { t: 'Ninguna conectada', c: 'var(--k-text-2)' }
+                  : { t: 'Todo en orden', c: 'var(--k-resuelta-fg)' }
           const enPausa = cs.flatMap((c) => c.canales)
             .filter((k) => k.canal === canal && !k.activo).length
 
@@ -229,6 +237,11 @@ Escribe ${PALABRA} para confirmar.`,
                   {resumen.t}
                   {enPausa ? (
                     <span style={{ color: 'var(--k-text-2)' }}>{' · '}{enPausa} en pausa</span>
+                  ) : null}
+                  {fuera.length ? (
+                    <span style={{ color: 'var(--k-text-2)' }}>
+                      {' · '}{fuera.length} desconectada{fuera.length > 1 ? 's' : ''}
+                    </span>
                   ) : null}
                 </span>
               </button>
@@ -274,7 +287,17 @@ Escribe ${PALABRA} para confirmar.`,
                       {c.ig_username && c.page_name ? (
                         <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>@{c.ig_username}</span>
                       ) : null}
-                      <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                      {/* UNA CONEXIÓN DESCONECTADA NO OFRECE DESHACERLO. Al desconectar
+                Centromarca, la cabecera seguía enseñando «Desconectar» y
+                «Volver a comprobar» mientras sus canales decían «Inactivo»: la
+                misma tarjeta afirmaba dos cosas distintas a diez píxeles. Un
+                botón que ofrece deshacer algo ya deshecho invita a pulsarlo y a
+                dudar de si la primera vez funcionó. */}
+            {c.estado === 'disconnected' ? (
+              <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>Desconectada</span>
+            ) : null}
+
+            <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                         {/* RECONECTAR. El BISU no se refresca: se renueva volviendo a pasar
                             por el diálogo. Sin este enlace, un token muerto es una llamada
                             a soporte. Solo sale cuando hace falta —`token_invalido_desde`
@@ -289,24 +312,39 @@ Escribe ${PALABRA} para confirmar.`,
                             Reconectar
                           </a>
                         ) : null}
-                        <button
-                          type="button"
-                          className="operar__control"
-                          style={{ cursor: 'pointer', fontSize: 13 }}
-                          disabled={comprobando !== null}
-                          onClick={() => comprobar(c.meta_connection_id)}
-                        >
-                          {comprobando === c.meta_connection_id ? 'Comprobando' : 'Volver a comprobar'}
-                        </button>
-                        <button
-                          type="button"
-                          className="operar__control"
-                          style={{ cursor: 'pointer', fontSize: 13, color: 'var(--k-escalada-fg)' }}
-                          disabled={desconectando !== null}
-                          onClick={() => desconectar(c)}
-                        >
-                          {desconectando === c.meta_connection_id ? 'Desconectando' : 'Desconectar'}
-                        </button>
+                        {c.estado === 'disconnected' ? (
+                          // Lo único que tiene sentido ofrecer sobre algo ya
+                          // desconectado es volver a traerlo. «Desconectar» ahí
+                          // invita a pulsarlo y a dudar de si la primera vez funcionó.
+                          <a
+                            className="operar__control"
+                            style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
+                            href="/ajustes/canales/elegir"
+                          >
+                            Volver a conectar
+                          </a>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              className="operar__control"
+                              style={{ cursor: 'pointer', fontSize: 13 }}
+                              disabled={comprobando !== null}
+                              onClick={() => comprobar(c.meta_connection_id)}
+                            >
+                              {comprobando === c.meta_connection_id ? 'Comprobando' : 'Volver a comprobar'}
+                            </button>
+                            <button
+                              type="button"
+                              className="operar__control"
+                              style={{ cursor: 'pointer', fontSize: 13, color: 'var(--k-escalada-fg)' }}
+                              disabled={desconectando !== null}
+                              onClick={() => desconectar(c)}
+                            >
+                              {desconectando === c.meta_connection_id ? 'Desconectando' : 'Desconectar'}
+                            </button>
+                          </>
+                        )}
                       </span>
                     </div>
 
@@ -334,7 +372,12 @@ Escribe ${PALABRA} para confirmar.`,
                       </p>
                     )}
 
-                    <Canalitos canales={c.canales} huso={huso} onCambiado={() => router.refresh()} />
+                    <Canalitos
+                        canales={c.canales}
+                        huso={huso}
+                        embudos={embudos}
+                        onCambiado={() => router.refresh()}
+                      />
 
                     <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
                       {c.comprobaciones.length === 0 ? (
@@ -370,14 +413,36 @@ Escribe ${PALABRA} para confirmar.`,
  * de tocar este fichero.
  */
 function Canalitos({
-  canales, huso, onCambiado,
+  canales, huso, embudos, onCambiado,
 }: {
   canales: CanalConectado[]
   huso: string
+  embudos: EmbudoBreve[]
   onCambiado: () => void
 }) {
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * A qué embudo entran las conversaciones nuevas de este canal.
+   *
+   * SOLO SE ENSEÑA SI HAY MÁS DE UNO. Con un embudo la elección no existe, y un
+   * selector de una sola opción es ruido que hay que leer para descartar.
+   *
+   * Cambiarlo NO mueve nada de lo que ya entró: la tarjeta es por contacto y se
+   * queda donde nació. Lo dice el `title`, porque es justo lo que alguien espera
+   * mal la primera vez.
+   */
+  async function mover(k: CanalConectado, embudo: string) {
+    setOcupado(k.id); setError(null)
+    const { error } = await crearClienteNavegador().rpc('asignar_embudo_a_canal', {
+      p_canal: k.id,
+      p_embudo: embudo || null,
+    })
+    setOcupado(null)
+    if (error) { setError(error.message); return }
+    onCambiado()
+  }
 
   async function alternar(k: CanalConectado) {
     setOcupado(k.id); setError(null)
@@ -388,6 +453,9 @@ function Canalitos({
     if (error) { setError(error.message); return }
     onCambiado()
   }
+
+  // Se resuelve una vez, no por canal.
+  const predeterminado = embudos.find((x) => x.es_predeterminado)
 
   if (canales.length === 0) return null
 
@@ -471,6 +539,46 @@ function Canalitos({
           >
             {ocupado === k.id ? '…' : k.activo ? 'Pausar' : 'Reanudar'}
           </button>
+
+          {/* SOLO SI HAY MÁS DE UN EMBUDO. Con uno la elección no existe, y un
+              selector de una sola opción es ruido que hay que leer para
+              descartar. */}
+          {embudos.length > 1 ? (
+            <label
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 4 }}
+              title={
+                'A qué embudo entran las conversaciones NUEVAS de este canal. '
+                + 'Las que ya existen no se mueven: la tarjeta es de la persona, no del canal.'
+              }
+            >
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>→</span>
+              <select
+                className="operar__control"
+                style={{ fontSize: 12, padding: '3px 6px' }}
+                value={k.embudo_id ?? ''}
+                disabled={ocupado !== null}
+                onChange={(e) => mover(k, e.target.value)}
+              >
+                {/* El vacío no es «ninguno», es «el de siempre»: así se puede
+                    volver atrás sin acordarse de cuál era, y si mañana cambia el
+                    predeterminado, este canal lo sigue.
+
+                    Y el predeterminado NO se repite abajo. La primera versión
+                    listaba «Ventas (por defecto)» y luego «Ventas», que se lee
+                    como un error aunque signifiquen cosas distintas. Se deja
+                    solo si este canal está clavado a él explícitamente, que es
+                    el único caso en que hace falta poder verlo seleccionado. */}
+                <option value="">
+                  Por defecto{predeterminado ? ` · ${predeterminado.nombre}` : ''}
+                </option>
+                {embudos
+                  .filter((x) => !x.es_predeterminado || k.embudo_id === x.id)
+                  .map((x) => (
+                    <option key={x.id} value={x.id}>{x.nombre}</option>
+                  ))}
+              </select>
+            </label>
+          ) : null}
         </li>
       ))}
     </ul>

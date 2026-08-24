@@ -38,7 +38,12 @@ export type CanalConectado = {
   activo: boolean
   pausado_motivo: string | null
   pausado_desde: string | null
+  /** A qué embudo entran sus conversaciones nuevas. Null = el predeterminado. */
+  embudo_id: string | null
 }
+
+/** Los embudos vivos, para el selector de cada canal. */
+export type EmbudoBreve = { id: string; nombre: string; es_predeterminado: boolean }
 
 export type Conexion = {
   meta_connection_id: string
@@ -60,6 +65,8 @@ export type Conexion = {
   cambiada_en: string | null
   /** No nulo = hay que reconectar. La interfaz lo sabe sin leer ningun token. */
   token_invalido_desde: string | null
+  /** `connected` | `degraded` | `disconnected`. */
+  estado: string
   comprobaciones: Verificacion[]
   canales: CanalConectado[]
 }
@@ -92,7 +99,7 @@ export const conexionesDe = cache(async (organizacionId: string): Promise<Conexi
       .order('codigo'),
     supabase
       .from('channels')
-      .select('id, meta_connection_id, canal, nombre, activo, pausado_motivo, pausado_desde')
+      .select('id, meta_connection_id, canal, nombre, activo, pausado_motivo, pausado_desde, embudo_id')
       .eq('organization_id', organizacionId)
       .order('canal'),
   ])
@@ -116,4 +123,21 @@ export const conexionesDe = cache(async (organizacionId: string): Promise<Conexi
     comprobaciones: porConexion.get(e.meta_connection_id) ?? [],
     canales: canalesDe.get(e.meta_connection_id) ?? [],
   }))
+})
+
+/**
+ * Los embudos a los que se puede mandar un canal.
+ *
+ * Los archivados no salen: ofrecer un destino que ya no se usa es prometer que
+ * las conversaciones van a aparecer en un tablero que nadie mira.
+ */
+export const embudosDe = cache(async (organizacionId: string): Promise<EmbudoBreve[]> => {
+  const supabase = await crearClienteServidor()
+  const { data } = await supabase
+    .from('embudos')
+    .select('id, nombre, es_predeterminado')
+    .eq('organization_id', organizacionId)
+    .is('archivado_en', null)
+    .order('orden')
+  return (data ?? []) as EmbudoBreve[]
 })

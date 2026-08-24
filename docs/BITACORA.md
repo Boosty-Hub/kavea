@@ -198,6 +198,53 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Fase A cerrada, y cada canal a su embudo
+
+**A2 completa.** Con permiso de Gabriel para mandarse mensajes, se envió uno real por **Instagram**
+y otro por **Messenger** desde la bandeja, con el PAT que vino del diálogo, y **los dos volvieron
+como echo de Meta** con su `mid`. Un echo solo existe si Meta lo entregó. De paso queda probado
+**Messenger de extremo a extremo con un contacto real**, que era un pendiente desde el 6-ago.
+Con eso la fase A queda cerrada entera.
+
+**Una conexión desconectada ya lo parece.** Al desconectar Centromarca, la cabecera seguía
+ofreciendo «Desconectar» y «Volver a comprobar» mientras sus canales decían «Inactivo»: la misma
+tarjeta afirmaba dos cosas a diez píxeles. El panel no lo ocultaba, no podía saberlo —
+`estado_de_conexion` no exponía `estado` (0094)—. Ahora enseña «Desconectada» y ofrece «Volver a
+conectar», y las tarjetas de canal cuentan las desconectadas aparte: no están rotas, lo están a
+propósito, y decir «todo en orden» incluyéndolas sería falso.
+
+**Cada canal a su embudo (0095).** Gabriel creó un segundo embudo, «Clientes», y pidió poder
+decidir a cuál entra cada canal. Hasta ahora `tarjeta_de_contacto` metía toda tarjeta nueva en el
+predeterminado y no sabía por qué canal había llegado la conversación; con un canal eso era
+invisible, con dos números de WhatsApp mezcla en un tablero lo que el negocio lleva separado.
+
+`resolver_conversacion` ya recibía el `channel_id` desde la 0082 —lo necesitaba para no mezclar
+dos números en un hilo— y no se lo pasaba a la tarjeta. Esa es la línea que cambia.
+
+Tres decisiones:
+
+- **El embudo es del CANAL, no de la conexión.** Una Página trae Messenger e Instagram y no hay
+  razón para que vayan al mismo sitio: captación por uno, posventa por el otro.
+- **La tarjeta sigue siendo por contacto y no se mueve.** Si la misma persona escribe primero por
+  un canal y luego por otro que apunta a otro embudo, manda el primero. Partir la ficha de alguien
+  en dos tableros porque escribió dos veces sería peor que el problema que resuelve.
+- **El selector solo sale si hay más de un embudo.** Con uno la elección no existe, y un desplegable
+  de una opción es ruido que hay que leer para descartar.
+
+La primera versión listaba «Ventas (por defecto)» y debajo «Ventas». Significan cosas distintas
+—seguir al predeterminado, o clavarse a ese embudo pase lo que pase— pero se lee como un error.
+Ahora el predeterminado no se repite abajo salvo que el canal esté clavado a él.
+
+**Netlify contestó lo del comodín** y trae una condición que no estaba en la lista de seis: con
+subdominios comodín activados **no se pueden tener alias de dominio**, solo el dominio primario y
+lo que cuelgue de él. Hoy `kavea-app` tiene cuatro alias —`boosty`, `cuenta`, `conectar`,
+`demostracion`—. Quitarlos a ciegas y descubrir después que el comodín no los cubre es tirar
+producción, así que se pregunta antes en vez de probarlo en vivo.
+
+**Y una decisión de producto que cierra la C0:** el autoservicio se vende a quien tiene **sus
+propias Páginas**, no Páginas de socio. Quien es dueño de la suya ya tiene *Full access* y el
+diálogo la ve. Las 26 de clientes se siguen conectando por la vía asistida.
+
 ### 2026-08-24 (cierre) — A5: la autorización también se muere, y ahora alguien mira
 
 Los Page Access Tokens ya tenían vigilancia —el despachador marca
@@ -836,6 +883,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Un dato que la vista no expone no es un dato que la pantalla oculte: es uno que no puede saber.
+  Antes de acusar a la interfaz, mirar si la consulta lo trae.
+- Dos opciones que significan cosas distintas pero se llaman igual se leen como un error, no como
+  un matiz. Si hace falta un párrafo para justificar la diferencia, la lista está mal hecha.
 - El token que menos se usa es el que peor falla: nada lo ejercita, así que nada lo delata. La
   vigilancia hay que ponerla donde NO hay tráfico, no donde lo hay.
 - Un indicador de salud tiene que distinguir «malo» de «no se pudo comprobar». Si un fallo de red

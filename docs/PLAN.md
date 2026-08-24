@@ -11,7 +11,7 @@ Cada tarea lleva **cómo se sabe que está hecha**. Sin eso una tarea es una int
 
 ---
 
-## Fase A — Cerrar el flujo de conexión
+## Fase A — Cerrar el flujo de conexión ✅ COMPLETA (24-ago)
 
 *El bloque B de la fase 5 completó su primer canje real el 24-ago, con la Página de Boosty. Lo que
 queda es lo que separa «funciona una vez, conmigo» de «funciona siempre, con cualquiera».*
@@ -20,11 +20,10 @@ queda es lo que separa «funciona una vez, conmigo» de «funciona siempre, con 
 `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado, primer BISU de la base,
 `subscription_ok: true` con los 9 campos, y V1–V7 en verde salvo V6.
 
-**A2. Probar que el token nuevo sirve para lo que servía el viejo.** — 🟡 **Instagram sí,
-Messenger pendiente.** El 24-ago salió un mensaje real por Instagram con el PAT del diálogo y
-volvió el echo de Meta con su `mid`.
-*Falta:* Messenger de extremo a extremo. Necesita un mensaje ENTRANTE de una persona a la Página
-—no hay ninguna conversación en ventana— y eso no se puede hacer desde Kavea.
+**A2. Probar que el token nuevo sirve para lo que servía el viejo.** — ✅ **HECHO el 24-ago.**
+Instagram y Messenger, los dos con mensaje real desde la bandeja y echo de Meta de vuelta con su
+`mid`. De paso queda probado Messenger de extremo a extremo con un contacto real, pendiente desde
+el 6-ago.
 
 **A3. Una autenticación, y elegir dentro de Kavea.** — ✅ **HECHO el 24-ago.**
 El BISU pasó a la organización (0092), `meta-canje` solo autoriza, `meta-activos` descubre y
@@ -88,6 +87,11 @@ estado en el App Review.
 *Hoy el autoservicio llega hasta crear el espacio. Conectar canales todavía no lo ha hecho nadie
 de fuera de Boosty.*
 
+**Decidido el 24-ago:** el autoservicio se vende a quien tiene **sus propias Páginas**, no Páginas
+de socio como las 26 de clientes de Boosty. Eso cierra la duda de si había que pedirle a nadie
+*Full access*: quien es dueño de su Página ya lo tiene. Las Páginas de socio se siguen conectando
+por la vía asistida, con el token de system user.
+
 **C1. Enlace de conexión firmado.**
 Un solo uso, 72 h, sin sesión de Kavea: para que el dueño del portafolio del cliente pueda
 autorizar sin ser usuario de Kavea.
@@ -103,14 +107,6 @@ sueltas.
 Qué puede y qué no puede hacer, antes de conectar: ventana de 24 h, plantillas, calidad del
 número. Evita el soporte que genera cada sorpresa.
 *Hecho cuando:* aparece en el flujo de conexión de WhatsApp, antes del diálogo.
-
-**C0. Decidir qué se le pide a un cliente para el autoservicio.** *(nuevo, 24-ago)*
-El diálogo de Facebook Login for Business exige **Full access** sobre la Página. Las 26 Páginas de
-clientes que Boosty tiene asignadas como socio están en *Partial access (business tools only)* —con
-los siete interruptores puestos— y por eso NO salen en el selector. Subirlas es pedirle al cliente
-el derecho a borrar su Página y a quitar acceso a cualquiera.
-*Hecho cuando:* está decidido si el autoservicio pide Full access, si se ofrece la vía de system
-user como alternativa asistida, o las dos según el tipo de cliente.
 
 **C4. El alta completa con un portafolio ajeno a Boosty.**
 Es lo que exigen C1, C2, C4, C5, C7 y C8 de `docs/fases/05` §10, y no se puede simular desde

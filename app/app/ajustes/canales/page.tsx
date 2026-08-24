@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { crearClienteServidor } from '@/lib/supabase/servidor'
-import { conexionesDe } from '@/lib/conexiones'
+import { conexionesDe, embudosDe } from '@/lib/conexiones'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Canales } from './panel'
 
@@ -21,7 +21,7 @@ export default async function PaginaCanales({
   const org = await organizacionActual()
   if (!org) notFound()
 
-  const conexiones = await conexionesDe(org.id)
+  const [conexiones, embudos] = await Promise.all([conexionesDe(org.id), embudosDe(org.id)])
   const { conexion, motivo } = await searchParams
 
   // Quien no puede conectar no ve el botón. No es solo estética: la ruta
@@ -106,7 +106,11 @@ export default async function PaginaCanales({
         </p>
       ) : null}
 
-      <Canales conexiones={conexiones} huso={org.zona_horaria ?? HUSO_POR_DEFECTO} />
+      <Canales
+        conexiones={conexiones}
+        huso={org.zona_horaria ?? HUSO_POR_DEFECTO}
+        embudos={embudos}
+      />
     </main>
   )
 }
