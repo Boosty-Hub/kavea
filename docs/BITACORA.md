@@ -213,6 +213,40 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El despliegue que se canceló solo, y los rojos que no eran fallos
+
+Se subieron los cinco commits del día de golpe. Netlify **canceló el build** de la aplicación y
+`boosty.kavea.ai/contenido` siguió dando 404: las pantallas nuevas nunca se desplegaron.
+
+La causa está en `app/netlify.toml`:
+
+    ignore = "git diff --quiet HEAD^ HEAD -- ."
+
+Eso mira **un solo commit**, el de la punta. El último de los cinco solo tocaba `docs/` y
+`scripts/`, así que la comparación salió limpia y Netlify canceló «due to no content change» —
+dejando sin construir los cambios de `app/` de los dos commits anteriores. El despliegue sale en
+rojo, pero el motivo que da suena a que no había nada que hacer, que es lo que hace que no se mire.
+
+Arreglado comparando contra `CACHED_COMMIT_REF`, el commit del último build con éxito: entre ese y
+el actual está todo lo que falta por construir. **Con respaldo `${CACHED_COMMIT_REF:-HEAD^}`**,
+porque una variable vacía ahí no falla: invierte el sentido. `git diff --quiet "" $COMMIT_REF -- .`
+compara el árbol de trabajo contra ese commit, sale limpio y **cancela**. De los dos errores
+posibles, ese es el peor, y la primera versión del arreglo lo tenía.
+
+**Y NO ESTÁ COMPROBADO.** El commit que lo arregla toca `app/`, así que la regla vieja también
+habría construido: el despliegue que salió bien no prueba nada sobre el arreglo. La prueba de
+verdad es el siguiente empujón de varios commits cuyo último no toque `app/`.
+
+**Corrección de una creencia anterior.** El sitio público lleva **al menos seis despliegues
+seguidos** en rojo con ese mismo mensaje, y la bitácora del 24-ago lo apuntó como señal de que el
+problema no era el código sino la facturación de Actions. La conclusión era correcta por accidente:
+esos rojos son el `ignore` haciendo su trabajo —`web/` no cambia— reportado como error. **Un
+despliegue rojo del sitio público no es un fallo**, y confundirlo cuesta buscar en el sitio
+equivocado.
+
+Y el 502 de `/contenido` justo después del despliegue era arranque en frío de la función: al tercer
+intento, 307 a `/entrar`, que es lo correcto.
+
 ### 2026-08-24 (cierre) — Tres de los ocho vídeos grababan la pantalla equivocada
 
 Al reescribir `scripts/grabar-screencasts.mjs` para B3 apareció algo que la nota de rechazo no
@@ -1154,3 +1188,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   artefacto siempre parece que funcionó.
 - Cuando un revisor da un motivo que encaja con una causa que ya sospechabas, es tentador parar de
   buscar. Aquí el motivo era literal y había una segunda causa debajo, en el mismo texto.
+- Un `ignore` de despliegue que compara `HEAD^` con `HEAD` supone que se sube un commit cada vez.
+  El día que se suben cinco, decide por el último y descarta los otros cuatro sin decir que lo hace.
+- Antes de escribir en un comentario que un fallo cae del lado seguro, comprobar de qué lado cae:
+  `git diff --quiet "" X -- .` no da error, da «no hay cambios», y eso cancela en vez de construir.
+- Un despliegue que sale en rojo por diseño enseña a no mirar los rojos. Si un estado normal se
+  reporta como error, el error de verdad llega camuflado entre seis iguales.
+- Un 502 en la primera petición después de desplegar es arranque en frío hasta que se repite. Un
+  solo intento no distingue eso de un fallo de código.

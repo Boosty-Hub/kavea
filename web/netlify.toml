@@ -23,10 +23,17 @@
 # en rojo— pero el motivo que da suena a que no había nada que hacer.
 #
 # `CACHED_COMMIT_REF` es el commit del último build con éxito y `COMMIT_REF` el
-# actual; entre esos dos está todo lo que falta por construir. Si la variable
-# viniera vacía, el comando falla y Netlify construye, que es el lado correcto
-# donde equivocarse.
-  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- ."
+# actual; entre esos dos está todo lo que falta por construir.
+#
+# CON RESPALDO, porque una variable vacía aquí INVIERTE el sentido: `git diff
+# --quiet "" $COMMIT_REF -- .` compara el árbol de trabajo contra ese commit,
+# sale limpio y CANCELA el build. Es el fallo peor de los dos, así que si la
+# variable no está se cae al comportamiento anterior en vez de a lo desconocido.
+#
+# SIN COMPROBAR TODAVÍA bajo la forma que falló. El commit que arregla esto toca
+# esta misma carpeta, así que la regla vieja también habría construido: la prueba
+# de verdad es el siguiente empujón de varios commits cuyo último no toque aquí.
+  ignore = "git diff --quiet ${CACHED_COMMIT_REF:-HEAD^} ${COMMIT_REF:-HEAD} -- ."
 
 [build.environment]
   NODE_VERSION = "22"
