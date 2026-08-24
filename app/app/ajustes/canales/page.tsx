@@ -37,7 +37,14 @@ export default async function PaginaCanales({
   // «elige»: repetir el diálogo de Meta cuando ya hay permiso concedido es
   // hacerle pasar cinco pantallas para nada.
   const { data: autorizacion } = await supabase.rpc('hay_autorizacion_meta', { p_org: org.id })
-  const yaAutorizo = Array.isArray(autorizacion) ? autorizacion.length > 0 : Boolean(autorizacion)
+  const auth = (Array.isArray(autorizacion) ? autorizacion[0] : autorizacion) as
+    | { invalida_desde: string | null; ultimo_motivo: string | null }
+    | undefined
+  const yaAutorizo = Boolean(auth)
+  // Una autorización muerta no se descubre sola: solo se usa al conectar algo
+  // nuevo, o sea casi nunca. El cron diario la comprueba y aquí se dice, porque
+  // enterarse el día que hace falta es enterarse tarde.
+  const autorizacionMuerta = Boolean(auth?.invalida_desde)
 
   return (
     <main className="pagina" style={{ maxWidth: 780 }}>
@@ -66,9 +73,17 @@ export default async function PaginaCanales({
         </p>
       ) : null}
 
+      {autorizacionMuerta ? (
+        <p className="error" role="alert" style={{ marginBottom: 16 }}>
+          Tu autorización con Facebook dejó de valer
+          {auth?.ultimo_motivo ? ` (${auth.ultimo_motivo})` : ''}. Los canales ya conectados siguen
+          funcionando, pero no se pueden añadir nuevos hasta volver a autorizar.
+        </p>
+      ) : null}
+
       {puedeConectar === true ? (
         <p style={{ margin: '0 0 24px' }}>
-          {yaAutorizo ? (
+          {yaAutorizo && !autorizacionMuerta ? (
             <>
               <a className="boton" href="/ajustes/canales/elegir">Elegir qué conectar</a>
               <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>

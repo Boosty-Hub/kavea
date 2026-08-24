@@ -198,6 +198,40 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — A5: la autorización también se muere, y ahora alguien mira
+
+Los Page Access Tokens ya tenían vigilancia —el despachador marca
+`token_invalid_since` con el error 190 al enviar, y el reconciliador comprueba cada quince
+minutos—. **El BISU no tenía a nadie**, y es el que peor falla: un token de Página muerto se nota
+al primer mensaje, pero el BISU solo se usa al descubrir y activar activos. Puede llevar semanas
+caído y el síntoma llega el día que un cliente entra a conectar un canal y la pantalla se queda en
+blanco sin poder decir por qué.
+
+`verificar-autorizaciones`, cron diario a las 04:41. Usa **`debug_token`** y no una llamada
+cualquiera: una llamada normal solo dice «funcionó», y `debug_token` dice si sigue vivo, cuándo
+caduca de verdad y **qué scopes quedan** — que importa porque un cliente puede quitar UN permiso
+sin revocar la app, y entonces el token vale para unas cosas y no para otras.
+
+Tres decisiones que valen más que el código:
+
+- **«No se sabe» no es «está muerto».** Si `debug_token` no devuelve `data`, no se marca nada.
+  Marcar inválida una autorización sana por un fallo de red le enseña al cliente a reautorizar sin
+  motivo, que es la forma más rápida de que ignore el aviso el día que sea verdad.
+- **`expires_at: 0` significa «no caduca»**, no «caducó en 1970».
+- **`invalida_desde` no se pisa**: saber que lleva tres días caída es distinto de saber que cayó
+  hace un minuto.
+
+Y no arregla nada, solo anota: renovar un BISU es que una persona vuelva a pasar por el diálogo, y
+eso no lo hace un cron. Lo que sí hace es que la pantalla de canales lo diga.
+
+Ejecutado en vivo: una organización, válida, sin caducidad —coherente con el `Never` de la
+configuración— y nueve scopes guardados.
+
+Un detalle del proceso: el disparador iba a leer la URL y la clave de `vault.decrypted_secrets`
+porque es lo que suena razonable. Se miró `disparar_diagnostico` antes de escribirlo y este
+proyecto usa `private.cfg`. Suponerlo habría dado una migración que se aplica sin error y un cron
+que no dispara nunca.
+
 ### 2026-08-24 (cierre) — El envío probado, y otro camino que nunca pudo funcionar
 
 Con permiso de Gabriel para conectar su Página personal y mandarse mensajes.
@@ -802,6 +836,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- El token que menos se usa es el que peor falla: nada lo ejercita, así que nada lo delata. La
+  vigilancia hay que ponerla donde NO hay tráfico, no donde lo hay.
+- Un indicador de salud tiene que distinguir «malo» de «no se pudo comprobar». Si un fallo de red
+  pinta de rojo lo que está sano, en dos semanas nadie mira el indicador.
+- Cómo se leen los secretos en un cron no se supone: una migración que se aplica sin error puede
+  contener un disparador que no dispara nunca. Se mira un cron que ya funciona.
 - Una guarda de autorización contra `auth.uid()` es inútil en una función que se llama con la
   clave de servicio: no protege, cierra. La autorización va donde hay sesión; el RPC del borde va
   sin guarda y se le llama desde un sitio que ya preguntó quién eres.

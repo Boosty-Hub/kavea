@@ -37,11 +37,13 @@ empezarían a entrar en la bandeja de Boosty.
 Sale solo cuando `token_invalido_desde` no es nulo y la conexión es de Página. Verificado
 simulando un token inválido en la conexión de Boosty y revirtiéndolo.
 
-**A5. Cron diario de `debug_token`.**
-Es lo que detecta un token muerto antes que el cliente. «No expira» no es «no se invalida»: muere
-igual cuando el cliente revoca la app o quien autorizó pierde su rol.
-*Hecho cuando:* el cron escribe `token_last_verified_at` en cada conexión, y una app revocada en
-una cuenta de prueba deja la conexión en `disconnected` en menos de 24 h sin que nadie intervenga.
+**A5. Vigilar los tokens.** — ✅ **HECHO el 24-ago.**
+Los Page Access Tokens ya los vigilaban el despachador (error 190 al enviar) y el reconciliador
+(cada 15 min). Lo que faltaba era el **BISU**, que no tenía a nadie: `verificar-autorizaciones`,
+cron diario a las 04:41 contra `debug_token`, guarda validez, caducidad real, scopes y motivo. La
+pantalla de canales avisa cuando muere.
+*Queda por comprobar en vivo:* revocar la app desde una cuenta de prueba y ver que el aviso sale
+en menos de 24 h. Necesita una cuenta que no sea la de Boosty.
 
 **A6. El diagnóstico no puede quedarse viejo.** — ✅ **HECHO el 24-ago**, las dos mitades.
 `meta-canje` rediagnostica al terminar (paso 8), y la pantalla avisa cuando el veredicto es
