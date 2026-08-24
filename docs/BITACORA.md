@@ -51,8 +51,8 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Página de Boosty (`1790677317841377`) | ✅ Conectada, pero **por el camino viejo** | `config_id` a null: se aprovisionó con el token de system user. Su PAT se cifró el 2-ago y nunca se ha rotado; no tiene BISU |
-| Facebook Login for Business | ✅ **En producción, sin estrenar** | `config_id 1721663745727123`. Verificado en `boosty.kavea.ai` el 24-ago: 302 correcto, `redirect_uri` a `conectar.kavea.ai`, cookie del nonce en `.kavea.ai` y **vista desde `conectar`**. Falta que un cliente real complete el diálogo |
+| Página de Boosty (`1790677317841377`) | ✅ **Reconectada por OAuth el 24-ago** | `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado y **primer BISU de la base**. V1–V7 en verde salvo V6 |
+| Facebook Login for Business | ✅ **Estrenado el 24-ago** | Un canje real completo de extremo a extremo: diálogo, código, BISU cifrado, webhooks suscritos y rediagnóstico. Falta hacerlo desde un portafolio que no sea el de Boosty |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
@@ -172,16 +172,12 @@ rechaza el alta con un mensaje que lo explica, en vez de elegir por él.
   sobre partes que están en producción.
 
 ### Pendiente que nació hoy
-- **El flujo de OAuth no ha completado nunca un canje real.** Los pasos 2 a 7 de `meta-canje`
-  —canje del código, lectura de Páginas, Instagram vinculado, cifrado, suscripción— están escritos
-  y con tipos correctos, pero jamás se han ejecutado contra una respuesta de Meta. Lo verificado
-  es la ida hasta el diálogo y todos los caminos de rechazo.
-- **Conectar la Página de Boosty por el flujo nuevo SOBRESCRIBE su token actual.** Es una
-  reconexión: mismo `page_id`, mismo espacio, así que la 0088 actualiza en vez de dar de alta. El
-  PAT que se guarde vendrá del diálogo, y sus permisos son los de la configuración
-  `kavea-mensajeria`, no los del system user. Si esa configuración concede menos de lo que hace
-  falta para enviar, el envío de Boosty se rompe hasta restaurar. Hay respaldo del cifrado actual
-  (`kid k1`, 224 bytes) y se restaura con una llamada a `guardar_credencial`.
+- **Falta probar un ENVÍO real con el token del diálogo.** El canje del 24-ago dejó `MESSAGING`
+  entre las `tasks` y V4 dice que el token sirve, pero eso verifica que es válido, no que entregue.
+  Hasta que salga un mensaje por Messenger y otro por Instagram con él, A2 está a medias.
+- **Nadie ajeno a Boosty ha completado el diálogo.** El canje real se hizo desde el propio
+  portafolio, con una cuenta que tiene rol en la app y en modo desarrollo. Es lo que exigen C1, C2,
+  C4, C5, C7 y C8 de `docs/fases/05` §10, y no se puede simular desde dentro.
 - **Volver el repositorio a privado** cuando la facturación de Actions esté resuelta.
 
 ### Deuda que va a doler si se deja
@@ -202,720 +198,196 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
-### 2026-08-24 — El primer canje real falló, y el fallo llevaba desde el 6-ago
+### 2026-08-24 — El autoservicio conecta un canal por primera vez
 
-Gabriel completó el diálogo con la Página de Boosty. Meta autorizó —«Boosty Digital LLC has been
-connected to kavea»— y el flujo llegó entero hasta el paso 6. Ahí murió:
+**El flujo de OAuth completo, en producción.** Bloque B de la fase 5 (`b9a94c5`): `state` firmado
+con HMAC + nonce en cookie de `.kavea.ai`, `/api/meta/oauth/start`, callback en
+`conectar.kavea.ai` y la función de borde `meta-canje` con los siete pasos de T6. El App Secret no
+sale del borde. Dos desvíos deliberados del documento de fase: la organización sale del Host bajo
+RLS y no de un parámetro, y `puede(org,'conectar')` es **solo owner** —la 0040 manda sobre el
+documento—.
+
+**Producción:** `META_APP_ID`, `KAVEA_ESTADO_SECRETO` y `GRAPH_API_VERSION` en Netlify;
+`META_APP_SECRET` NO está ahí, comprobado. `meta-canje` desplegada, y
+`reconciliar-suscripciones` redesplegada porque su lista de campos pasó a `_compartido/campos.ts`
+—dos copias que se separan hacen que el reconciliador corrija cada quince minutos algo que no
+está roto—.
+
+**Verificado en `boosty.kavea.ai`:** 302 con `config_id 1721663745727123`,
+`redirect_uri` a `conectar.kavea.ai`, `state` de 262 caracteres, cookie `httpOnly`/`secure`/`Lax`
+en `.kavea.ai` **y vista desde `conectar`** —lo único que en local no se podía probar—. El
+callback rechaza `state` ausente, basura y manipulado.
+
+**Dos fallos propios antes de estrenarlo:** el `kid` por defecto era `v1` y el secreto real es
+`KAVEA_CRED_KEY_k1` (habría fallado al cifrar, con el código de OAuth ya gastado); y `.boton` no
+existía en el CSS aunque `/registro`, `/crear` y canales la invocaban — las tres pintaban el botón
+nativo del navegador. El segundo se vio en la captura, no compilando.
+
+**El primer canje real falló, y el fallo era del 6-ago.** Meta autorizó y el flujo llegó al paso 6:
 
     registrar_conexion_oauth 400 {"code":"23514", ...
       Failing row contains (17841421294200897, instagram, ...)
       new row for relation "meta_asset_routes" violates check constraint
 
-`meta_asset_routes.tipo` admite tres valores desde la 0003: `page`, `ig_business_account` y
-`whatsapp_phone_number`. Las funciones de alta escriben `instagram`. No es ninguno de los tres.
-
-**El fallo NO es de la 0088: es de la 0058, del 6-ago.** `registrar_conexion` —la ruta que usa el
-staff— tiene la misma línea. La heredé al copiarme de ella. O sea que dar de alta a mano cualquier
-Página con Instagram vinculado llevaba dieciocho días abortando, y nadie lo había pisado: la
-Página de Boosty ya estaba conectada de antes por el aprovisionamiento con token de system user
-—su fila de ruta dice `ig_business_account`, escrita por ese otro camino— y el alta del 6-ago no
-llegó a esta rama.
-
-**Dos vocabularios a dos columnas de distancia.** El CANAL se llama `instagram` (lo fija el enum
-`canal_meta`) y el ACTIVO se llama `ig_business_account`. Las dos inserciones están a seis líneas
-una de otra dentro de la misma función, y la de arriba usa la palabra correcta para su tabla.
-
-**`on conflict (asset_id) do nothing` no salvaba nada.** Esa cláusula resuelve conflictos de
-unicidad; un CHECK aborta siempre. Estaba ahí dando una falsa sensación de tolerancia.
-
-**Lo que sí funcionó: la transacción.** La función es una sola llamada, así que revirtió entera.
-Comprobado después del fallo: `config_id` sigue a null, el PAT sigue siendo el cifrado el 2-ago
-con `rotado_en` a null, y no hay BISU. El token de producción **no se tocó**, y el respaldo que se
-había tomado por precaución no hizo falta. Que el paso 6 escriba en la base antes de que el 7
-suscriba webhooks es incómodo, pero que cada paso sea atómico es lo que evitó dejar la conexión a
-medias.
-
-Arreglado en la **0089**, las dos funciones a la vez. Arreglar solo la nueva habría dejado la del
-staff esperando al primer cliente con Instagram.
-
-
-### 2026-08-24 — El registro comodín, puesto y medido
-
-Creado el `CNAME` `*.kavea.ai → kavea-app.netlify.app` (ttl 3600) en la zona de Netlify. La zona
-pasa de doce registros a trece.
-
-**Medido contra el servidor autoritativo, no supuesto.** Un host inventado
-—`cualquiercosa-de-prueba.kavea.ai`— resuelve ya por el comodín hasta las IP de Netlify. Y los que
-tenían registro propio siguen resolviendo igual: `admin`, `boosty`, `conectar` y el ápice. Era lo
-esperado —DNS prefiere la coincidencia más específica— pero se comprueba, que es distinto de
-darlo por sabido.
-
-**Lo que contesta hoy un subdominio desconocido: el 404 de Netlify**, no el de Kavea. TLS valida
-—el certificado ya era `*.kavea.ai`—, pero el sitio todavía no reclama ese host, así que la
-petición muere en el borde de Netlify antes de llegar a la aplicación. Eso se cierra cuando
-habiliten el comodín del lado del sitio, y es la razón de que el registro por sí solo no baste.
-
-Un apunte sobre cómo se comprobó: la respuesta de la API traía `"errors": []` y mi comprobación
-preguntaba si la clave `errors` existía. Existe siempre. El registro se había creado bien y el
-script dijo «RECHAZADO». Una clave vacía no es un error, y es la segunda vez en dos días que una
-comprobación mal escrita inventa un problema —la primera fue el `grep` con cadena vacía—.
-
-### 2026-08-24 — El comodín se puede activar, y solo falta un registro
-
-Netlify contestó al ticket **#1097522** con la lista de requisitos para activar un subdominio
-comodín. No es «no se puede», que es lo que llevábamos suponiendo desde el `422 invalid site` del
-2-ago: es «se puede, con condiciones». El `422` de la API nunca significó lo que le atribuimos —
-solo que ese endpoint no es la vía.
-
-**Los seis requisitos, comprobados por API en vez de por lectura:**
-
-| # | Requisito | Estado |
-|---|---|---|
-| 1 | Plan Pro o superior | ✅ Boosty Digital está en **Pro** |
-| 2 | DNS en Netlify, o certificado comodín propio | ✅ DNS en Netlify **y** el certificado del sitio ya es `*.kavea.ai`, `issued` |
-| 3 | Sin subdominios de rama | ✅ `branch_deploy_custom_domain: None`, ramas permitidas solo `main` |
-| 4 | Sin subdominios automáticos de despliegue | ✅ `deploy_preview_custom_domain: None`, `account_subdomain: None` |
-| 5 | Dominio primario al mismo nivel que el comodín | ✅ `admin.kavea.ai` y `*.kavea.ai` cuelgan los dos de `kavea.ai` |
-| 6 | Registro DNS del comodín | ❌ **Lo único que falta** |
-
-El 5 se había dado por incumplido de un vistazo, y se cumple. El ejemplo de Netlify lo dice al
-revés de como se lee la primera vez: para `*.bar.domain.com` el primario debe ser
-`www.bar.domain.com`, es decir, un HERMANO del comodín, no el padre. `admin.kavea.ai` es hermano
-de `*.kavea.ai`.
-
-**Lo que falta es un `CNAME` con `*` de nombre** apuntando a `kavea-app.netlify.app`. La zona de
-`kavea.ai` tiene hoy doce registros —siete de tipo `NETLIFY` para los hosts que ya existen, más
-MX, DMARC, DKIM de Resend y SPF— y ninguno es comodín.
-
-**Un comodín no tapa nada de lo anterior.** La resolución DNS prefiere siempre la coincidencia más
-específica, así que `admin`, `boosty`, `cuenta`, `conectar`, `demostracion`, `www` y el ápice
-siguen resolviendo por su registro propio, y el correo también: `send.kavea.ai` tiene MX y TXT
-explícitos, y un comodín no se aplica a un nombre que ya tiene registros.
-
-Lo que cambia es lo que hoy da NXDOMAIN: cualquier subdominio no listado pasaría a resolver al
-sitio. Antes de que Netlify habilite el comodín de su lado, eso significa que un host desconocido
-llegaría a Kavea y se encontraría el 404 de inquilino no encontrado en vez de un error de DNS.
-
-**Y esto es lo que arregla el alta self-service.** Hoy `/crear` depende de una llamada a la API de
-Netlify para dar de alta un alias por inquilino, con un DNS que tarda de forma impredecible —el
-caso de `demostracion`, quince minutos frente a los segundos de `cuenta` y `conectar`—. Con el
-comodín, el subdominio de un cliente nuevo existe en el momento en que existe su fila.
-
-De paso: **`demostracion.kavea.ai` ya tiene su registro** en la zona. El NXDOMAIN de diecisiete
-días quedó resuelto al añadir el alias, aunque tardara mucho más de lo que tardaron los otros dos.
-
-
-### 2026-08-24 (madrugada) — El repositorio es público, y el flujo está en producción
-
-**Se agotaron los 3.000 minutos de Actions y Gabriel abrió el repositorio** para recuperar
-minutos gratis. Es la decisión correcta para desbloquear CI y tiene una consecuencia que hay que
-mirar de frente: todo lo que hay dentro es ahora legible por cualquiera, incluido el historial.
-
-**Auditoría del historial, antes de tocar nada.** La guarda de «Fuga de secretos» de CI busca en
-el ÁRBOL DE TRABAJO, nunca en los commits: si algo se hubiera colado y borrado después, esa guarda
-habría dicho «limpio» toda la vida. Se revisó a mano:
-
-- Los patrones de credencial (`sb_secret_`, `sbp_`, `re_`, `nfp_`, `EAA…`, JWT) sobre **los blobs
-  de los 150 commits**: cero coincidencias.
-- Los **valores literales** de los seis secretos en uso hoy, buscados uno a uno en todo el
-  historial: ninguno aparece. Esta es la prueba que de verdad cierra la pregunta, porque no
-  depende de acertar el patrón.
-- Ficheros que hayan existido alguna vez con pinta de secreto: solo `.env.example`, que lleva
-  marcadores. Ninguna clave privada ni PEM.
-
-**Conclusión: no hay rotación forzada por abrir el repositorio.** La deuda de rotar los tokens que
-pasaron por chat sigue en pie por su propio motivo, no por este.
-
-**Un susto propio, y la lección.** La primera comprobación del verify token dijo «EXPUESTO». Era
-falso: `META_VERIFY_TOKEN` no está en el `.env` raíz, así que la variable iba vacía y
-`grep -F ""` casa con cualquier línea. Una búsqueda de secretos sin guarda de cadena vacía no
-encuentra secretos, encuentra todo. Se repitió con `if [ -z "$V" ]` delante y el resultado real es
-que el valor está únicamente en los secretos del borde.
-
-**LO QUE SÍ QUEDA EXPUESTO, y es decisión de Gabriel.** No son credenciales, pero es información
-de terceros: nombres de clientes reales de Boosty —Zzone, Platinium Insurance, Eficienzia.ai,
-Caracas Music Hall, Odreman y Asociados, Guds App— en `docs/04`, `docs/fases/05` y la propia
-bitácora, junto con **27 identificadores distintos de activos de Meta** y dos teléfonos. O sea, la
-cartera de clientes y qué activos tiene cada uno. Parte lo añadí yo ayer al documentar la WABA de
-Platinium. Volver el repositorio privado no deshace lo ya publicado; lo que se puede hacer es
-redactar los nombres de aquí en adelante.
-
-### 2026-08-24 (madrugada) — El flujo de OAuth, en producción
-
-Puesto en pie lo que faltaba del bloque B:
-
-- **Netlify (`kavea-app`)**: `META_APP_ID`, `KAVEA_ESTADO_SECRETO` (64 caracteres, generado) y
-  `GRAPH_API_VERSION`. `META_CONFIG_MENSAJERIA` ya estaba y coincide. **`META_APP_SECRET` NO está
-  aquí y no debe estarlo**: comprobado tras el alta.
-- **`meta-canje` desplegada**, con `_compartido/cripto.ts` y `campos.ts` en el bundle. Y
-  `reconciliar-suscripciones` redesplegada, porque su lista de campos ahora se importa: dejar el
-  código desplegado distinto del repositorio es la deriva que este cambio venía a evitar.
-- Prueba de humo del borde: sin cabecera → 401 de la plataforma; con la clave de servicio y sin
-  parámetros → 400 con el error estructurado. Que llegue al 400 prueba de paso que la guarda de
-  secretos del borde pasa, porque si no habría devuelto 503.
-
-**El CLI de Supabase SÍ está instalado** (2.84.2, por scoop). El comentario de cabecera de
-`scripts/aplicar-migraciones.ps1` dice que no lo está y que por eso se usa la API de gestión. Es
-falso desde hace tiempo y hay que corregirlo — el despliegue de funciones se hizo con el CLI, que
-resuelve solo el bundling de `_compartido`.
-
-**Dos deploys de Netlify aparecían en rojo y no eran fallos**: `Canceled build due to no content
-change`. Los dos eran commits de solo bitácora; el sitio publicado no cambia y Netlify cancela,
-pero lo marca como `error`. Conviene saberlo antes de perseguir un fallo que no existe.
-
-**Verificado en producción con Playwright**, y aquí está lo que en local no se podía comprobar:
-el 302 lleva `redirect_uri=https://conectar.kavea.ai/api/meta/oauth/callback`, la cookie del nonce
-se fija en **`.kavea.ai`** con `httpOnly`, `secure` y `SameSite=Lax`, y **`conectar.kavea.ai` ve
-esa misma cookie**. Sin eso el callback rechazaría todos los retornos legítimos, y era la única
-pieza del diseño que dependía de un dominio real.
-
-
-### 2026-08-24 (madrugada) — El diálogo de Meta, de ida y de vuelta
-
-Construido el bloque B de la fase 5: el flujo que sustituye el token de system user de Boosty
-por uno del portafolio de cada cliente. `b9a94c5`.
-
-**La pieza que decide si esto es seguro es el `state`.** Strict Mode admite UNA sola URI de
-retorno para toda la plataforma, así que el callback no sabe de qué inquilino viene por el Host
-—siempre es el mismo— y tiene que sacarlo del `state`. Un `state` sin firmar es un parámetro que
-escribe cualquiera: bastaría con mandarle a un dueño de Kavea un enlace al diálogo con el `org`
-de otro espacio para que su autorización legítima colgara la Página del atacante de la bandeja de
-la víctima. Va firmado con HMAC-SHA256, y como una firma válida se puede reenviar, el `nonce`
-viaja ADEMÁS en una cookie de `.kavea.ai` que el callback exige y borra al usarla. La firma dice
-«esto lo emitió Kavea»; la cookie dice «y se lo emitió a este navegador».
-
-**Dos decisiones donde el código se aparta del documento de fase, a propósito:**
-
-- T5 diseñaba `/start` recibiendo `organization_id` por la URL, con la exigencia de devolver 403
-  a quien acertara el id sin ser miembro. El código no lee ese parámetro: saca la organización
-  del Host bajo RLS. Es más estricto — el id de la URL no existe como superficie de ataque.
-- T5 decía «propietario o admin». `puede(org,'conectar')` en la 0040 dice **solo owner**. Manda
-  la base, que es la única matriz de permisos del producto, y además la versión estricta es la
-  correcta: conectar toca credenciales y el kill-switch.
-
-**El paso 7 aborta el alta y deja la conexión en `degraded`, no en `connected`.** Una fila que
-dice «conectado» sin webhooks suscritos es el peor estado posible: el cliente ve verde, espera, y
-no le entra un solo mensaje. Mejor visiblemente roto que invisiblemente inútil.
-
-**Un fallo que habría aparecido en el primer alta real y no antes.** El `kid` por defecto que
-escribí era `v1`. El secreto que existe en el proyecto se llama `KAVEA_CRED_KEY_k1`, y
-`cripto.ts` compone el nombre de la variable de entorno con el `kid`. No habría fallado al
-desplegar ni al arrancar: habría fallado al cifrar el token, después de canjear el código —que es
-de un solo uso—. Comprobado contra las credenciales guardadas: las que tienen `kid` dicen `k1`.
-De paso: **ninguna fila tiene BISU todavía**, las columnas de la 0004 llevan vacías desde agosto
-porque hasta ahora no existía ningún flujo que produjera uno.
-
-**Dos copias de la misma lista.** Los campos de webhook estaban escritos en
-`reconciliar-suscripciones` y los iba a volver a escribir en `meta-canje`. Si se separan, el
-reconciliador ve campos «que faltan» cada quince minutos y corrige para siempre algo que no está
-roto. Una sola lista en `_compartido/campos.ts`.
-
-**`.boton` no existía.** `/registro`, `/crear` y la pantalla de canales la pedían por
-`className` y las tres renderizaban el botón nativo del navegador. Se vio en la captura, no en el
-código: el enlace de conectar salía subrayado en medio del texto.
-
-**Verificado con Playwright contra el servidor local**, que es lo que hizo aparecer lo anterior:
-el 302 lleva `config_id` 1721663745727123, `client_id`, `response_type=code`,
-`override_default_response_type=true` y un `state` firmado de 262 caracteres; la cookie es
-`httpOnly`, `SameSite=Lax`, y su nonce coincide con el del `state`; el callback rechaza `state`
-ausente, basura y manipulado; y un canal sin `config_id` devuelve 400 en vez de abrir un diálogo
-que Meta rechazaría con un error genérico. **Meta acepta la URL del diálogo**: redirige a
-`login.php` porque el navegador de prueba no tiene sesión en Facebook, no porque los parámetros
-estén mal.
-
-`SameSite=Lax` es correcto y no una concesión: el retorno de Meta es una navegación de primer
-nivel por GET, el único caso entre sitios en que Lax sí manda la cookie. Con `Strict` el flujo
-fallaría siempre.
-
-### 2026-08-24 (madrugada) — CI lleva rota desde antes, y por facturación
-
-Al empujar el flujo, los cinco trabajos fallaron en 2 segundos sin ejecutar un solo paso. La
-anotación de GitHub, literal:
-
-> The job was not started because recent account payments have failed or your spending limit
-> needs to be increased.
-
-No es el código. Lo delata que también falla **Sitio público**, que no toca nada de lo que se ha
-cambiado, y sobre todo que viene fallando desde `08b0c4d` (24-ago 00:21 UTC) — incluidos
-`e033126` y `276e904`, que **solo tocaban la bitácora**. Un commit de documentación no puede
-romper «Tipos, lint y build».
-
-Cuatro commits han entrado sin verificar. Lo que se ejecutó a mano en su lugar: `tsc --noEmit`,
-`next build`, `deno check` de las dos funciones tocadas, el canario C8 contra producción —las
-tres funciones nuevas salen con `postgres` y `service_role` y nadie más— y la guarda de fuga de
-secretos. Lo que NO se ejecutó: el esquema desde cero con los 61 aislamientos, y la coherencia
-entre proveedores.
-
-
-### 2026-08-23 (noche) — La puerta que no abre, y el cliente que ya estaba dentro
-
-Tres cosas: una página de Meta que se cayó, un ticket de Netlify que contestó, y un hallazgo en
-el propio portafolio que cambia el orden de lo que queda.
-
-**Tech Provider onboarding no está vacío: está roto.** Salía en blanco, y la consola dice por
-qué. La petición del pagelet del panel —`view: wa-dev-quickstart`, `tab: onboard`,
-`page: whatsapp-business`, `use_case_enum: WHATSAPP_BUSINESS_MESSAGING`— devuelve
-**`error 1007: Something went wrong`**. Eso es un fallo del servidor de Meta, no una sección sin
-contenido, y la diferencia importa: una sección vacía sería una respuesta («no tienes esto»);
-un 1007 no es respuesta ninguna. Se reintenta. Los cientos de líneas rojas que la acompañan son
-ruido: el CSP de `developers.facebook.com` bloqueando los píxeles de telemetría del propio
-Facebook contra `*.run.app` y `*.on.aws`. Ni una sola tiene que ver con Kavea.
-
-**Y mientras la puerta no abría, resulta que ya habíamos entrado.** Preguntando por API en vez
-de por pantalla:
-
-    GET /2167414613399354/client_whatsapp_business_accounts
-    → { "id": "755757354157392", "name": "Platinium Insurance group corp", ... }
-
-`client_whatsapp_business_accounts` es la arista de WABAs que NO son del portafolio y que un
-tercero ha compartido contigo. Tiene una. La WABA declara `ownership_type: CLIENT_OWNED`, su
-negocio dueño es `24123447600679995` —distinto de Boosty—, y está `verified` y `APPROVED`. O
-sea: la relación proveedor↔cliente que Embedded Signup construye **ya existe en esta cuenta**,
-con un cliente real dentro, montada por otra vía y antes de que este proyecto la buscara.
-
-Lo que falta es lo de siempre, el cable: **`GET /755757354157392/subscribed_apps` devuelve `[]`**.
-Ninguna aplicación está suscrita a esa WABA, así que sus mensajes no llegan a ningún sitio.
-El patrón del día repetido por tercera vez —la pieza construida y el enchufe suelto—, pero
-esta vez con la pieza puesta por Meta y el cliente esperando al otro lado.
-
-Alrededor, lo que sí se pudo verificar por API: Boosty Digital LLC (`2167414613399354`) está
-`business_verification_status: verified`; la WABA propia `2459716937850832` está `APPROVED`; y
-el token de system user lleva **`manage_app_solution`** entre sus dieciocho permisos y no caduca
-(`expires_at: 0`). La arista `/{app-id}/whatsapp_business_solutions` **existe** y devuelve `[]`
-—no da error, que es la diferencia entre «no puedes» y «no tienes»—, lo cual encaja con haber
-descartado Partner Solutions ayer por otro motivo.
-
-**El callback de desautorización, confirmado por API y no por captura:**
-
-    GET /1623464799201071?fields=deauth_callback_url
-    → "https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-desautorizar"
-
-El de borrado no se puede comprobar así: `data_deletion_url` no es un campo de Graph
-(`(#100) Tried accessing nonexisting field`). En la captura está escrito, pero con la barra
-*Discard / Save Changes* todavía en pie — que en ese panel significa cambio pendiente. Queda
-como «escrito, guardado sin confirmar» hasta que alguien reabra la pantalla. Que un campo se vea
-relleno no quiere decir que esté guardado, y aquí no hay segunda fuente que lo desmienta.
-
-**Netlify contestó el ticket del comodín**, **#1097522**, en 28 minutos, con un mensaje de
-encuadre: resume la petición como «configurar registros DNS para tu dominio kavea.ai con tu
-sitio kavea-app» y pide un «yes» para asignar agente. El resumen no es falso, pero es más ancho
-que el problema: lo que hace falta es el registro **comodín** para los subdominios de inquilino,
-que es exactamente lo que la API rechaza con `422 invalid site`. Contestar «yes» a secas manda
-al agente a mirar DNS en general. Se contesta confirmando y precisando en la misma frase.
-
-
-### 2026-08-23 (tarde-noche) — El panel de Login, revisado campo a campo
-
-Con la configuración creada, se repasó **Facebook Login for Business → Settings**. Tres cosas
-que estaban bien, una que faltaba y una que descarta un camino.
-
-**Puesto y confirmado:** `https://conectar.kavea.ai/api/meta/oauth/callback` en *Valid OAuth
-Redirect URIs*, con **Use Strict Mode for redirect URIs en Yes** — que es lo que obliga a un host
-fijo y lo que hace que el `state` firmado tenga que llevar el `organization_id`. También
-`Client OAuth login`, `Web OAuth login` y `Enforce HTTPS` en Yes.
-
-**El callback de desautorización YA estaba pegado.** La §2 llevaba desde el 6-ago pidiendo
-«pegar `deauth_callback_url` en App settings»: hecho, apunta a la función de borde. Un pendiente
-menos que en realidad no lo era.
-
-**Y el de borrado de datos, NO.** *Data Deletion Request URL* está vacío, mientras
-`meta-borrado` lleva desplegada desde el 6-ago, está ACTIVE y responde 200. La función existe,
-la página de estado existe, y Meta no sabe a dónde llamar. Es el mismo patrón del día: la pieza
-construida y el cable sin enchufar.
-
-**`Login with the JavaScript SDK` está en No** y *Allowed Domains for the JavaScript SDK* vacío.
-No estorba al flujo por redirección que vamos a construir, pero conviene tenerlo presente: si
-Embedded Signup de WhatsApp acaba necesitando el SDK de JavaScript, hay que encenderlo y
-declarar el dominio.
-
-**Partner Solutions no es nuestro camino.** Lo dice su propia descripción: sirve para que **dos**
-socios —Solution Partners, Tech Providers, Tech Partners— gestionen conjuntamente los activos de
-WhatsApp de un cliente. Kavea onboarda a sus propios clientes, sin segundo socio. Queda
-descartado, y con eso la única puerta sin abrir para Embedded Signup es **Tech Provider
-onboarding**.
-
-### 2026-08-23 (cierre) — La primera configuración de Facebook Login for Business
-
-Creada `kavea-mensajeria`, `config_id` **1721663745727123**. Es la pieza que sustituye al token
-de system user de Boosty por uno del portafolio de cada cliente.
-
-**Lo irreversible, que el asistente avisa dos veces:** variación de login `General` —la única
-que Meta ofrece—, token de **system-user** y caducidad **Never**.
-
-Lo de `Never` va contra la recomendación de Meta, que propone 60 días, y es a conciencia: **no
-hay endpoint de refresco del BISU**, así que renovar significa que el cliente vuelva a pasar por
-el diálogo. Con 60 días eso es cada cliente cada dos meses, y el día que no lo haga su canal
-deja de entregar sin decir nada. A cambio nos toca sostener la seguridad que Meta compraba con
-la caducidad, y eso ya está construido: AES-256-GCM con la clave fuera de la base, `kid` desde
-el primer día, el esquema `private` que PostgREST no expone, y el cron diario de `debug_token`.
-**Queda pendiente** asegurarse de que ese cron mire también los tokens BISU de clientes.
-
-**Nueve permisos y una desviación del diseño.** `docs/fases/05` pedía dos configuraciones, una
-por canal, para no pedir scopes de más. Se hizo una sola para Messenger e Instagram: hoy los
-ocho permisos de ambos están rechazados y se reenvían juntos, así que separarlos no protege de
-nada y duplica el diálogo al cliente. Si la próxima ronda los aprueba por separado, hay que
-partirla.
-
-**Sobre los activos, un punto medio.** `Pages` obligatorio; `Instagram accounts`, `Ad accounts`,
-`Catalogs` y `Pixels` opcionales y **sin pedir sus permisos**. La razón de incluirlos ya: añadir
-un permiso después obliga a que TODOS los clientes vuelvan a consentir. La razón de no pedir sus
-permisos: un permiso sin función que enseñar es el rechazo número nueve, con constancia en el
-historial de la app. En `Ad accounts` se eligió **ANALYZE**; el valor por defecto era **MANAGE**,
-que incluye los ajustes y las finanzas de la cuenta publicitaria del cliente.
-
-**Dos cosas medidas que cierran preguntas abiertas:**
-
-- **`pages_read_user_content` no hace falta.** El diseño lo daba como dependencia de
-  `instagram_basic` con la nota «sin confirmar». El selector no lo ofrece y Meta no lo autoañade
-  pese a decir que autoañade dependencias.
-- **WhatsApp no se conecta por Facebook Login for Business.** El paso de activos no ofrece
-  ninguna cuenta de WhatsApp, aunque el de permisos sí liste `whatsapp_business_*`. Permiso sin
-  activo no sirve. Y la única plantilla de Embedded Signup que ofrece Meta entrega un **token de
-  60 días**, que es justo lo que no queremos.
-
-**Y por fin verificado por API en vez de por captura**, ahora que el App Secret está en el
-entorno: `GET /{app-id}/permissions` devuelve **cinco** permisos `live`, exactamente los cinco
-aprobados el 7-ago. Los ocho rechazados no están.
-
-### 2026-08-23 (noche) — El registro se abre de verdad, y el subdominio no llega solo
-
-Gabriel pasó las credenciales de Resend y Netlify, y con ellas se cerró lo que ayer bloqueaba el
-autoservicio.
-
-**El correo ya funcionaba y nadie lo sabía.** `kavea.ai` figura `verified` en Resend. La tabla de
-la §1 llevaba semanas diciendo «correo saliente no funciona, DNS sin verificar»: otra afirmación
-caducada, la tercera de esta jornada.
-
-**Supabase Auth, conectado a Resend.** `smtp.resend.com:465`, remitente `support@kavea.ai`
-—dirección con MX entrante hacia `/admin/correos`, así que una respuesta la ve alguien—,
-`site_url` de `localhost:3000` a `https://cuenta.kavea.ai`, lista de redirecciones permitidas,
-`password_min_length` de 6 a **8** para que el servidor deje de ser más flojo que la pantalla, y
-el límite de correos de 2/hora a 100. Un detalle de la API: `smtp_port` se rechaza como número y
-hay que mandarlo como cadena.
-
-**Probado con un alta real**, no con la configuración: usuario creado en producción, y en el
-registro de Resend aparece «Confirm your email address … delivered». Después se borró el usuario
-de prueba.
-
-**Los dos hosts sin inquilino existen**: `cuenta.kavea.ai` y `conectar.kavea.ai`, alias del sitio
-`kavea-app`. Netlify creó sus registros y respondieron **200 en segundos**.
-
-**Y ahí apareció el hueco de verdad.** La zona lleva un registro por host y no hay comodín, así
-que cada inquilino necesita su alias. Con las altas conducidas por Boosty eso era tolerable; con
-el registro abierto significa que alguien se registra y aterriza en un host muerto — la lección de
-la 0059 repetida una capa más arriba. Se construyó la función de borde `subdominio`, que pide el
-alias a Netlify leyendo el slug **de la base** y no del parámetro (si viniera de fuera, se podría
-pedir un alias para `admin`), idempotente y con el token de Netlify solo en el borde.
-
-**Con ella se descubrió que `demostracion.kavea.ai` nunca tuvo alias**: el espacio creado el
-6-ago llevaba diecisiete días siendo inalcanzable, y el alta de aquel día dijo «hecho».
-
-**Lo que NO se puede prometer, y por eso el código ya no lo promete.** Que Netlify acepte el
-alias no significa que el host resuelva. `cuenta` y `conectar` fueron instantáneos;
-`demostracion`, dado de alta igual y con su registro ya listado en la zona, seguía sin existir
-**para el servidor autoritativo** quince minutos después. No sé explicar la diferencia, así que
-`/crear` dejó de redirigir: enseña la dirección, dice que puede tardar, y no manda a nadie a un
-error de DNS.
-
-**Y el comodín, recomprobado en vez de recordado:** `POST` de un registro `*.kavea.ai` devuelve
-`422 invalid site`. Sigue bloqueado. Curiosamente el certificado del sitio **sí** es `*.kavea.ai`,
-así que TLS nunca fue el problema: lo que falta es el registro DNS.
-
-### 2026-08-23 (construcción) — La puerta del autoservicio, y lo que la tiene cerrada
-
-Primera rebanada del alta self-service. **El código está; el alta no funciona todavía**, y el
-motivo no es código.
-
-**Lo construido.** `registrarse` (migración 0087): un usuario con sesión y **correo confirmado**
-crea su organización y queda propietario en la misma transacción. No se tocó `crear_espacio`
-—la vía conducida por Boosty, que exige staff y deja invitación—: una función con dos amos
-acaba autorizando al que no debe. Con ella, `subdominio_libre`, que devuelve un booleano y nada
-más porque un `select` sobre `organizations` enumeraría la lista de clientes de Kavea.
-
-Dos pantallas en la superficie **sin inquilino** (`cuenta.kavea.ai`, ya reservada en
-`dominio.ts` y en el CHECK de la 0087): `/registro` crea la cuenta y manda el correo, `/crear`
-recibe el enlace de confirmación y elige nombre y subdominio, con comprobación en vivo.
-
-**Un tope de abuso, dicho como lo que es:** una organización por persona. No es regla de
-producto — sin él, una cuenta confirmada se sienta encima de cien subdominios en un minuto.
-
-**Y lo que impide abrirlo hoy**, medido en la configuración del proyecto:
-
-- `smtp_host: None` y `rate_limit_email_sent: 2`. Supabase usa su remitente de cortesía:
-  **dos correos por hora en todo el proyecto**. Con `mailer_autoconfirm: false` cada alta
-  necesita uno. El registro público no puede funcionar así, y es el mismo pendiente de
-  «correo saliente no funciona» que llevaba semanas como cosmético.
-- `site_url: http://localhost:3000`. Los enlaces de confirmación apuntarían ahí.
-- `uri_allow_list` vacía: `emailRedirectTo` se ignora y todo cae en `site_url`.
-- `password_min_length: 6` mientras la pantalla pide 8. **El servidor es más flojo que la
-  interfaz**, así que ocho es lo que Kavea pide y seis lo que acepta.
-
-**Y un defecto que solo salió en la captura:** el sidebar entero —Bandeja, Embudo, Agenda— se
-pintaba en la página de registro, a alguien que todavía no tiene cuenta ni organización.
-`sinMenu()` no las conocía, y en esa función no hay nada que delate qué rutas existen.
-
-### 2026-08-23 (decisión) — El token de system user no llega a un producto por suscripción
-
-Pregunta de Gabriel: si Kavea va a ser público por suscripción, ¿puede seguir conectando con un
-token de system user? **No.** Y la respuesta cambia el orden de todo lo demás.
-
-**Por qué no.** Un token de system user alcanza los activos que viven en el portafolio de
-Boosty: los propios y los que un cliente asignó a mano al Business Manager. La Página de alguien
-que se registra en la web un martes por la noche no está ahí, y no hay forma de que lo esté sin
-que una persona de Boosty y una del cliente se pongan de acuerdo. Eso es un alta B2B, no una
-suscripción.
-
-**La vía que sí llega es Facebook Login for Business**, y para WhatsApp su variante Embedded
-Signup: el cliente pulsa un botón, ve el diálogo de Meta, concede acceso, y Kavea recibe un token
-BISU acotado al portafolio de ESE cliente. `docs/fases/05` ya lo tiene diseñado entero —bloques A
-a I, 26 tareas, 24 sin hacer— con las dos vías de alta conviviendo: la A por activo asignado,
-que es la que se usa hoy con las 39 Páginas de clientes, y la B por OAuth, que es la del
-autoservicio. Las dos terminan en la misma fila de `meta_connections`; lo que cambia es de dónde
-sale el token.
-
-**Y aquí está lo que nadie había atado: montar el login ES el arreglo del App Review.** Los ocho
+`meta_asset_routes.tipo` admite `page`, `ig_business_account` y `whatsapp_phone_number` desde la
+0003. Las funciones de alta escriben `instagram`. **La línea es de la 0058**, la ruta del staff, y
+la heredé al copiarme de ella: dar de alta a mano cualquier Página con Instagram llevaba dieciocho
+días abortando sin que nadie la pisara. `on conflict do nothing` no cubría nada — resuelve
+unicidad, no CHECK. La transacción revirtió entera y el token de producción no se tocó. Arreglado
+en la **0089**, las dos funciones.
+
+**Y al segundo intento, conectó.** Primer canje real del proyecto:
+
+| | |
+|---|---|
+| `config_id` | `1721663745727123` |
+| `tasks` | `CREATE_CONTENT, MODERATE, MESSAGING, ADVERTISE, ANALYZE, MANAGE` |
+| BISU | **el primero que existe en esta base**, `kid k1` |
+| PAT | rotado; el del 2-ago sustituido |
+| Suscripción | los 9 campos, `subscription_ok: true` |
+| Diagnóstico | V1–V7 en verde salvo V6, que nunca fue verificable |
+
+`MESSAGING` estaba entre las tareas, así que el riesgo de que el token del diálogo concediera
+menos que el de system user no se materializó.
+
+**Un fallo de pantalla que el propio alta destapó:** al refrescar, canales seguía diciendo «esta
+conexión se creó sin pasar por el diálogo». Era el diagnóstico cacheado del día anterior — V2 se
+calcula sobre `tasks`, que hasta ese canje no existía. `meta-canje` gana un **paso 8** que
+rediagnostica al terminar, no abortante.
+
+**El repositorio es público.** Se agotaron los 3.000 minutos de Actions. Historial auditado antes
+de nada: los patrones de credencial sobre los blobs de los **150 commits** dan cero, y los
+**valores literales** de los seis secretos en uso no aparecen en ningún commit — esta última es la
+prueba que cierra la pregunta, porque no depende de acertar el patrón. Ninguna clave privada. **No
+hay rotación forzada.** Sí quedan expuestos nombres de clientes reales y 27 identificadores de
+activos de Meta en `docs/04`, `docs/fases/05` y esta bitácora; Gabriel decidió dejarlos y volver el
+repositorio a privado después.
+
+**El comodín `*.kavea.ai` se puede activar.** El `422 invalid site` del 2-ago nunca significó «no
+se permite», sino «por ese endpoint no». Netlify (#1097522) dio seis requisitos; cinco ya se
+cumplían —plan Pro, DNS en Netlify con certificado `*.kavea.ai` ya `issued`, sin subdominios de
+rama ni automáticos, y el dominio primario `admin.kavea.ai` **al mismo nivel** que el comodín, que
+se había dado por incumplido de un vistazo—. El sexto se hizo: `CNAME *.kavea.ai →
+kavea-app.netlify.app`, ttl 3600. Resuelve, y los registros explícitos siguen intactos. Ticket
+contestado; falta que lo habiliten del lado del sitio.
+
+**CI cayó por facturación, no por código.** «recent account payments have failed or your spending
+limit needs to be increased»: cinco trabajos, cero pasos, 2 s. Lo delataba que también fallaba
+*Sitio público* y que ya fallaba en dos commits que solo tocaban documentación. Cuatro commits
+entraron sin verificar; se ejecutaron a mano `tsc`, `next build`, `deno check`, el canario C8 y la
+guarda de secretos. Restaurada al abrir el repositorio.
+
+**Repaso completo de la bitácora contra la realidad**, trece correcciones: 86 migraciones cuando
+eran 88, ocho crones cuando eran nueve, y dos filas «Repositorio» contradiciéndose. Y
+`aplicar-migraciones.ps1` decía que el CLI de Supabase no está instalado; está, 2.84.2.
+
+**`docs/PLAN.md`**: lo pendiente en cinco fases con criterio de hecho por tarea, separando lo
+nuestro de lo que espera a terceros.
+
+### 2026-08-23 — Del token de system user al diálogo de Meta
+
+**La decisión que ordena el resto.** Kavea no puede ser un producto por suscripción con token de
+system user: ese token solo alcanza activos del portafolio de Boosty, y la Página de quien se
+registra un martes por la noche no está ahí. La vía es **Facebook Login for Business**, y para
+WhatsApp su Embedded Signup. Y montarlo **es a la vez el arreglo del App Review**: los ocho
 permisos se rechazaron porque los vídeos no enseñaban «the complete Meta login flow» ni «a user
-granting app access». Con Facebook Login for Business esas dos pantallas EXISTEN y se pueden
-grabar. Los dos problemas —vender a público y pasar la revisión— tienen la misma solución, y
-resolverlos por separado es hacer el trabajo dos veces.
+granting app access», y con el diálogo esas pantallas existen. Los cinco permisos aprobados el
+7-ago son exactamente los que necesita Embedded Signup de WhatsApp, y `docs/fases/05` lo daba por
+bloqueado «hasta que Meta apruebe Tech Provider» — que pasó el 4-ago.
 
-**Lo que ya se puede vender hoy, sin esperar a nada.** Los cinco permisos aprobados el 7-ago
-—`whatsapp_business_messaging`, `whatsapp_business_management`, `business_management`,
-`pages_show_list`, `public_profile`— son exactamente el conjunto que necesita Embedded Signup de
-WhatsApp. Y `docs/fases/05` lo daba por bloqueado «hasta que Meta apruebe Tech Provider», que
-pasó el 4-ago: ese bloqueo ya no existe y el documento no se enteró.
+Sin confirmar: si el revisor de Meta, sin rol en la app, puede completar un diálogo que pide
+permisos aún no aprobados. Para GRABAR basta una cuenta con rol; para que él lo pruebe, no se sabe.
 
-**El huevo y la gallina, dicho como es.** Una configuración de Facebook Login for Business no
-puede pedir un permiso que la app no tenga en Advanced Access, o el cliente sin rol en la app
-recibe un error de scopes. Para Instagram y Messenger eso significa que el diálogo real solo
-funciona con cuentas que tengan rol en la app mientras siga en modo desarrollo —que es
-suficiente para GRABAR el vídeo, pero hay que comprobar si le basta al revisor cuando lo pruebe
-él—. Sin confirmar; se comprueba antes de planificar sobre ello.
+**El App Review llevaba dieciséis días contestado.** Fechado el 7-ago 08:18 GMT-4, mientras
+`docs/07` decía «nunca se ha enviado nada». Cinco aprobados (`whatsapp_business_messaging`,
+`whatsapp_business_management`, `pages_show_list`, `business_management`, `public_profile`) y ocho
+rechazados, todos por «Screencast Not Aligned». Verificado luego por API: `GET
+/{app-id}/permissions` devuelve exactamente esos cinco como `live`.
 
-**Decidido:** el orden pasa a ser WhatsApp autoservicio primero (desbloqueado hoy), y Facebook
-Login for Business después, sirviendo a la vez para el reenvío de Instagram y Messenger.
+**Primera configuración de Facebook Login for Business:** `kavea-mensajeria`, `config_id`
+**1721663745727123**. Login `General`, token de **system-user**, caducidad **Never**. Lo de
+`Never` va contra la recomendación de 60 días de Meta y es a conciencia: no hay endpoint de
+refresco del BISU, así que renovar significa que el cliente vuelva a pasar por el diálogo, y el
+día que no lo haga su canal deja de entregar en silencio. La seguridad que Meta compraba con la
+caducidad ya está construida: AES-256-GCM con la clave fuera de la base, `kid`, esquema `private`
+sin exponer, y el cron de `debug_token` — **que falta ampliar a los BISU de clientes**.
 
-### 2026-08-23 (repaso) — El App Review llevaba dieciséis días contestado
+Una sola configuración para Messenger e Instagram, no dos: hoy sus ocho permisos están rechazados
+y se reenvían juntos, así que separarlas no protege de nada y duplica el diálogo. `Pages`
+obligatorio; `Instagram accounts`, `Ad accounts`, `Catalogs` y `Pixels` opcionales y **sin pedir
+sus permisos** — incluirlos ya porque añadir un permiso después obliga a que todos los clientes
+vuelvan a consentir; no pedir sus scopes porque un permiso sin función que enseñar es el rechazo
+número nueve. En `Ad accounts` se eligió **ANALYZE**; el valor por defecto era MANAGE, que incluye
+las finanzas de la cuenta publicitaria del cliente.
 
-Gabriel abrió la pantalla de App Review y ahí estaba el resultado, fechado el **7-ago-2026 a las
-08:18 GMT-4**. Este repositorio decía otra cosa: `docs/07` §1 afirmaba «nunca se ha enviado nada»
-y la tabla de la §1 de aquí ponía «contenido listo, sin enviar». Las dos frases eran ciertas al
-cierre del 6-ago y dejaron de serlo esa misma noche.
+Dos preguntas cerradas por medición: **`pages_read_user_content` no hace falta** (el selector no lo
+ofrece y Meta no lo autoañade), y **WhatsApp no se conecta por Facebook Login for Business** — el
+paso de activos no ofrece ninguna WABA, y la única plantilla de Embedded Signup entrega un token de
+**60 días**, justo lo que no queremos.
 
-**Cinco aprobados** — `whatsapp_business_messaging`, `whatsapp_business_management`,
-`pages_show_list`, `business_management`, `public_profile`. WhatsApp queda completo para
-terceros: recibir, enviar y gestionar la WABA.
+**El panel de Login, campo a campo.** `https://conectar.kavea.ai/api/meta/oauth/callback` con
+**Strict Mode en Yes** — que es lo que obliga a un host fijo y a meter el `organization_id` en el
+`state`. El callback de desautorización **ya estaba pegado** desde antes (pendiente anotado que no
+lo era); el de borrado de datos se pegó ese mismo día y se confirmó al recargar. `Login with the
+JavaScript SDK` en No, a tener presente si Embedded Signup acaba necesitándolo.
 
-**Ocho rechazados** — Human Agent, `pages_manage_metadata`, `pages_utility_messaging`,
-`instagram_manage_comments`, `pages_messaging`, `instagram_manage_messages`,
-`pages_read_engagement`, `instagram_basic`. Instagram y Messenger no se pueden ofrecer fuera del
-portafolio de Boosty, así que la fase 5 solo puede vender WhatsApp.
+**Partner Solutions descartado**: sirve para que **dos** socios gestionen conjuntamente los activos
+de un cliente, y Kavea no tiene segundo socio. **Tech Provider onboarding sale en blanco porque
+revienta**: el pagelet (`view: wa-dev-quickstart`, `use_case_enum: WHATSAPP_BUSINESS_MESSAGING`)
+devuelve **error 1007** del servidor de Meta. No es una sección vacía —eso sería una respuesta—,
+así que reintentar tiene sentido. El resto de esa consola es el CSP de Facebook bloqueando sus
+propios píxeles.
 
-**Los ocho, por la misma causa, y no es el producto.** «Screencast Not Aligned with Use Case
-Details». Los dos primeros requisitos que Meta exige de cada grabación son el login completo de
-Meta y la pantalla donde un usuario concede permisos. **Kavea no tiene ninguno de los dos, y no
-es un olvido: es la arquitectura.** Conecta como Tech Provider con token de system user; no hay
-pantalla de login de Meta que grabar. La salida estaba en el quinto punto de la misma lista
-—declarar que es server-to-server / system user token para que Meta sepa que ese flujo no es
-visible— y no se aplicó.
+**Ya había un cliente ajeno dentro y nadie lo sabía.**
+`GET /2167414613399354/client_whatsapp_business_accounts` devuelve la WABA `755757354157392`,
+«Platinium Insurance group corp», `ownership_type: CLIENT_OWNED`, negocio propio
+`24123447600679995`, `verified` y `APPROVED`. La relación proveedor↔cliente que Embedded Signup
+construye ya existe, montada por otra vía. Y `GET /755757354157392/subscribed_apps` devuelve `[]`:
+nadie recibe sus webhooks. Alrededor: Boosty Digital LLC está `verified`, el token de system user
+lleva **`manage_app_solution`** y no caduca, y `/{app-id}/whatsapp_business_solutions` **existe** y
+devuelve `[]` — que es la diferencia entre «no puedes» y «no tienes».
 
-Tres de las notas del revisor piden además funcionalidad **que no existe**: el bucle completo de
-moderación de un comentario (crear, editar, borrar), leer y pintar contenido de la Página, y una
-pantalla de perfil de Instagram. Eso no es volver a grabar, es construir y luego grabar.
+**El registro self-service, abierto.** Migración 0087: `registrarse` exige sesión y **correo
+confirmado** y deja al usuario propietario en la misma transacción, sin tocar `crear_espacio` —una
+función con dos amos acaba autorizando al que no debe—; con ella `subdominio_libre`, que devuelve
+un booleano y nada más porque un `select` sobre `organizations` enumeraría la cartera de Kavea. Un
+tope de una organización por persona, que es anti-abuso y no regla de producto. Dos pantallas en
+`cuenta.kavea.ai`.
 
-**Lo que este día deja anotado no es el rechazo, es el silencio.** El resultado llevaba
-dieciséis días en el panel y nada lo empuja hacia fuera: ni correo encaminado a la bandeja
-interna, ni una comprobación en el cron de diagnóstico. Es el mismo patrón que las cuatro
-ejecuciones de CI en rojo del 6-ago y que el tiempo real que nunca funcionó: **el fallo no fue
-el fallo, fue que nadie se enteró.**
+Lo que lo tenía cerrado no era código: `smtp_host: None` y **dos correos por hora** en todo el
+proyecto, `site_url` en `localhost:3000`, `uri_allow_list` vacía y `password_min_length: 6`
+mientras la pantalla pedía 8 — el servidor más flojo que la interfaz. Todo corregido: Supabase Auth
+por `smtp.resend.com:465` desde `support@kavea.ai`, límite a 100/hora, y **probado con un alta real
+entregada**. `kavea.ai` ya figuraba `verified` en Resend desde antes: otra afirmación caducada.
 
-No se pudo verificar por API: `META_APP_SECRET` está vacío en el `.env.local` de esta máquina,
-así que no hay token de app con el que llamar a `/{app-id}/permissions`. La fuente es el panel.
+**El subdominio del inquilino, y lo que no se puede prometer.** La zona lleva un registro por host,
+así que se construyó la función de borde `subdominio`, que lee el slug **de la base** y no del
+parámetro (si viniera de fuera se podría pedir un alias para `admin`). Con ella se descubrió que
+**`demostracion.kavea.ai` nunca tuvo alias**: diecisiete días inalcanzable, y su alta había dicho
+«hecho». Y que Netlify acepte el alias no significa que resuelva: `cuenta` y `conectar` fueron
+instantáneos, `demostracion` seguía sin existir para el autoritativo quince minutos después. Por
+eso `/crear` dejó de redirigir.
 
-### 2026-08-23 (cierre) — Cuatro defectos que solo se vieron abriendo el navegador
+**Auditoría de la base.** RLS activo y forzado en las 33 tablas. Dos agujeros reales cerrados: el
+blob cifrado del token de WhatsApp era legible por `anon` porque siete migraciones revocaban de
+`anon` en vez de de `public` (0084), y `anon` conservaba TRUNCATE, que RLS no gobierna (0085).
+Canarios C8, C9 y C10 añadidos; **la primera versión de C8 era mía y estaba mal** —filtraba
+`proacl is not null`, que excluye justo lo que nadie ha tocado—.
 
-Gabriel pidió que la interfaz se compruebe **siempre** con Playwright y capturas antes de darla
-por hecha. La misma sesión demostró por qué: `pnpm typecheck` y `pnpm build` estaban en verde con
-los cuatro defectos de abajo dentro, y uno de ellos era un arreglo que yo ya había dado por bueno.
+**El tiempo real de la bandeja nunca había funcionado**: canal privado sin política en
+`realtime.messages` y emisión por el tópico público. Lo tapaba el sondeo de 60 s. Arreglado en la
+0086; medido, el refresco baja de 15 s a menos de 5.
 
-- **El tiempo real seguía roto después de «arreglarlo».** La 0086 puso la política y cambió la
-  emisión, pero el canal seguía devolviendo `CHANNEL_ERROR`. Los frames del websocket dieron el
-  motivo exacto: el cliente lanza un `phx_join` **sin `access_token`** —se une antes de que la
-  sesión esté puesta—, cobra `Unauthorized: You do not have permissions to read from this Channel
-  topic`, y reintenta con el JWT recibiendo `status: ok`. O sea que la política era correcta y el
-  error era transitorio. Probado que **entrega**: contando las peticiones RSC, una difusión llega
-  en menos de 5 s, muy por debajo del sondeo de 15 s. El aviso de consola pasa a tener diez
-  segundos de gracia para no gritar en cada carga.
-- **Claves de React duplicadas.** `key={c.canal}` con dos conversaciones de WhatsApp en la misma
-  tarjeta daba dos claves `whatsapp`. Regresión directa de la 0082, invisible al compilador.
-- **Dos píldoras «WhatsApp» idénticas** en la fila, sin forma de saber por cuál número llegó
-  cada hilo. Ahora dicen `WhatsApp ·1397` y `WhatsApp ·3803`; el número completo queda en el
-  `title`, porque entero no cabe y la última píldora se salía de la columna. Y `white-space:
-  nowrap`, que hasta ahora no hacía falta: ninguna etiqueta tenía guiones por donde romperse, y
-  el número se pintaba en tres líneas.
-- **La lista de la bandeja, recortada en móvil.** 564 px dentro de una ventana de 390, con los
-  enlaces de cabecera y el último filtro inalcanzables —recortados, no desplazables—. La causa
-  es `grid-template-columns: 1fr`, que es `minmax(auto, 1fr)`: ese `auto` no baja del min-content
-  del contenido. Con `minmax(0, 1fr)` y `min-width: 0` en la lista, cero elementos desbordan.
+**El número que no existía.** El WhatsApp «huérfano» estaba en una WABA de Coexistence borrada.
+Se repuntó la conexión a la WABA `2459716937850832` / número `+1 321-393-1397` (0081), registrado
+en Cloud API y probado en los dos sentidos con `wamid` de Meta. Y con dos números apareció el
+fallo de identidad: el índice de conversación abierta no incluía `channel_id`, así que las
+respuestas salían por el número equivocado. 0082 lo arregla y remueve los mensajes mal enrutados;
+0083 alinea la guarda de `fusionar_contactos`, que seguía comparando contra el índice viejo.
 
-**Y un error mío que conviene dejar escrito:** informé de una errata «Bandeia» en el título
-leyendo una captura. No existía —el `innerText` dice «Bandeja»—, era el antialiasing de la `j`.
-Para texto se lee el DOM; los píxeles sirven para el espacio, no para las letras.
-
-`scripts/capturar.mjs` acepta ahora `KAVEA_BASE` y `KAVEA_ADMIN`: antes solo sabía mirar
-producción, que es justo cuando ya no sirve.
-
-### 2026-08-23 (noche) — El tiempo real de la bandeja no funcionó nunca
-
-Sintoma reportado: entra un mensaje de fuera, la conversación nueva no aparece y hay que
-recargar la página.
-
-No era un fallo, eran **cuatro encadenados, y los cuatro mudos**. Lo que sostenía la pantalla
-era el sondeo de seguridad de 60 s de `Refrescador`, escrito para cubrir un socket que deja de
-entregar y que en realidad llevaba desde el principio siendo el único mecanismo vivo.
-
-1. **`realtime.messages` tiene RLS activada y cero políticas.** Un canal privado se autoriza con
-   una política sobre esa tabla; sin ninguna, la suscripción se deniega. `authenticated` ya
-   tenía SELECT, INSERT y `USAGE` sobre el esquema: lo único que faltaba era la política. Es una
-   ausencia que no se ve leyendo código — no falta una línea en ningún fichero, falta una fila
-   en un catálogo.
-2. **`avisar_bandeja` emitía con `private => false`** mientras el cliente se suscribe con
-   `config: { private: true }`. Aunque lo anterior estuviera resuelto, los avisos salían por el
-   tópico público y el cliente escuchaba el privado. Medido: las 5 difusiones del día, todas con
-   `private = false`.
-3. **`Refrescador` no miraba el estado de `subscribe()`.** Un `CHANNEL_ERROR` por autorización
-   denegada no se distinguía de un canal sano.
-4. **`avisar_bandeja` se tragaba toda excepción** con `when others then return null`. El fondo
-   es correcto —un aviso que falla no puede tumbar la ingesta de un mensaje— pero mudo del todo
-   convierte cualquier rotura futura en otro mes de bandeja quieta.
-
-**Arreglado en la 0086** (política de SELECT sobre `realtime.messages` acotada a los miembros de
-la organización del tópico, y emisión con `private => true`), más el cliente, que ahora degrada a
-sondeo de 15 s y lo escribe en consola cuando el canal no entrega. El manejador de excepciones
-sigue tragándose el error, a propósito, pero deja una fila en `alertas`.
-
-La política se probó en tres casos: un miembro real ve 53 filas del tópico de su organización,
-un `sub` que no es miembro ve 0, y un tópico que no es un uuid devuelve 0 sin lanzar 22P02 —el
-`case` está ahí para eso, porque Postgres no garantiza el orden de evaluación de un `and` y el
-cast reventaría la suscripción a cualquier otro canal—. Canario **C10** para que no vuelva.
-
-**Y la pregunta del dev console, respondida:** el panel «API Setup» de la app no enseña el
-+1 321-393-1397 porque está clavado a la WABA de PRUEBA de la app (`257026854152252`, que el
-propio panel muestra). El número vive en `2459716937850832`, y la app lo alcanza por suscripción
-y token de system user, no por ese selector. No hay nada que reconectar: el ciclo está probado
-en los dos sentidos, con un saliente `enviado` y `wamid` de Meta.
-
-### 2026-08-23 (tarde) — Auditoría de la base: qué protege RLS y qué no
-
-Cerrado el número nuevo, se reviso a fondo lo que el agujero de la mañana dejo en duda.
-
-**El ciclo de WhatsApp, completo.** Se retiro `+1 829-954-3803` desde el botón de Ajustes →
-Canales —primera vez que se usa: conexión en `disconnected`, canal apagado con motivo, webhooks
-dados de baja en Meta— y se probó el `+1 321-393-1397` de extremo a extremo: mensaje entrante en
-la bandeja y respuesta recibida en el móvil. Hasta hoy solo estaba probada la entrada.
-
-**Las claves legacy ya estaban apagadas.** `api-keys/legacy` responde `{"enabled":false}`, la app
-usa `sb_publishable_*` y `sb_secret_*`, las funciones de borde leen `KAVEA_SUPABASE_SECRET` con
-nombre propio, y CI ya tenía un guardián que tumba el build si aparece `SUPABASE_ANON_KEY`,
-`SUPABASE_SERVICE_ROLE_KEY` o algo con forma de JWT en el árbol. La prueba de que
-`KAVEA_SUPABASE_SECRET` no es un JWT viejo es que las funciones contestan: con legacy apagado, no
-podrían.
-
-**Lo que la auditoría encontró bien**, y conviene dejarlo escrito para no volver a mirarlo:
-RLS activo **y forzado** en las 33 tablas de `public` · cero políticas sin acotar por
-organización o usuario · las 7 vistas con `security_invoker = on` · los 3 buckets privados, con
-políticas por pertenencia o por staff · `anon` sin `USAGE` sobre `private`, y PostgREST devuelve
-`PGRST202` para cualquier función de ahí, incluso con el rol de servicio. Comprobado además por
-HTTP con la clave publicable: `SELECT` sobre siete tablas sensibles devuelve `[]` y un `DELETE`
-sin filtro no borra nada.
-
-**Lo que encontró mal: TRUNCATE.** `anon` y `authenticated` tienen `arwdDxtm` —todo— sobre las 33
-tablas. No es un descuido del repositorio: sale de un `ALTER DEFAULT PRIVILEGES` de la
-plataforma, y es el modelo normal de Supabase, que confía en RLS para filtrar. Pero **RLS no se
-aplica a TRUNCATE**: las políticas filtran filas y TRUNCATE no mira filas. De los ocho
-privilegios, siete quedan contenidos y el octavo no lo contiene nada.
-
-No es alcanzable hoy —PostgREST no tiene verbo TRUNCATE— y se dice para no exagerar. Lo que se
-quita es la vía futura, que es concreta: una función SQL a la que se le olvide `security definer`
-corre con los privilegios de quien llama. La 0085 lo revoca en las tablas que hay Y en el
-`alter default privileges`, porque arreglar solo lo primero dura hasta el siguiente
-`create table`. `service_role` lo conserva.
-
-**Dos guardianes nuevos.** El canario **C9** vigila las dos mitades de lo anterior; se comprobó
-que detecta cambiándole el privilegio por uno que sí está concedido. Y una guarda de CI que
-falla si una migración de la 0080 en adelante escribe `revoke ... on function ... from anon` sin
-`public`. Solo funciones, y no es un olvido: en una tabla el rol `public` no recibe nada por
-defecto, así que ahí `from anon, authenticated` sí es completo — esa asimetría es justo lo que
-hace tan fácil equivocarse. Las migraciones anteriores a la 0080 quedan indultadas porque este
-repositorio no reescribe migraciones aplicadas: la 0077 y la 0084 corrigieron las suyas con
-migraciones nuevas. Probada en los dos sentidos, sembrando una migración mala.
-
-### 2026-08-23 — El número que no existía, y el hilo que salía por el número muerto
-
-Objetivo: conectar el segundo número de WhatsApp. Acabó siendo una sesión de tres fallos, uno
-de ellos un agujero de seguridad abierto desde el 4-ago.
-
-**La conexión de la 0080 apuntaba a un fantasma.** La WABA `247528738447647` y el número
-`266973946495042`, dados de alta el 21-ago por Coexistence, ya no existen: Graph devuelve
-`code 100, subcode 33` para los dos. Existieron —`credencial_whatsapp` comprueba contra Meta
-antes de guardar y guardó ese día—, y Meta los borró después. Lo que queda en el portafolio es
-una WABA «Gabriel Montiel Toro» con CERO números: el alta creó la cuenta y nunca le colgó el
-teléfono. El diagnóstico diario lo cazó a las 06:17 —V1 fallo, V5 no_verificable, V7
-sin_probar— y lo cazó porque el 21 se partió en dos baterías; la versión anterior habría
-reventado con un `TypeError`.
-
-**Coexistence se abandona.** El número nuevo, **+1 321-393-1397**, se conecta directo a la
-Cloud API bajo la WABA propia `2459716937850832`. Registrado (`POST /{phone}/register`, PIN
-fijado), `CONNECTED`, `platform_type CLOUD_API`, `throughput STANDARD`. La contrapartida es la
-que Coexistence evitaba: ese número ya no se puede usar desde la app del celular. Migración
-0081, aplicada **después** de que Meta confirmara —que es lo que la 0080 no hizo.
-
-**Un mensaje real entró y se fue al hilo equivocado.** El webhook llegó bien (firma verificada,
-un intento) y el enrutado acertó la organización, pero el mensaje se pegó a la conversación que
-ya existía con ese contacto desde el 4-ago, la del OTRO número.
-`private.resolver_conversacion` buscaba por `(organization_id, canal, contact_id)` y devolvía la
-abierta **sin mirar el `p_channel` que recibía**. Como `encolar_envio` saca la conexión de
-`conversations.channel_id`, responder habría salido por el +1 829-954-3803, que está
-`DISCONNECTED`. Y no se arreglaba retirando el viejo: tampoco mira si el canal está activo.
-La 0082 hace que la identidad de un hilo sea `(organización, canal, contacto, canal concreto)`;
-la tarjeta sigue siendo el punto de unión, así que los dos hilos de WhatsApp cuelgan de la
-misma ficha. V7 pasó a verde con el mensaje ya en su sitio.
-
-**El agujero.** Buscando lo anterior se vio que `credencial_whatsapp_de_conexion` respondía a
-`anon`. Reproducido con la clave publicable —la que va dentro del bundle de JavaScript del
-navegador—: devolvía el blob cifrado del token de WhatsApp, y `guardar_credencial_whatsapp`
-aceptaba escrituras sin autenticar. Causa: la 0065 escribió `revoke ... from anon`, y eso **no
-quita nada**, porque el permiso venía de `public`, de quien `anon` hereda. El par equivalente
-de Página devolvía `42501`: esa asimetría fue la prueba de que era un descuido y no un diseño.
-Cerrado en la 0084, verificado en las dos direcciones. No fuerza rotar el token —la clave de
-cifrado vive en el entorno de las funciones de borde, nunca en la base— pero sube la prioridad
-de la rotación pendiente. Diecinueve días abierto.
-
-**Corregido además:**
-- `fusionar_contactos` guardaba contra el índice que cambió la 0082, y citaba el índice viejo en
-  su comentario: rechazaba fusiones legítimas. De paso, su guarda usaba `estado <> 'cerrada'`
-  mientras el índice usa `cerrada_en is null`. Ahora usan el mismo predicado (0083).
-- V3 del diagnóstico marcaba `fallo` sobre `UNKNOWN`, que es lo que Meta devuelve en TODO número
-  recién registrado: rojo en el panel a los dos minutos de conectar un canal. Ahora es
-  `sin_probar`.
-- Un comentario de V6 afirmaba «medido el 21-ago con el número de Gabriel, que sí recibe». No se
-  midió nada: por ese número no entró jamás un mensaje.
-- Desconectar una conexión de WhatsApp pedía teclear su UUID —`page_name ?? ig_username ??
-  meta_connection_id`, y las dos primeras son null por diseño—, y el título de la sección salía
-  vacío por lo mismo. La única acción destructiva del panel era imposible de confirmar. Ahora el
-  nombre sale de `canales[].nombre` y lo que se teclea es la palabra `DESCONECTAR`.
-
-**Construido:** el compositor dice por qué número responde («Responder por WhatsApp · +1
-321-393-1397»), como línea fija con un solo canal y en cada botón del selector con varios.
-Canario **C8**: ninguna función SECURITY DEFINER de `public` ejecutable por `PUBLIC`, con cinco
-excepciones documentadas. Su primera versión, escrita ese mismo día, filtraba por
-`proacl is not null` y por eso se habría saltado el caso más probable: una función a la que
-nadie tocó los permisos tiene `proacl` NULL, y eso no es «sin permisos», es «rigen los de por
-defecto», que son PUBLIC. Corregido antes de darlo por bueno. Se comprobó que detecta por las
-dos vías: quitándole la lista de excepciones (caza las cinco) y apuntándolo a `private`, donde
-las 19 SECURITY DEFINER tienen `proacl` NULL (las caza). Se limita a `public` porque PostgREST
-solo resuelve el esquema expuesto: una llamada a algo de `private` devuelve `PGRST202` incluso
-con el rol de servicio, comprobado.
+**Cuatro defectos que solo se vieron en captura** —clave de React duplicada, píldora partida,
+columna que no encogía, confirmación que pedía transcribir un UUID—, de ahí la instrucción
+permanente de revisar con Playwright.
 
 ### 2026-08-21 — Comentarios entra en la Bandeja, y los canales se pueden apagar
 
@@ -1142,6 +614,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Una pantalla que presenta el último diagnóstico guardado miente en cuanto algo cambia debajo:
+  la conexión del 24-ago se leyó como fallida porque el veredicto era del día anterior. Lo que
+  invalida un diagnóstico tiene que rehacerlo, o decir que está viejo.
 - Copiar una función que funciona no garantiza copiar código que funciona: puede que la parte
   copiada nunca se haya ejecutado. La 0058 llevaba dieciocho días con una inserción imposible
   porque esa rama no se había pisado.

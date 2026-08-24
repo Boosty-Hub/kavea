@@ -16,15 +16,13 @@ Cada tarea lleva **cómo se sabe que está hecha**. Sin eso una tarea es una int
 *El bloque B de la fase 5 está construido y desplegado pero no ha completado un canje real. Hasta
 que lo haga, todo lo que dependa de él es una promesa.*
 
-**A1. Primer canje real, con la Página de Boosty.**
-Reintentar tras la 0089. Es una reconexión: mismo `page_id`, mismo espacio.
-*Hecho cuando:* `meta_connections.config_id` deja de ser null, aparece el primer
-`bisu_token_cipher` que existirá en la base, `subscription_ok` sigue en true, y la actividad
-registra `canal.conectado` con `via: oauth`.
+**A1. Primer canje real, con la Página de Boosty.** — ✅ **HECHO el 24-ago.**
+`config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado, primer BISU de la base,
+`subscription_ok: true` con los 9 campos, y V1–V7 en verde salvo V6.
 
-**A2. Probar que el token nuevo sirve para lo que servía el viejo.**
-El PAT que llega por el diálogo trae los permisos de la configuración `kavea-mensajeria`, no los
-del system user. Es la única forma de saber si son suficientes.
+**A2. Probar que el token nuevo sirve para lo que servía el viejo.** — 🟡 **a medias.**
+`MESSAGING` está entre las `tasks` y V4 confirma que el token es válido. Pero válido no es
+entregable.
 *Hecho cuando:* sale un mensaje real por Messenger y otro por Instagram con el token nuevo, y
 entra su echo. Si falla, restaurar desde el respaldo del cifrado (`kid k1`) y anotar qué permiso
 faltaba.
@@ -39,6 +37,11 @@ El BISU no se refresca, se renueva reautorizando. Sin este botón, un token muer
 soporte.
 *Hecho cuando:* la tarjeta de una conexión con `token_invalid_since` no nulo enseña el botón y
 rehace el flujo.
+
+**A6. El diagnóstico no puede quedarse viejo.** — ✅ **HECHO el 24-ago** para el alta:
+`meta-canje` gana un paso 8 que rediagnostica al terminar. Queda la mitad general: la pantalla
+debería marcar como viejo cualquier veredicto anterior al último cambio de la conexión —pausar,
+desconectar o rotar el token también lo invalidan—.
 
 **A5. Cron diario de `debug_token`.**
 Es lo que detecta un token muerto antes que el cliente. «No expira» no es «no se invalida»: muere

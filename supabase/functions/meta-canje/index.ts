@@ -298,6 +298,28 @@ Deno.serve(async (req) => {
       p_campos_messenger: CAMPOS_MESSENGER,
     })
 
+    // ---------------------------------------------------------------------
+    // PASO 8 — rediagnosticar, porque el alta acaba de invalidar el veredicto
+    // ---------------------------------------------------------------------
+    // NO ES UN EXTRA. La pantalla de canales presenta el último diagnóstico
+    // guardado, y ese diagnóstico se hizo ANTES de esta conexión: sigue diciendo
+    // «esta conexión se creó sin pasar por el diálogo» cuando el cliente acaba de
+    // pasar por él. El 24-ago un alta correcta se leyó como fallida por esto.
+    //
+    // V2 en concreto se calcula sobre `tasks`, que hasta este canje no existía.
+    // Dejarlo sin rehacer es enseñar una conclusión que los datos de al lado ya
+    // contradicen.
+    //
+    // NO ABORTA. La conexión está hecha y suscrita; que el diagnóstico no corra
+    // solo significa que la pantalla enseña el anterior, y para eso está el
+    // botón «Volver a comprobar».
+    await fetch(`${SUPABASE_URL}/functions/v1/diagnosticar`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${SECRETO}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conexion }),
+      signal: AbortSignal.timeout(30_000),
+    }).catch(() => {})
+
     return json({
       ok: true,
       conexion,
