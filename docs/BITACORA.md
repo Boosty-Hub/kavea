@@ -32,7 +32,8 @@ de git de este mismo archivo.
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
 | Comentarios | ✅ Pestaña de la Bandeja, no módulo | Respuesta pública y lectura por API; el webhook sigue sin llegar |
-| Callbacks de Meta (deauth, borrado, `signed_request`) | ✅ Desplegados y probados | Falta pegar la URL en el panel de Meta — ver §2 |
+| Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
+| Callback de borrado de datos | ⚠️ Desplegado, **sin pegar** | `meta-borrado` responde 200; el campo *Data Deletion Request URL* está VACÍO |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
@@ -50,7 +51,7 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Facebook Login for Business | 🟡 `kavea-mensajeria` creada el 23-ago | `config_id 1721663745727123` · system-user · sin caducidad. Falta la URI de retorno y el código del flujo |
+| Facebook Login for Business | 🟡 Configurado, sin código | `config_id 1721663745727123` · system-user · sin caducidad · URI de retorno puesta con Strict Mode. Falta el flujo |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago) y los permisos de WhatsApp (7-ago) ya están; `docs/fases/05` aún lo da por bloqueado |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
@@ -103,7 +104,10 @@ permisos aún no aprobados. Para GRABAR el vídeo basta una cuenta con rol; para
 no se sabe.
 
 ### Bloqueado por Meta
-- Pegar `deauth_callback_url` en App settings (el código ya funciona).
+- **Pegar la URL de borrado de datos** en Facebook Login for Business → Settings →
+  *Data Deletion Request URL*: `https://sdazqohyjzzylwbkvovx.supabase.co/functions/v1/meta-borrado`.
+  La función está ACTIVE y responde 200; el campo está vacío. El de desautorización sí está
+  puesto, comprobado el 23-ago.
 - Nadie vigila la bandeja de resultados del App Review. La respuesta del 7-ago estuvo dieciséis
   días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación en el cron de
   diagnóstico. Mientras no lo haya, se mira a mano.
@@ -172,6 +176,36 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-23 (tarde-noche) — El panel de Login, revisado campo a campo
+
+Con la configuración creada, se repasó **Facebook Login for Business → Settings**. Tres cosas
+que estaban bien, una que faltaba y una que descarta un camino.
+
+**Puesto y confirmado:** `https://conectar.kavea.ai/api/meta/oauth/callback` en *Valid OAuth
+Redirect URIs*, con **Use Strict Mode for redirect URIs en Yes** — que es lo que obliga a un host
+fijo y lo que hace que el `state` firmado tenga que llevar el `organization_id`. También
+`Client OAuth login`, `Web OAuth login` y `Enforce HTTPS` en Yes.
+
+**El callback de desautorización YA estaba pegado.** La §2 llevaba desde el 6-ago pidiendo
+«pegar `deauth_callback_url` en App settings»: hecho, apunta a la función de borde. Un pendiente
+menos que en realidad no lo era.
+
+**Y el de borrado de datos, NO.** *Data Deletion Request URL* está vacío, mientras
+`meta-borrado` lleva desplegada desde el 6-ago, está ACTIVE y responde 200. La función existe,
+la página de estado existe, y Meta no sabe a dónde llamar. Es el mismo patrón del día: la pieza
+construida y el cable sin enchufar.
+
+**`Login with the JavaScript SDK` está en No** y *Allowed Domains for the JavaScript SDK* vacío.
+No estorba al flujo por redirección que vamos a construir, pero conviene tenerlo presente: si
+Embedded Signup de WhatsApp acaba necesitando el SDK de JavaScript, hay que encenderlo y
+declarar el dominio.
+
+**Partner Solutions no es nuestro camino.** Lo dice su propia descripción: sirve para que **dos**
+socios —Solution Partners, Tech Providers, Tech Partners— gestionen conjuntamente los activos de
+WhatsApp de un cliente. Kavea onboarda a sus propios clientes, sin segundo socio. Queda
+descartado, y con eso la única puerta sin abrir para Embedded Signup es **Tech Provider
+onboarding**.
 
 ### 2026-08-23 (cierre) — La primera configuración de Facebook Login for Business
 
@@ -750,6 +784,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   «asset task permissions» era MANAGE, o sea las finanzas de la cuenta publicitaria del cliente.
 - Lo que se pide en el consentimiento se pide una vez: añadir un permiso después obliga a que
   todos los clientes vuelvan a pasar por el diálogo. Conviene decidirlo mirando doce meses, no uno.
+- Una lista de pendientes también miente en la otra dirección: el callback de desautorización
+  llevaba semanas anotado como pendiente y ya estaba hecho. Se repasa mirando, no recordando.
 - Un objeto de un tercero que se verificó una vez puede dejar de existir; lo que se guarda de
   fuera se vuelve a comprobar, no se da por vivo.
 - «Desconocido» no es «malo»: un indicador que confunde ausencia de dato con dato negativo pinta
