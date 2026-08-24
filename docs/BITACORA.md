@@ -198,6 +198,27 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Fase A: reconectar, y no mentir sobre un diagnóstico viejo
+
+**A4, botón «Reconectar»**, visible solo con `token_invalido_desde` no nulo y en conexiones de
+Página. Verificado simulando el token inválido y revirtiéndolo.
+
+**A6, que el veredicto no se presente como actual cuando no lo es.** La 0090 expuso `updated_at`
+para compararlo con `ultima_pasada`, y medido acto seguido salía viejo **siempre, por 45
+milisegundos**: el propio diagnóstico escribe en la conexión al guardar
+`messaging_feature_status` y `token_last_verified_at`. Comparar contra `updated_at` es preguntar
+si cambió algo desde el diagnóstico cuando lo único que cambió fue el diagnóstico.
+
+La 0091 lo arregla con un trigger, no acordándose en cada función: `invalidado_en` se pone solo
+cuando cambia una columna que describe el MUNDO —Página, Instagram, `config_id`, `tasks`, estado,
+suscripción, token inválido— y no cuando escribe el OBSERVADOR. Probado en los dos sentidos con
+transacciones revertidas: tocar solo lo del diagnóstico deja `invalidado_en` en null; cambiar el
+estado lo pone.
+
+Se llegó a desplegar el aviso con la comparación mala. Lo que impidió dejarlo así fue mirar la
+pantalla: los tres canales avisaban a la vez, y un aviso que sale siempre enseña a ignorar el
+panel.
+
 ### 2026-08-24 — El autoservicio conecta un canal por primera vez
 
 **El flujo de OAuth completo, en producción.** Bloque B de la fase 5 (`b9a94c5`): `state` firmado
@@ -614,6 +635,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Un aviso que se dispara en el 100% de los casos es ruido con forma de señal. Antes de dar por
+  bueno un indicador nuevo, mirar en cuántas filas se enciende: si son todas, mide otra cosa.
+- Comparar «cuándo cambió» con «cuándo se comprobó» solo funciona si el que comprueba no escribe:
+  el diagnóstico tocaba la propia fila que usaba de referencia.
+- Cuando hay que recordar poner una marca en cada sitio que escribe, la marca la pone un trigger.
+  La séptima función que alguien escriba se va a olvidar.
 - Una pantalla que presenta el último diagnóstico guardado miente en cuanto algo cambia debajo:
   la conexión del 24-ago se leyó como fallida porque el veredicto era del día anterior. Lo que
   invalida un diagnóstico tiene que rehacerlo, o decir que está viejo.

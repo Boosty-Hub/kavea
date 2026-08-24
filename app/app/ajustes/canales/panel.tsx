@@ -52,6 +52,18 @@ function nombreDe(c: Conexion): string {
 /** Lo que hay que teclear para desconectar. Fija, legible y sin signos. */
 const PALABRA = 'DESCONECTAR'
 
+/**
+ * ¿El diagnóstico guardado es anterior al último cambio de la conexión?
+ *
+ * Sin `ultima_pasada` no hay veredicto que envejecer, y sin `cambiada_en` no hay
+ * con qué comparar: en los dos casos no se afirma que esté viejo, que sería
+ * inventar un aviso.
+ */
+function viejo(c: Conexion): boolean {
+  if (!c.ultima_pasada || !c.cambiada_en) return false
+  return new Date(c.cambiada_en).getTime() > new Date(c.ultima_pasada).getTime()
+}
+
 export function Canales({ conexiones, huso }: { conexiones: Conexion[]; huso: string }) {
   const router = useRouter()
   const [comprobando, setComprobando] = useState<string | null>(null)
@@ -141,6 +153,20 @@ Escribe ${PALABRA} para confirmar.`,
               <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>@{c.ig_username}</span>
             ) : null}
             <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+              {/* RECONECTAR. El BISU no se refresca: se renueva volviendo a pasar
+                  por el diálogo. Sin este enlace, un token muerto es una llamada
+                  a soporte. Solo sale cuando hace falta —`token_invalido_desde`
+                  no nulo— y solo en conexiones de Página: WhatsApp no entra por
+                  esta configuración. */}
+              {c.token_invalido_desde && c.page_id ? (
+                <a
+                  className="operar__control"
+                  style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
+                  href="/api/meta/oauth/start?canal=mensajeria"
+                >
+                  Reconectar
+                </a>
+              ) : null}
               <button
                 type="button"
                 className="operar__control"
@@ -162,16 +188,29 @@ Escribe ${PALABRA} para confirmar.`,
             </span>
           </div>
 
-          <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
-            {c.bloqueada
-              ? 'Hay algo que impide que este canal funcione.'
-              : c.en_rojo > 0
-                ? 'Funciona, pero hay un aviso.'
-                : 'Todo lo que se puede comprobar está en orden.'}
-            {c.ultima_pasada ? (
-              <> · comprobado el {fechaHora(c.ultima_pasada, huso)}</>
-            ) : ' · sin comprobar todavía'}
-          </p>
+          {/* UN VEREDICTO ANTERIOR AL ÚLTIMO CAMBIO NO SE AFIRMA. El 24-ago una
+              reconexión correcta se leyó como fallida porque la pantalla seguía
+              enseñando el diagnóstico del día anterior, que decía «se creó sin
+              pasar por el diálogo» sobre una conexión que acababa de pasar por
+              él. Con las dos fechas al lado, la pantalla puede decir que lo que
+              enseña es viejo en vez de darlo por actual. */}
+          {viejo(c) ? (
+            <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
+              La conexión cambió después de la última comprobación, así que lo de abajo describe
+              cómo estaba antes. Pulsa «Volver a comprobar».
+            </p>
+          ) : (
+            <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0' }}>
+              {c.bloqueada
+                ? 'Hay algo que impide que este canal funcione.'
+                : c.en_rojo > 0
+                  ? 'Funciona, pero hay un aviso.'
+                  : 'Todo lo que se puede comprobar está en orden.'}
+              {c.ultima_pasada ? (
+                <> · comprobado el {fechaHora(c.ultima_pasada, huso)}</>
+              ) : ' · sin comprobar todavía'}
+            </p>
+          )}
 
           <Canalitos canales={c.canales} huso={huso} onCambiado={() => router.refresh()} />
 

@@ -13,8 +13,8 @@ Cada tarea lleva **cómo se sabe que está hecha**. Sin eso una tarea es una int
 
 ## Fase A — Cerrar el flujo de conexión
 
-*El bloque B de la fase 5 está construido y desplegado pero no ha completado un canje real. Hasta
-que lo haga, todo lo que dependa de él es una promesa.*
+*El bloque B de la fase 5 completó su primer canje real el 24-ago, con la Página de Boosty. Lo que
+queda es lo que separa «funciona una vez, conmigo» de «funciona siempre, con cualquiera».*
 
 **A1. Primer canje real, con la Página de Boosty.** — ✅ **HECHO el 24-ago.**
 `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado, primer BISU de la base,
@@ -32,22 +32,22 @@ Hoy `meta-canje` aborta con un mensaje que lo explica, porque elegir por él con
 equivocada en silencio. Hace falta la pantalla intermedia.
 *Hecho cuando:* autorizando dos Páginas, Kavea las lista y conecta la que se marque.
 
-**A4. Botón «Reconectar» en Ajustes → Canales.**
-El BISU no se refresca, se renueva reautorizando. Sin este botón, un token muerto obliga a
-soporte.
-*Hecho cuando:* la tarjeta de una conexión con `token_invalid_since` no nulo enseña el botón y
-rehace el flujo.
-
-**A6. El diagnóstico no puede quedarse viejo.** — ✅ **HECHO el 24-ago** para el alta:
-`meta-canje` gana un paso 8 que rediagnostica al terminar. Queda la mitad general: la pantalla
-debería marcar como viejo cualquier veredicto anterior al último cambio de la conexión —pausar,
-desconectar o rotar el token también lo invalidan—.
+**A4. Botón «Reconectar» en Ajustes → Canales.** — ✅ **HECHO el 24-ago.**
+Sale solo cuando `token_invalido_desde` no es nulo y la conexión es de Página. Verificado
+simulando un token inválido en la conexión de Boosty y revirtiéndolo.
 
 **A5. Cron diario de `debug_token`.**
 Es lo que detecta un token muerto antes que el cliente. «No expira» no es «no se invalida»: muere
 igual cuando el cliente revoca la app o quien autorizó pierde su rol.
 *Hecho cuando:* el cron escribe `token_last_verified_at` en cada conexión, y una app revocada en
 una cuenta de prueba deja la conexión en `disconnected` en menos de 24 h sin que nadie intervenga.
+
+**A6. El diagnóstico no puede quedarse viejo.** — ✅ **HECHO el 24-ago**, las dos mitades.
+`meta-canje` rediagnostica al terminar (paso 8), y la pantalla avisa cuando el veredicto es
+anterior al último cambio. La comparación NO es contra `updated_at`: el propio diagnóstico escribe
+en la conexión, así que salía viejo siempre y por 45 ms. Un trigger (0091) pone `invalidado_en`
+solo cuando cambia algo que describe el mundo —Página, permisos, suscripción, token— y no cuando
+escribe el observador.
 
 ---
 

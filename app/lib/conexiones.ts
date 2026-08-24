@@ -52,6 +52,14 @@ export type Conexion = {
   sin_probar: number
   bloqueada: boolean | null
   ultima_pasada: string | null
+  /**
+   * Cuando cambio la conexion por ultima vez, para saber si `ultima_pasada`
+   * sigue valiendo. Si la conexion cambio despues del diagnostico, lo que hay
+   * guardado describe un estado que ya no existe.
+   */
+  cambiada_en: string | null
+  /** No nulo = hay que reconectar. La interfaz lo sabe sin leer ningun token. */
+  token_invalido_desde: string | null
   comprobaciones: Verificacion[]
   canales: CanalConectado[]
 }
