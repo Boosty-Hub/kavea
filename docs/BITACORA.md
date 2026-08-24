@@ -52,11 +52,12 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Facebook Login for Business | 🟡 Flujo construido, sin secretos en producción | `config_id 1721663745727123`. `/api/meta/oauth/start`, el callback en `conectar` y la función `meta-canje`, en `b9a94c5`. Verificado con Playwright en local; falta configurar producción y desplegar el borde |
+| Facebook Login for Business | ✅ **En producción, sin estrenar** | `config_id 1721663745727123`. Verificado en `boosty.kavea.ai` el 24-ago: 302 correcto, `redirect_uri` a `conectar.kavea.ai`, cookie del nonce en `.kavea.ai` y **vista desde `conectar`**. Falta que un cliente real complete el diálogo |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
-| CI de GitHub Actions | ⛔ **Caída por facturación desde el 24-ago 00:21 UTC** | «recent account payments have failed or your spending limit needs to be increased». Cinco trabajos, cero pasos, 2 s. Cuatro commits sin verificar |
+| CI de GitHub Actions | 🟡 Restaurada abriendo el repositorio | Se agotaron los 3.000 minutos del plan; Gabriel puso `Boosty-Hub/kavea` en **público** el 24-ago para recuperar minutos gratis |
+| Repositorio | 🟡 **Público desde el 24-ago** | Historial auditado: cero credenciales en los 150 commits. Lo que sí queda expuesto son nombres de clientes reales y 27 identificadores de activos de Meta |
 | Comodín `*.kavea.ai` | ⛔ Bloqueado por Netlify | `422 invalid site`, recomprobado el 23-ago. El certificado del sitio SÍ es comodín; lo que falta es el registro DNS |
 
 Fases 0–4 operativas, fase 5 en su tarea 12.
@@ -192,6 +193,71 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 (madrugada) — El repositorio es público, y el flujo está en producción
+
+**Se agotaron los 3.000 minutos de Actions y Gabriel abrió el repositorio** para recuperar
+minutos gratis. Es la decisión correcta para desbloquear CI y tiene una consecuencia que hay que
+mirar de frente: todo lo que hay dentro es ahora legible por cualquiera, incluido el historial.
+
+**Auditoría del historial, antes de tocar nada.** La guarda de «Fuga de secretos» de CI busca en
+el ÁRBOL DE TRABAJO, nunca en los commits: si algo se hubiera colado y borrado después, esa guarda
+habría dicho «limpio» toda la vida. Se revisó a mano:
+
+- Los patrones de credencial (`sb_secret_`, `sbp_`, `re_`, `nfp_`, `EAA…`, JWT) sobre **los blobs
+  de los 150 commits**: cero coincidencias.
+- Los **valores literales** de los seis secretos en uso hoy, buscados uno a uno en todo el
+  historial: ninguno aparece. Esta es la prueba que de verdad cierra la pregunta, porque no
+  depende de acertar el patrón.
+- Ficheros que hayan existido alguna vez con pinta de secreto: solo `.env.example`, que lleva
+  marcadores. Ninguna clave privada ni PEM.
+
+**Conclusión: no hay rotación forzada por abrir el repositorio.** La deuda de rotar los tokens que
+pasaron por chat sigue en pie por su propio motivo, no por este.
+
+**Un susto propio, y la lección.** La primera comprobación del verify token dijo «EXPUESTO». Era
+falso: `META_VERIFY_TOKEN` no está en el `.env` raíz, así que la variable iba vacía y
+`grep -F ""` casa con cualquier línea. Una búsqueda de secretos sin guarda de cadena vacía no
+encuentra secretos, encuentra todo. Se repitió con `if [ -z "$V" ]` delante y el resultado real es
+que el valor está únicamente en los secretos del borde.
+
+**LO QUE SÍ QUEDA EXPUESTO, y es decisión de Gabriel.** No son credenciales, pero es información
+de terceros: nombres de clientes reales de Boosty —Zzone, Platinium Insurance, Eficienzia.ai,
+Caracas Music Hall, Odreman y Asociados, Guds App— en `docs/04`, `docs/fases/05` y la propia
+bitácora, junto con **27 identificadores distintos de activos de Meta** y dos teléfonos. O sea, la
+cartera de clientes y qué activos tiene cada uno. Parte lo añadí yo ayer al documentar la WABA de
+Platinium. Volver el repositorio privado no deshace lo ya publicado; lo que se puede hacer es
+redactar los nombres de aquí en adelante.
+
+### 2026-08-24 (madrugada) — El flujo de OAuth, en producción
+
+Puesto en pie lo que faltaba del bloque B:
+
+- **Netlify (`kavea-app`)**: `META_APP_ID`, `KAVEA_ESTADO_SECRETO` (64 caracteres, generado) y
+  `GRAPH_API_VERSION`. `META_CONFIG_MENSAJERIA` ya estaba y coincide. **`META_APP_SECRET` NO está
+  aquí y no debe estarlo**: comprobado tras el alta.
+- **`meta-canje` desplegada**, con `_compartido/cripto.ts` y `campos.ts` en el bundle. Y
+  `reconciliar-suscripciones` redesplegada, porque su lista de campos ahora se importa: dejar el
+  código desplegado distinto del repositorio es la deriva que este cambio venía a evitar.
+- Prueba de humo del borde: sin cabecera → 401 de la plataforma; con la clave de servicio y sin
+  parámetros → 400 con el error estructurado. Que llegue al 400 prueba de paso que la guarda de
+  secretos del borde pasa, porque si no habría devuelto 503.
+
+**El CLI de Supabase SÍ está instalado** (2.84.2, por scoop). El comentario de cabecera de
+`scripts/aplicar-migraciones.ps1` dice que no lo está y que por eso se usa la API de gestión. Es
+falso desde hace tiempo y hay que corregirlo — el despliegue de funciones se hizo con el CLI, que
+resuelve solo el bundling de `_compartido`.
+
+**Dos deploys de Netlify aparecían en rojo y no eran fallos**: `Canceled build due to no content
+change`. Los dos eran commits de solo bitácora; el sitio publicado no cambia y Netlify cancela,
+pero lo marca como `error`. Conviene saberlo antes de perseguir un fallo que no existe.
+
+**Verificado en producción con Playwright**, y aquí está lo que en local no se podía comprobar:
+el 302 lleva `redirect_uri=https://conectar.kavea.ai/api/meta/oauth/callback`, la cookie del nonce
+se fija en **`.kavea.ai`** con `httpOnly`, `secure` y `SameSite=Lax`, y **`conectar.kavea.ai` ve
+esa misma cookie**. Sin eso el callback rechazaría todos los retornos legítimos, y era la única
+pieza del diseño que dependía de un dominio real.
+
 
 ### 2026-08-24 (madrugada) — El diálogo de Meta, de ida y de vuelta
 
@@ -944,6 +1010,19 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   más estricta o más laxa que la restricción que dice proteger.
 - Una fricción de confirmación tiene que costar una decisión, no una transcripción. Si hay que
   copiar un identificador, la acción no existe.
+- Una guarda de fuga de secretos que mira el árbol de trabajo no dice nada sobre el historial. Son
+  dos preguntas distintas, y la segunda solo se vuelve urgente el día que el repositorio se abre.
+- La forma fiable de auditar secretos no es buscar patrones, es buscar los VALORES que están en
+  uso: no depende de acertar la expresión regular.
+- Una búsqueda con una variable vacía no encuentra nada, encuentra todo. `grep -F ""` casa con
+  cualquier línea, y el informe sale diciendo «expuesto». Guarda de cadena vacía antes de creerse
+  un hallazgo de seguridad.
+- Abrir un repositorio no solo publica código: publica la cartera de clientes que uno fue
+  documentando. Y eso no se deshace volviéndolo a cerrar.
+- Un despliegue en rojo puede ser un «no había nada que hacer»: Netlify marca `error` cuando
+  cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
+- Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
+  caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
 - Un valor por defecto inventado para un identificador de clave no falla al desplegar ni al
   arrancar: falla al cifrar, en el primer alta real, con el código de OAuth ya gastado. Los
   nombres de los secretos se leen del proyecto, no se deducen del patrón que uno usaría.

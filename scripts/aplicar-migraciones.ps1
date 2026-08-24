@@ -1,8 +1,9 @@
 # Aplica las migraciones de supabase/migrations en orden, vía la API de gestión.
 #
-# Por qué no el CLI de Supabase: no está instalado en esta máquina y la API deja
-# rastro verificable de cada sentencia. Cuando el CLI entre, este script se
-# sustituye por `supabase db push` y la tabla de control se conserva.
+# Por qué la API de gestión y no `supabase db push`: la API deja
+# rastro verificable de cada sentencia y una tabla de control propia. El CLI SÍ
+# está instalado (2.84.2, comprobado el 24-ago-2026); el comentario anterior decía
+# que no y llevaba tiempo siendo falso.
 #
 # Guarda de proyecto: aplicar migraciones a la base equivocada es un error de un
 # carácter. El ref esperado se pasa como parámetro y se compara antes de tocar nada.
