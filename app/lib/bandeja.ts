@@ -174,14 +174,32 @@ export const obtenerTarjeta = cache(async (id: string) => {
  */
 export const obtenerHilo = cache(async (tarjetaId: string, limite = 100) => {
   const supabase = await crearClienteServidor()
+
+  // SE PIDEN LOS ÚLTIMOS, NO LOS PRIMEROS, y luego se le da la vuelta.
+  //
+  // Con `ascending: true` y un tope, Postgres devuelve las `limite` entradas MÁS
+  // ANTIGUAS. Mientras una tarjeta tuvo menos de 100 entradas eso daba igual.
+  // Pasado ese punto el hilo se congela: los mensajes nuevos entran en la base,
+  // aparecen en la lista de conversaciones —que lee `last_message_at`— y NO se
+  // ven al abrir el hilo. Sin error, sin hueco visible, sin nada que lo delate.
+  //
+  // Ocurrió el 24-ago-2026 con la tarjeta de Boosty, a 104 entradas: se perdían
+  // de vista las cuatro últimas, entre ellas un WhatsApp del día anterior y el
+  // mensaje de Instagram que se acababa de enviar. Es el peor fallo posible en
+  // una bandeja de soporte: no se pierde el mensaje, se pierde al cliente que
+  // escribió y nadie se entera.
   const { data, error } = await supabase
     .from('linea_tiempo')
     .select('clase, ref, momento, tipo, canal, conversation_id, actor_tipo, actor_nombre, detalle')
     .eq('tarjeta_id', tarjetaId)
-    .order('momento', { ascending: true })
+    .order('momento', { ascending: false })
     .limit(limite)
   if (error) throw new Error(error.message)
-  return (data ?? []) as unknown as EntradaHilo[]
+
+  // Se pinta en orden cronológico, así que se invierte aquí y no en la pantalla:
+  // el orden de lectura es una propiedad del hilo, no una decisión de quien lo
+  // dibuja.
+  return ((data ?? []) as unknown as EntradaHilo[]).reverse()
 })
 
 export type Adjunto = {

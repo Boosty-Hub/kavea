@@ -198,6 +198,36 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El hilo enseñaba los 100 mensajes más ANTIGUOS
+
+Gabriel escribió a Boosty por Instagram. El mensaje entró, apareció en la lista de conversaciones
+y **no estaba en el hilo al abrirlo**, ni refrescando.
+
+`obtenerHilo` pedía `order('momento', ascending: true).limit(100)`: las cien entradas **más
+antiguas**, no las últimas. Mientras una tarjeta tuvo menos de cien daba igual. La de Boosty tiene
+**104**, así que se caían las cuatro últimas — el WhatsApp «Prueba Kavea» del 23-ago y el
+«Kavea» de Instagram recién enviado. La lista sí los veía porque lee `last_message_at`.
+
+Es el peor fallo posible en una bandeja de soporte, y no por perder el dato —el mensaje está en la
+base— sino porque **no hay nada que lo delate**: ni error, ni hueco, ni contador. Un cliente
+escribe, el agente abre el hilo, no ve nada nuevo, y cierra. Y empeora solo con el tiempo: le pasa
+a cada conversación en cuanto cruza las cien entradas.
+
+Arreglado pidiendo `ascending: false` y dando la vuelta al resultado antes de devolverlo — el
+orden de lectura es una propiedad del hilo, no una decisión de quien lo dibuja.
+
+**El tiempo real, en cambio, funciona.** Medido con los frames del websocket en producción: la
+suscripción a `org:{uuid}` acaba en `status: ok`, la fila entra en `realtime.messages` —incluida
+la del mensaje real, con `inserted_at` idéntico al `created_at` del mensaje— y el frame de
+difusión LLEGA al navegador. Los dos refrescadores están montados y las dos páginas son
+`force-dynamic`.
+
+Una medición intermedia dijo «0 difusiones recibidas» y era falsa: el filtro buscaba
+`"event":"cambio"` en JSON y Phoenix serializa ese frame en formato compacto, con el nombre del
+evento como texto suelto. Tercer error de medición en dos días con la misma forma —una cadena
+vacía, una lista vacía, y ahora un formato supuesto—, y el único motivo de que no se convirtiera
+en un arreglo inventado sobre `realtime` fue volver a mirar sin el filtro.
+
 ### 2026-08-24 (cierre) — Fase A: reconectar, y no mentir sobre un diagnóstico viejo
 
 **A4, botón «Reconectar»**, visible solo con `token_invalido_desde` no nulo y en conexiones de
@@ -635,6 +665,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   cancela por contenido idéntico. Se lee el mensaje antes de buscar la avería.
 - Un comentario que justifica una decisión con un hecho del entorno («el CLI no está instalado»)
   caduca sin que nadie lo toque, y para entonces está defendiendo un rodeo que ya no hace falta.
+- Un `limit` sin pensar en el orden devuelve el extremo equivocado. `ascending: true` + tope son
+  los más VIEJOS, y en un hilo eso significa esconder lo último sin dar ningún síntoma.
+- Un fallo que solo aparece pasado un umbral —cien entradas— no se ve en desarrollo ni en las
+  primeras semanas. Llega solo, y llega a todos los clientes activos a la vez.
+- Antes de creerse un «no llega nada», comprobar que el filtro sabe reconocer lo que busca. Tres
+  veces en dos días: una cadena vacía, una lista vacía y un formato de frame supuesto.
 - Un aviso que se dispara en el 100% de los casos es ruido con forma de señal. Antes de dar por
   bueno un indicador nuevo, mirar en cuántas filas se enciende: si son todas, mide otra cosa.
 - Comparar «cuándo cambió» con «cuándo se comprobó» solo funciona si el que comprueba no escribe:
