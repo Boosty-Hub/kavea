@@ -58,7 +58,7 @@ de git de este mismo archivo.
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | CI de GitHub Actions | 🟡 Restaurada abriendo el repositorio | Se agotaron los 3.000 minutos del plan; Gabriel puso `Boosty-Hub/kavea` en **público** el 24-ago para recuperar minutos gratis |
 | Repositorio | 🟡 **Público desde el 24-ago** | Historial auditado: cero credenciales en los 150 commits. Lo que sí queda expuesto son nombres de clientes reales y 27 identificadores de activos de Meta |
-| Comodín `*.kavea.ai` | 🟡 **Desbloqueado: se puede activar** | Netlify (#1097522) da seis requisitos. Cinco ya se cumplen, comprobados por API: plan Pro · DNS en Netlify y certificado `*.kavea.ai` ya **emitido** · sin subdominios de rama · sin subdominios automáticos de despliegue · dominio primario `admin.kavea.ai`, al mismo nivel que el comodín. Falta uno: el registro DNS `*` |
+| Comodín `*.kavea.ai` | 🟡 **Registro puesto, esperando a Netlify** | El `CNAME *.kavea.ai → kavea-app.netlify.app` creado el 24-ago; resuelve. Los otros cinco requisitos ya se cumplían. Falta que Netlify lo habilite del lado del sitio: hoy un host desconocido da el 404 de Netlify, no llega a Kavea |
 
 Fases 0–4 operativas, fase 5 en su tarea 12.
 
@@ -84,19 +84,13 @@ Fases 0–4 operativas, fase 5 en su tarea 12.
   respondieron en segundos; `demostracion` seguía sin existir para el autoritativo quince
   minutos después. Hasta entender por qué, `/crear` no redirige. Medir cuánto tarda de verdad
   con dos o tres altas más.
-- **El comodín `*.kavea.ai`: sí se puede, y falta UNA cosa.** Netlify contestó al ticket #1097522
-  con sus seis requisitos. Comprobados uno a uno por API el 24-ago, cinco están:
-  plan **Pro**; DNS gestionada por Netlify y el certificado del sitio ya cubre `*.kavea.ai` en
-  estado `issued`; `branch_deploy_custom_domain` y `deploy_preview_custom_domain` en `None`, o sea
-  ni subdominios de rama ni automáticos de despliegue; y el dominio primario de `kavea-app` es
-  `admin.kavea.ai`, que está **al mismo nivel** que `*.kavea.ai` — los dos cuelgan de `kavea.ai`,
-  que es exactamente lo que pide el requisito 5 con su ejemplo de `www.bar.domain.com`.
-  El que falta es el **6**: un registro `CNAME` con `*` de nombre apuntando a
-  `kavea-app.netlify.app` en la zona de `kavea.ai`. Hoy la zona tiene doce registros y ninguno es
-  comodín. Después, responder al ticket para que lo habiliten del lado del sitio.
-  Un comodín NO tapa los registros explícitos: la resolución prefiere siempre la coincidencia más
-  específica, así que `admin`, `boosty`, `cuenta`, `conectar`, `demostracion`, `www`, el ápice y
-  los MX/TXT de correo siguen igual.
+- **El comodín `*.kavea.ai`: el registro ya está, falta que Netlify lo habilite.** De los seis
+  requisitos del ticket #1097522, cinco se cumplían y el sexto se hizo el 24-ago: `CNAME`
+  `*.kavea.ai → kavea-app.netlify.app`, ttl 3600, en la zona de Netlify. **Queda responder al
+  ticket** para que lo activen del lado del sitio; hasta entonces un subdominio no listado resuelve
+  pero recibe el 404 propio de Netlify, porque el sitio todavía no reclama ese host.
+  Cuando esté, `/crear` deja de depender de una llamada a la API de Netlify por cada alta y
+  desaparece el tope de alias por sitio.
 - **Los plantillas de correo de Supabase están en inglés** («Confirm your email address») en un
   producto en español.
 - Cuando haya varios inquilinos, mirar el tope de alias por sitio de Netlify antes de chocar
@@ -199,6 +193,27 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 — El registro comodín, puesto y medido
+
+Creado el `CNAME` `*.kavea.ai → kavea-app.netlify.app` (ttl 3600) en la zona de Netlify. La zona
+pasa de doce registros a trece.
+
+**Medido contra el servidor autoritativo, no supuesto.** Un host inventado
+—`cualquiercosa-de-prueba.kavea.ai`— resuelve ya por el comodín hasta las IP de Netlify. Y los que
+tenían registro propio siguen resolviendo igual: `admin`, `boosty`, `conectar` y el ápice. Era lo
+esperado —DNS prefiere la coincidencia más específica— pero se comprueba, que es distinto de
+darlo por sabido.
+
+**Lo que contesta hoy un subdominio desconocido: el 404 de Netlify**, no el de Kavea. TLS valida
+—el certificado ya era `*.kavea.ai`—, pero el sitio todavía no reclama ese host, así que la
+petición muere en el borde de Netlify antes de llegar a la aplicación. Eso se cierra cuando
+habiliten el comodín del lado del sitio, y es la razón de que el registro por sí solo no baste.
+
+Un apunte sobre cómo se comprobó: la respuesta de la API traía `"errors": []` y mi comprobación
+preguntaba si la clave `errors` existía. Existe siempre. El registro se había creado bien y el
+script dijo «RECHAZADO». Una clave vacía no es un error, y es la segunda vez en dos días que una
+comprobación mal escrita inventa un problema —la primera fue el `grep` con cadena vacía—.
 
 ### 2026-08-24 — El comodín se puede activar, y solo falta un registro
 
@@ -1061,6 +1076,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   más estricta o más laxa que la restricción que dice proteger.
 - Una fricción de confirmación tiene que costar una decisión, no una transcripción. Si hay que
   copiar un identificador, la acción no existe.
+- Comprobar la PRESENCIA de una clave de error en vez de su contenido convierte un éxito en un
+  fallo inventado: `"errors": []` viene siempre. Dos veces en dos días con la misma forma —una
+  cadena vacía, una lista vacía—, así que la regla es mirar el valor, nunca la clave.
 - El error de una API no es la política del proveedor. `422 invalid site` se leyó durante tres
   semanas como «Netlify no permite comodines»; lo que significaba era «por este endpoint no».
   Preguntar cuesta un ticket y ahorra un rodeo arquitectónico entero.
