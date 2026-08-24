@@ -177,6 +177,16 @@ de WhatsApp.
 - Login único por correo (la cookie de sesión ya se fija en `.kavea.ai`; falta resolver cuando un
   usuario esté en varias organizaciones).
 - Guarda de tipos en CI para las Edge Functions (hoy Deno no se typechequea en ningún job).
+- **Los `AbortSignal.timeout` de las rutas de API piden más de lo que Netlify concede.**
+  `/api/contenido` declara 45 s y `sincronizar` 60 s; el techo de Netlify Pro son 26 s, con 10 s por
+  defecto. Medido el 24-ago: 1,8 s, 2,0 s y 5,7 s, así que hoy hay margen — pero `sincronizar`
+  escala con las cuentas conectadas y con ocho o diez cruza el techo. Bajar los plazos a lo que la
+  plataforma concede, o partir el trabajo.
+- **Decidir hosting: Netlify o Vercel.** Analizado el 24-ago con números medidos (entrada de ese
+  día). A favor de Vercel: no hay adaptador de Next que emule mal el middleware, 300 s de plazo por
+  defecto en vez de 10, y comodín multi-inquilino sin ticket. En contra: la zona DNS entera —con el
+  correo de SES y Resend dentro— tiene que mudarse a sus nameservers. **Después del App Review**, no
+  antes.
 - Reconciliar `docs/fases/` contra lo ya ejecutado — hoy varios documentos dicen «sin código»
   sobre partes que están en producción.
 
@@ -212,6 +222,69 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 (cierre) — Netlify o Vercel, con los números medidos
+
+Investigado a peticion de Gabriel. Lo que decide no es la comparativa de las webs de cada uno, es
+lo que ya está escrito en este repositorio.
+
+**El impuesto del adaptador está documentado en el propio código.** `app/middleware.ts` dice, de su
+puño: `NextResponse.next({ request: { headers } })` **no propaga** en el Next Runtime de Netlify —se
+comprobó en producción, el síntoma era un 404 en la raíz de cualquier subdominio— y hubo que rodearlo
+leyendo el `Host` en `lib/dominio.ts`. Es una función estándar de Next.js que el adaptador emula mal.
+Y `app/netlify.toml` fija `@netlify/plugin-nextjs` en `5.11.2` a propósito, porque una actualización
+automática cambia cómo se sirven las rutas del App Router. Vercel mantiene Next.js: no hay adaptador
+que emular ni versión que fijar.
+
+**El techo de las funciones, medido.** Netlify Pro corta las funciones síncronas a **26 s**, con
+**10 s por defecto** y hay que pedirle a soporte que lo suban. Vercel Pro: **300 s por defecto, 800 s
+de máximo**. Y el código de Kavea ya pide más de lo que Netlify puede dar: `/api/contenido` declara
+`AbortSignal.timeout(45_000)` y el `sincronizar` de `/api/comentarios`, 60_000.
+
+Medido hoy en producción, desde el navegador y con sesión real:
+
+| Ruta | Tiempo | Declarado en el código |
+|---|---|---|
+| `/api/contenido` · pagina | 1 792 ms | 45 s |
+| `/api/contenido` · instagram | 1 956 ms | 45 s |
+| `/api/comentarios` · sincronizar | 5 664 ms | 60 s |
+
+El techo no se toca hoy. Pero `sincronizar` escala con las cuentas conectadas: 5,7 s para **dos**
+cuentas, 24 publicaciones y 50 comentarios. Con ocho o diez cuentas cruza los 26 s, y entonces
+Netlify mata la petición mientras el código cree que tiene un minuto. **Eso hay que arreglarlo
+igual, en cualquier plataforma**: un `AbortSignal` más largo que el techo de la plataforma es una
+promesa que no se puede cumplir.
+
+**El comodín.** En Vercel los subdominios comodín son una función de primera clase para
+multi-inquilino, en todos los planes y sin ticket, y los dominios concretos conviven con el comodín.
+En Netlify costó el caso #1097522, seis requisitos, y ahora exige borrar los cuatro alias con una
+ventana de caída. Con comodín, además, la función `subdominio` —que llama a la API de Netlify para
+añadir un alias por inquilino, y cuya propagación de DNS era impredecible: `demostracion` no
+resolvía quince minutos después— deja de hacer falta.
+
+**Lo que cuesta mudarse, sin adornos.** El comodín de Vercel **exige sus nameservers**, así que la
+zona de `kavea.ai` tiene que mudarse entera: MX del entrante de SES, MX y SPF de `send.kavea.ai`,
+DKIM de Resend, DMARC. Ahí está el riesgo real —hay correo de por medio—, no en el hosting.
+`Netlify Blobs` lo usan tres funciones de Supabase (`drenar-amortiguador`, `subdominio`,
+`_compartido/almacen.ts`) como amortiguador de webhooks; hablan por token y seguirían funcionando
+desde cualquier sitio, pero mantenerlas significa depender de dos plataformas. El sitio público es
+Astro estático y da igual dónde viva. En precio es empate: Netlify Pro 19 $/miembro, Vercel Pro
+20 $/asiento con 20 $ de crédito y 1 TB incluido.
+
+**Y NO, las Actions no correrían en Vercel.** Vercel tiene *Native Deployment Checks*, pero solo
+ejecutan dos guiones fijos de `package.json`: `lint` y `typecheck`. No guiones arbitrarios. Los
+*Deployment Checks* generales **importan** el resultado de GitHub Actions —dependen de ellas, no las
+sustituyen—. Y no hay Docker en el camino de construcción, así que «Esquema desde cero y
+aislamiento» no se mueve a ninguna de las dos. De los cinco trabajos, Vercel cubriría de forma nativa
+el typecheck y el lint; los cuatro guardianes de node y grep habría que meterlos en el `command`, y
+el de esquema se queda en Actions. **La respuesta a lo de CI no cambia con la plataforma**: lo barato
+sigue siendo poner filtros `paths:` al workflow que ya existe.
+
+**Recomendación:** mudarse sí, pero **después de enviar el App Review**. La fase B tiene fecha —las
+llamadas de prueba caducan el 5-sep— y los once vídeos están grabados contra producción. Mover el
+hosting en medio del envío arriesga justo lo que tiene fecha. El comodín de Netlify, en cambio, sí
+ahora: son minutos de caída con un ingeniero esperando al otro lado, no hay clientes externos que
+puedan tropezar, y deja la fase C desbloqueada aunque la mudanza se retrase.
 
 ### 2026-08-24 (cierre) — El canario C1 cazó una tabla sin RLS
 
@@ -1263,3 +1336,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Una tabla nueva en un esquema que no se expone parece que no necesita RLS, y es cuando más fácil
   es olvidarla: nada falla al crearla y nada falla al usarla. Lo que la protege es el canario, no
   el criterio del que la escribió.
+- Una comparativa de plataformas se decide leyendo el propio repositorio, no las webs de los
+  proveedores: el comentario de un middleware que documenta un rodeo vale más que cualquier tabla
+  de características.
+- Un `AbortSignal.timeout` más largo que el techo de la plataforma que ejecuta esa función es una
+  promesa que no se puede cumplir. Hoy no se nota porque hay 4x de margen; se notará cuando el
+  trabajo escale, y el fallo llegará como un 504 sin autor.
+- «¿Puede la plataforma X sustituir a CI?» casi nunca se responde con sí o no: hay que contar los
+  trabajos. Aquí, de cinco, dos serían nativos, dos irían al build y uno no se mueve de sitio.
