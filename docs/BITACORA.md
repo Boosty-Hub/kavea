@@ -223,6 +223,30 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El comodín entró, y los doce vídeos
+
+**`*.kavea.ai` está vivo.** Netlify lo habilitó tras borrar los cuatro alias. Comprobado nombre por
+nombre: `boosty`, `demostracion`, `admin` y **`cualquiercosa.kavea.ai`** dan 307 —el comodín sirve
+cualquier subdominio nuevo sin registrarlo—, `www` sigue con su 301 al ápice y `kavea.ai` con su 200.
+**La fase C queda desbloqueada**: un inquilino nuevo ya no necesita una llamada a la API de Netlify
+por cada alta, ni depende de que el DNS propague.
+
+**Y casi se reporta un fallo que no existía.** `conectar.kavea.ai` y `cuenta.kavea.ai` seguían dando
+404 en la raíz mientras los otros funcionaban, con DNS idéntico —mismo destino, mismas IPs—. Lo
+resolvió una cabecera: el 404 traía `Netlify-Vary: … x-nextjs-data …`, o sea que lo devolvía **la
+aplicación**, no el CDN. Son superficies sin inquilino y su raíz no tiene página. Las rutas que sí
+sirven responden como deben: `cuenta/registro` y `cuenta/crear` 200,
+`conectar/api/meta/oauth/start` 401 —pide sesión— y `callback` 400 —falta el `state`—.
+
+**Los doce vídeos, grabados.** Con `human_agent` cerrado usando la tarjeta `7ecc5529…`, cuyo entrante
+de Instagram tenía 37 h: dentro del tramo de 24 h a 7 días. El hito enseña la píldora «Instagram
+solo intervención humana» y el aviso literal —«Fuera de las 24 horas. Se enviará como intervención
+humana, y solo vale hasta los 7 días»—, y el envío salió con `messaging_type = MESSAGE_TAG` y su id
+de Instagram. Tres envíos en vivo comprobados en la cola en la misma tirada: WhatsApp, Instagram con
+tag y Messenger con `RESPONSE`.
+
+Falta de B3 solo lo que necesita manos: el diálogo de Meta y el cliente nativo.
+
 ### 2026-08-24 (cierre) — El DM de @eficienzia.ai no llegó, y no es un fallo de Kavea
 
 Gabriel mandó un DM desde `@eficienzia.ai` y no apareció en la bandeja. Diagnóstico, en este orden:
@@ -1426,3 +1450,7 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   puesta; lo que faltaba era el permiso aprobado y el rol en modo desarrollo.
 - Un permiso rechazado puede impedir diagnosticar el problema que ese mismo permiso causa: la arista
   de conversaciones responde «capability» justo cuando querrías usarla para entenderlo.
+- Una cabecera distingue quién devuelve un 404. `Netlify-Vary` con campos de Next significa que
+  contestó la aplicación, no el CDN, y eso cambia a quién se le reporta el fallo.
+- Antes de escribir a soporte de un tercero por un comportamiento raro, probar la ruta que el
+  servicio SÍ sirve. Dos superficies sin inquilino no tienen raíz, y su 404 es lo correcto.
