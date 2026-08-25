@@ -223,6 +223,26 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — La separación, probada por el propio usuario
+
+A las **02:38:32** quedó restaurado `+1 321-393-1397`. A las **02:39:21**, cincuenta segundos
+después, Gabriel volvió a pulsar «Desconectar la cuenta de Facebook» — ya con la 0102 desplegada — y
+la actividad lo dice sin ambigüedad:
+
+    meta.desautorizada  {"conexiones": 1, "intactas": 1}
+
+Una cayó, la Página; una quedó en pie, el WhatsApp. Comprobado en la base justo después:
+`+1 321-393-1397` sigue `connected`, con su ruta, su credencial y su canal activo, mientras las
+cinco conexiones con `page_id` están todas desconectadas y la autorización se borró.
+
+La versión anterior habría dicho `conexiones: 2`. La prueba la hizo él sin saberlo, y es mejor que
+cualquiera que yo hubiera montado: el mismo gesto, el mismo botón, el mismo espacio, y el resultado
+distinto en lo único que tenía que cambiar.
+
+El lado de Facebook queda desconectado **a propósito** —lo pidió el botón— y la pantalla vuelve a
+ofrecer «Conectar con Facebook». Para grabar las tomas de Messenger e Instagram hay que volver a
+autorizar y activar las Páginas.
+
 ### 2026-08-24 (cierre) — WhatsApp restaurado, y el camino de vuelta que no existía
 
 **Reparado `+1 321-393-1397`**, que el botón de soltar Facebook se había llevado por delante. Los
