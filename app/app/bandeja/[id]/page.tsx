@@ -321,6 +321,15 @@ function Entrada({
   const texto = x.detalle.texto as string | null
   const visibles = borrado ? [] : adjuntos
   const enCola = borrado ? null : (x.detalle.adjunto_nombre as string | null)
+  /**
+   * De qué plantilla salió, cuando salió de una.
+   *
+   * Importa por dos motivos. Uno: sin esto la burbuja decía «Sin contenido»,
+   * porque una plantilla guarda el nombre y los valores, no la frase. Dos: el
+   * operador necesita saber CUÁL de las aprobadas se gastó, porque cada envío
+   * fuera de las 24 horas se factura y no todas dicen lo mismo.
+   */
+  const plantilla = x.detalle.plantilla as string | null
 
   return (
     <>
@@ -350,7 +359,18 @@ function Entrada({
                   </span>
                 )
               ) : null}
-              {!texto && !visibles.length && !enCola ? (
+              {plantilla ? (
+                <span
+                  style={{
+                    display: 'block', marginTop: texto ? 6 : 0,
+                    fontSize: 12, color: 'var(--k-text-2)',
+                  }}
+                >
+                  Plantilla <code>{plantilla}</code>
+                  {texto ? null : ' · el texto lo monta Meta con la plantilla aprobada'}
+                </span>
+              ) : null}
+              {!texto && !visibles.length && !enCola && !plantilla ? (
                 <span style={{ color: 'var(--k-text-2)' }}>Sin contenido</span>
               ) : null}
             </>

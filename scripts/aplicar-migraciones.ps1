@@ -73,7 +73,13 @@ $archivos = Get-ChildItem $dir -Filter *.sql | Sort-Object Name
 
 foreach ($f in $archivos) {
   $version = $f.BaseName
-  $sql = Get-Content $f.FullName -Raw
+  # -Encoding UTF8 NO ES OPCIONAL. Sin ella, `Get-Content` usa el juego de
+  # caracteres del sistema cuando el script corre con `powershell` (5.1) en vez
+  # de `pwsh`, y en esta maquina no hay `pwsh`. Cada acento se leia como dos
+  # caracteres sueltos y se guardaba codificado dos veces: «ultimo» acabo en la
+  # base como «Ãºltimo», y de ahi a la pantalla del operador. Trece funciones
+  # salieron asi antes de verlo.
+  $sql = Get-Content $f.FullName -Raw -Encoding UTF8
   $sha = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLower()
 
   if ($aplicadas.ContainsKey($version)) {
