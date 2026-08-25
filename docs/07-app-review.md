@@ -708,36 +708,68 @@ cerradas, así que seguirían a la vista.
 ### Instrucciones para el formulario
 
 ```
-Kavea is a shared team inbox. The workspace below belongs to Boosty Digital LLC and is used for testing: every conversation in it is with Boosty's own accounts, so no third-party customer data is exposed.
+Kavea is a shared team inbox that unifies WhatsApp, Instagram and Messenger conversations for small and medium businesses in Latin America.
 
-URL: https://boosty.kavea.ai
-Email: revisor@kavea.ai
-Password: (see the credentials field)
+ON FACEBOOK LOGIN: yes, this app uses Facebook Login for Business, and it is now in production. There are two connection paths and which one a customer uses determines what a screencast can show.
 
-The workspace is connected to the Boosty.digital Facebook Page, its linked Instagram professional account, and Boosty's WhatsApp Business number, so all three channels can be tested against real accounts.
+1. Self-service customers connect through Facebook Login for Business. The customer signs in with Meta, grants the permissions in Meta's own dialog, and is returned to our app, where they choose which of their Pages and Instagram professional accounts to connect. The complete Meta login flow and the consent screen are part of this path and every screencast in this submission starts with it.
 
-To test Messenger (pages_messaging):
+2. Customers whose assets are already in our Tech Provider portfolio are connected server to server with a system user token. There is no frontend login for this path, by design: the business grants us access on the Meta side and our backend uses that token. Per point 5 of your screencast requirements we state this explicitly, so it is clear when a frontend Meta login flow is not visible.
+
+Our previous submission was rejected on all eight permissions for "Screencast Not Aligned with Use Case Details". At that time path 1 did not exist and the recordings could not show a login the product did not have. Path 1 is now released and the new recordings show it.
+
+HOW TO ACCESS THE APP:
+The workspace below belongs to Boosty Digital LLC and is used for testing. Every conversation in it is with Boosty's own accounts, so no third-party customer data is exposed. It is connected to the Boosty.digital Facebook Page, its linked Instagram professional account, and Boosty's WhatsApp Business number, so all three channels can be tested against real accounts.
+
+Sign in at https://boosty.kavea.ai with the credentials provided below.
+
+TO TEST MESSENGER (pages_messaging):
 1. Grant the Tester role in App Roles to a real Facebook account. Test users created in App Roles cannot receive messages from a Page.
 2. From that account, send a message to the Boosty.digital Page (m.me/boosty.digital).
-3. Sign in above. The conversation appears in Bandeja (Inbox) within seconds.
-4. Open it, type a reply in the composer and press Enviar. The reply is delivered to the Facebook account from step 2.
+3. The conversation appears in Bandeja (Inbox) within seconds.
+4. Open it, type a reply in the composer and press Enviar. The reply reaches the account from step 2.
 
-To test Instagram (instagram_manage_messages, instagram_basic, Human Agent):
-Open the conversation in Bandeja. The header shows the remaining messaging window per channel. When a conversation is older than 24 hours the header reads "solo intervención humana" and the composer states that the reply will be sent as a human agent intervention.
+TO TEST INSTAGRAM (instagram_manage_messages, instagram_basic, Human Agent):
+Open a conversation in Bandeja. The header shows the remaining messaging window per channel. When a conversation is older than 24 hours the header reads "solo intervención humana" and the composer states that the reply will be sent as a human agent intervention, with messaging_type=MESSAGE_TAG and tag=HUMAN_AGENT.
 
-To test comments (instagram_manage_comments):
-Open Bandeja (Inbox) and switch to the Comentarios tab at the top. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public. You can also hide, edit or delete a comment from there; editing publishes a replacement and deletes the previous one, because Instagram's API does not allow editing a comment's text, and the UI says so before you confirm.
+TO TEST COMMENTS (instagram_manage_comments):
+Open Bandeja (Inbox) and switch to the Comentarios tab at the top. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public. You can also hide, edit or delete a comment from there. Editing publishes a replacement and deletes the previous one, because Instagram's API cannot change the text of a comment, and the interface says so before you confirm.
 
-To test WhatsApp (whatsapp_business_messaging, whatsapp_business_management):
-Open Ajustes > Canales to see each connected channel with its state. WhatsApp conversations appear in the same inbox.
+TO TEST WHATSAPP (whatsapp_business_messaging, whatsapp_business_management):
+WhatsApp conversations appear in the same inbox. Open Ajustes > Canales to see each connected channel with the result of every health check.
 
-To test utility templates (pages_utility_messaging):
+TO TEST PAGE CONTENT (pages_read_engagement, instagram_basic):
+Open Contenido in the left menu and pick a connected asset. For a Page, Kavea retrieves its posts, photos and events live from Meta and renders them with the Page name, category, follower count and Page ID in the header. For an Instagram professional account it retrieves the profile fields and the media list, labelled for that account.
+
+TO TEST UTILITY TEMPLATES (pages_utility_messaging):
 Open Ajustes > Plantillas and select the Messenger tab. The list is read live from Meta every time the screen opens and shows each template with the status Meta gave it, including rejected ones with the reason.
-
-To send one: open a Messenger conversation in Bandeja, press the "Plantillas" button just above the reply box, and pick a template from the "Se envían enteras" group. A dialog shows the exact text that will be delivered with the placeholders already filled from the contact's record, and any missing value can be typed in that same dialog. Press "Enviar la plantilla" and the message is delivered through Messenger.
-
+To send one: open a Messenger conversation in Bandeja, press the "Plantillas" button just above the reply box, and pick a template from the "Se envían enteras" group. A dialog shows the exact text that will be delivered with the placeholders already filled from the contact's record, and any missing value can be typed in that dialog. Press "Enviar la plantilla" and the message is delivered through Messenger.
 Note on the reviewer account: it has the "agente" role, which can send templates but not create them, because creating one changes the workspace for everyone. If you need to create a template during the review, tell us and we will raise the role.
+
+The interface is in Spanish, which is the language of our market.
 ```
+
+**La frase que había que borrar, y por qué era la peor del envío.** Hasta el
+25-ago este bloque decía:
+
+> *«ON FACEBOOK LOGIN: this app does not use Facebook Login. … The Facebook Login
+> for Business product appears in the dashboard because client self-onboarding is
+> planned, but it has no configurations and is not released. **Please do not test a
+> Facebook Login flow: there is none to test.**»*
+
+Era cierto en agosto. Al llegar al segundo envío, con los ocho vídeos empezando
+por el diálogo de Meta, esa frase le pedía al revisor **que no probara justo lo
+que la remediación consistía en construir**. Los ocho rechazos dicen que el
+screencast no enseña el login; el formulario decía que no hay login. Ninguna
+contradicción del envío anterior era tan directa.
+
+Se cambió por la afirmación con los dos caminos, y `fblogin-web-1` pasó de **No** a
+**Yes**. Y en `documents-web-1` se subió `login.mp4` aparte: el diálogo de Meta
+aislado, para que no haya que buscarlo dentro de un vídeo de seis minutos.
+
+**Lo que sigue sin cumplirse, a sabiendas:** el punto 4 de las ocho notas pide
+*«use English as the app UI language»*. La interfaz está en español y no va a
+cambiar para una revisión. Queda declarado en la última línea del bloque.
 
 ## 4. Los vídeos
 
