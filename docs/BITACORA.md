@@ -223,6 +223,55 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Por qué Meta rechazó, y las plantillas dejan de estar mezcladas
+
+**Los dos rechazos tienen nombre, y Meta lo daba.** El campo `rejected_reason` existe en la API y
+Kavea no lo pedía, así que la pantalla decía «Rechazada» y punto:
+
+| Plantilla | Motivo de Meta | Qué significa |
+|---|---|---|
+| `codigo_ingreso` | `INCORRECT_CATEGORY` | Un código de acceso es AUTHENTICATION, no UTILITY |
+| `aviso_de_pedido` | `INVALID_FORMAT` | Se creó el 6-ago sin ejemplos, antes de que el formulario los pidiera |
+
+La comparación lo dejó claro antes incluso de leer el motivo: **las cinco aprobadas llevan
+`example` y la única sin él está rechazada**, con un texto casi idéntico al de una aprobada. Ahora
+el motivo se pide por su nombre en `fields` y se enseña traducido, con la salida al lado.
+
+**Y la pantalla estaba mezclando tres cosas.** Internas, WhatsApp y Messenger, una debajo de otra,
+con un cuadro arriba explicando en qué se diferencian. Ese cuadro era la confesión: una pantalla que
+necesita un cuadro para entenderse está mal. Ayer se intentó crear una plantilla de WhatsApp en el
+bloque de Messenger, que es otro producto, con otra cuenta y otras reglas detrás.
+
+Ahora son **tres pestañas**. Se pidieron dos, y son tres a propósito: Messenger usa plantillas de la
+**Página**, WhatsApp de la **cuenta de WhatsApp**, y las internas no salen de Kavea. Juntarlas para
+que fueran dos sería volver a mezclar justo lo que se estaba confundiendo. Cada pestaña lleva su
+explicación debajo, solo la suya.
+
+**Las de WhatsApp dejan de ser un registro a mano.** La 0042 las guardaba en una tabla propia
+rellenada a mano «para llevar el registro de lo que ya está aprobado allí», y eso se desincroniza el
+primer día: Meta pausa o inhabilita una y Kavea sigue enseñando lo que se tecleó. Ahora se leen de
+la WABA y se crean contra ella, con **categoría, idioma, cabecera, cuerpo, pie y hasta diez
+botones** —respuesta rápida, enlace o teléfono—. Cada regla que se puede comprobar antes se
+comprueba antes, porque una plantilla rechazada **deja el nombre ocupado para siempre**.
+
+La categoría va la primera y explicada en castellano. Elegir a ciegas entre tres palabras en inglés
+es exactamente cómo se produjo el `INCORRECT_CATEGORY` de ayer.
+
+**LO QUE FALTA, y hay que decirlo porque la pestaña nueva podría prometerlo:**
+
+- **Enviar una plantilla de WhatsApp no existe todavía.** El despachador lo dice de su puño: «la
+  plantilla NO se elige automáticamente a propósito». Se pueden crear y ver, no mandar. Sin eso,
+  fuera de las 24 h no hay forma de escribir por WhatsApp.
+- **Cabeceras de imagen, vídeo o documento.** Meta no las acepta por URL: exige subir el fichero por
+  su API de subida reanudable y pasar el `header_handle`. Es un camino aparte con su propio
+  formulario, y la pantalla lo dice en vez de ofrecer un campo que no funcionaría.
+- **Editar una plantilla ya aprobada.** Meta lo permite con límites; aquí solo se crea y se borra.
+- **La categoría AUTHENTICATION tiene componentes propios** —botón de copiar código, caducidad— que
+  el formulario genérico no monta. Se puede elegir, pero una plantilla de autenticación de verdad
+  necesita su propio formulario.
+- **La WABA nueva `2459716937850832` tiene UNA plantilla**, `hello_world`. Las 25 aprobadas se
+  quedaron en la WABA que se retiró: hay que rehacerlas.
+
 ### 2026-08-24 (cierre) — Retirar de la lista, que no es eliminar, y el menú por fin responde
 
 **Se pidió «eliminar los números desconectados para que no salgan más».** Lo primero fue mirar qué
@@ -1690,3 +1739,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   distintas, y quien pulsa solo tiene la palabra para saber cuál va a pasar.
 - Un estilo en línea no admite pseudoclases. Si una superficie no responde al ratón y las demás sí,
   el motivo probable no es que a alguien se le olvidara: es que ahí no se podía escribir.
+- Un campo que la API devuelve solo si lo nombras es un campo que no existe hasta que alguien lo
+  echa de menos. `rejected_reason` llevaba semanas disponible mientras la pantalla decía
+  «Rechazada» y nada más.
+- Cuando una pantalla necesita un cuadro que explique en qué se diferencian sus partes, el cuadro no
+  es la solución: es el diagnóstico.
+- Antes de buscar el motivo en la documentación, comparar lo que funciona con lo que no. Cinco
+  plantillas aprobadas con ejemplo y una rechazada sin él contestan la pregunta sin salir de la API.
