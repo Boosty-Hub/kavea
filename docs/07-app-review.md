@@ -324,20 +324,26 @@ One deliberate design decision the reviewer will notice: we do not store these t
 Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing them from the same place where the team answers messages is the point of the product.
 ```
 
-**Vídeo:** `pages_utility_messaging`, montado el 25-ago. Login completo, luego un
-rótulo, luego la pestaña **Messenger** con las plantillas de la Página leídas de
-Meta —cinco aprobadas y dos rechazadas, con su motivo— y la creación de
-`pedido_devuelto` de punta a punta hasta verla aprobada. Detrás, con su propio
-rótulo, la misma pantalla en WhatsApp como contexto.
+**Vídeo:** `pages_utility_messaging`, montado el 25-ago y **cubre los tres puntos de la nota**.
+397 s: login completo y luego tres tramos, cada uno con su rótulo.
 
-**Lo que este vídeo NO enseña, y hay que decirlo:** la nota de rechazo pide además
-*«sending the message to a test recipient and showing the delivered template
-message in the native client»*. Kavea no tiene todavía ese carril: el envío de
-plantilla en `despachar` vive entero dentro de `if (canal === 'whatsapp')`. La vía
-existe y está sondeada —`POST /{page-id}/messages` con `messaging_type: 'UTILITY'`
-y `message.template`; con un destinatario inválido Meta se queja del destinatario,
-no de la forma— pero no está construida. Es el punto flojo conocido de esta
-solicitud.
+1. **Messenger — crear la plantilla.** La pestaña con las plantillas de la Página leídas de Meta
+   —cinco aprobadas y dos rechazadas, con su motivo— y la creación de `pedido_devuelto` de punta a
+   punta hasta verla aprobada. Se ve incluso el aviso de Kavea cuando el cuerpo termina en variable,
+   y cómo se corrige.
+2. **Messenger — mandarla y verla llegar.** Se elige la plantilla en el compositor, sale el diálogo
+   de vista previa con **el texto ya relleno** —«Hola Gabriel, hemos recibido su devolucion numero
+   2,000…»— y los datos que lleva con su etiqueta; se envía; aparece en el hilo; y **se abre
+   Messenger en facebook.com y se ve el mensaje recibido**, con la respuesta del contacto volviendo
+   a Kavea.
+3. **WhatsApp — la misma pantalla en el otro canal**, como contexto.
+
+Eso es exactamente lo que pide la nota: *(1) creation or selection of a utility template*,
+*(2) how the template is populated with placeholders*, *(3) sending the message to a test recipient
+and showing the delivered template message in the native client*.
+
+Y el envío es real, no una maqueta: en la cola quedó `messenger / enviado` con `messaging_type`
+UTILITY y el `mid` que devolvió Meta.
 
 ### `business_management`
 

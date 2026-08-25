@@ -233,6 +233,33 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — El vídeo que faltaba, y los ocho ya cubren lo que Meta pide
+
+Llegó `Utility Messanging.webm`, 81 s, y trae lo que faltaba: se elige la plantilla en el
+compositor, sale el diálogo de vista previa con el texto ya relleno —«Hola Gabriel, hemos recibido
+su devolucion numero 2,000…»— y los datos con su etiqueta; se envía; aparece en el hilo; y **se abre
+Messenger en facebook.com y se ve el mensaje recibido**, con la respuesta del contacto volviendo a
+Kavea.
+
+Antes de esto hubo dos vídeos que no eran: uno era el de las 11:38 —el de crear la plantilla, que ya
+estaba montado— pasado dos veces. Lo que zanjó la duda no fue la fecha del fichero sino **el reloj
+de la barra de tareas dentro del propio vídeo**, que iba de 11:36 a 11:38: un vídeo de esa hora no
+puede contener una pantalla que se desplegó a las 13:40. Con un barrido de un fotograma cada dos
+segundos se vio además que los 91 s eran Ajustes de principio a fin.
+
+`plantilla.mp4` pasa a ser tres tramos con su rótulo: crear en Messenger, mandarla y verla llegar, y
+WhatsApp como contexto. 218 s de metraje humano; el montaje con el login delante, **397 s**.
+
+De aire muerto en la toma nueva se fueron solo 5,6 s de 81: venía apretada, que es lo que pasa
+cuando se graba sabiendo lo que se va a hacer.
+
+**Y con esto `pages_utility_messaging` cubre los tres puntos de su nota**, que llevaba dos:
+*creation or selection*, *how the template is populated with placeholders*, y *sending the message
+to a test recipient and showing the delivered template message in the native client*. Se corrigió la
+ficha del permiso en `07-app-review.md`, que decía en un párrafo lo que ya no es cierto —«lo que este
+vídeo NO enseña»—. Un documento que se queda con la limitación escrita después de resolverla manda a
+pedir menos de lo que se tiene.
+
 ### 2026-08-25 — Los campos personalizados se crean donde se echan de menos
 
 «Tampoco veo la opción custom en la ficha donde se podían crear los campos personalizados». Era
@@ -1286,6 +1313,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Para fechar un vídeo, el reloj que sale dentro de la imagen vale más que la fecha del fichero:
+  no se puede sobrescribir sin que se note.
 - La función se construye donde se echa de menos, no en la pantalla de configuración: la idea se
   pierde en el viaje.
 - Un texto de interfaz con el canal escrito a mano se queda mintiendo el día que hay un segundo
