@@ -558,13 +558,17 @@ To test Instagram (instagram_manage_messages, instagram_basic, Human Agent):
 Open the conversation in Bandeja. The header shows the remaining messaging window per channel. When a conversation is older than 24 hours the header reads "solo intervención humana" and the composer states that the reply will be sent as a human agent intervention.
 
 To test comments (instagram_manage_comments):
-Open Comentarios in the left menu. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public.
+Open Bandeja (Inbox) and switch to the Comentarios tab at the top. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public. You can also hide, edit or delete a comment from there; editing publishes a replacement and deletes the previous one, because Instagram's API does not allow editing a comment's text, and the UI says so before you confirm.
 
 To test WhatsApp (whatsapp_business_messaging, whatsapp_business_management):
 Open Ajustes > Canales to see each connected channel with its state. WhatsApp conversations appear in the same inbox.
 
 To test utility templates (pages_utility_messaging):
-Open Ajustes > Plantillas and scroll to "De utilidad, en Messenger". The list is read live from Meta and shows each template with the status Meta gave it. A new one can be created from there.
+Open Ajustes > Plantillas and select the Messenger tab. The list is read live from Meta every time the screen opens and shows each template with the status Meta gave it, including rejected ones with the reason.
+
+To send one: open a Messenger conversation in Bandeja, press the "Plantillas" button just above the reply box, and pick a template from the "Se envían enteras" group. A dialog shows the exact text that will be delivered with the placeholders already filled from the contact's record, and any missing value can be typed in that same dialog. Press "Enviar la plantilla" and the message is delivered through Messenger.
+
+Note on the reviewer account: it has the "agente" role, which can send templates but not create them, because creating one changes the workspace for everyone. If you need to create a template during the review, tell us and we will raise the role.
 ```
 
 ## 4. Los vídeos

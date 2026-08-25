@@ -233,6 +233,29 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Repasar las instrucciones del revisor antes de enviarlas
+
+Con los ocho vídeos hechos, lo último que se toca es el texto que lee el revisor. Y tres cosas que
+llevaban semanas escritas ya no eran verdad:
+
+- **«Open Comentarios in the left menu».** Comentarios dejó de ser entrada de primer nivel el
+  21-ago: es una pestaña dentro de Bandeja. Un revisor siguiendo esa línea busca en el menú, no lo
+  encuentra, y ese es exactamente el camino a un rechazo por «no pudimos verificar».
+- **«A new one can be created from there»**, sobre las plantillas de utilidad. El revisor tiene rol
+  `agente`, y crear plantillas exige `configurar` —owner o admin—. Le estábamos pidiendo hacer algo
+  que la propia aplicación le va a negar. Lo que **sí** puede es enviarlas, que es lo que el permiso
+  pide: `encolar_plantilla` solo exige ser miembro. Así que ahora las instrucciones explican el
+  envío paso a paso y avisan del rol, ofreciendo subirlo si lo necesita.
+- **No decían cómo enviar una plantilla**, que es el punto que hundió `pages_utility_messaging`. Ya
+  lo dicen: el botón «Plantillas» encima de la caja, el grupo «Se envían enteras», el diálogo con el
+  texto resuelto, y «Enviar la plantilla».
+
+**Y una que no se puede comprobar desde aquí:** la contraseña de `revisor@kavea.ai` no está en el
+repositorio a propósito, así que no se puede probar que el acceso funcione. Lo que sí se comprobó es
+que el usuario existe, está confirmado, y su último acceso fue el 6-ago. Que la clave del formulario
+siga siendo válida tiene que verificarlo Gabriel entrando una vez antes de enviar: si el revisor no
+entra, los ocho vídeos no valen nada.
+
 ### 2026-08-25 — El vídeo que faltaba, y los ocho ya cubren lo que Meta pide
 
 Llegó `Utility Messanging.webm`, 81 s, y trae lo que faltaba: se elige la plantilla en el
@@ -1313,6 +1336,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Las instrucciones para un tercero se releen contra el producto de hoy, no contra el recuerdo:
+  cada cambio de navegación las deja mintiendo en silencio.
+- Antes de pedirle a alguien que haga algo en el producto, comprobar que su ROL se lo permite.
 - Para fechar un vídeo, el reloj que sale dentro de la imagen vale más que la fecha del fichero:
   no se puede sobrescribir sin que se note.
 - La función se construye donde se echa de menos, no en la pantalla de configuración: la idea se
