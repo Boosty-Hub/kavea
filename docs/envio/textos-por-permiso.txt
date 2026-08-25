@@ -1,17 +1,16 @@
 LOS OCHO TEXTOS DECLARADOS, uno por permiso
 ===========================================
 
-Compara cada uno con lo que ya hay en su caja del formulario. La caja tiene
-barra de desplazamiento: puede que el texto completo ya este puesto y solo se
-vea el primer parrafo. Solo se pega si falta o si dice algo que ya no es cierto.
+Los ocho estan ya en docs/07-app-review.md. Esta hoja es una copia plana para
+tenerla al lado del formulario, que pide una pantalla por permiso.
 
-CAMBIADOS a proposito respecto a lo que habia en el formulario:
-  - pages_utility_messaging: el declarado no mencionaba el ENVIO, y el rechazo
-    pedia verlo. Ahora dice «manage and send» y describe el envio y el cliente
-    nativo.
-  - instagram_manage_comments: decia «a Comments screen, separate from the
-    message inbox» —falso desde el 21-ago— y no mencionaba editar ni borrar,
-    que es lo que la nota pedia.
+CAMBIADOS respecto a lo que habia en el formulario de Meta:
+  - pages_utility_messaging: incluye el envio y el cliente nativo
+  - instagram_manage_comments: pestaña del buzon, y el bucle de editar y borrar
+  - pages_messaging: ultimo parrafo nuevo: los tres puntos de la nota
+
+OJO en pages_messaging: tiene DOS campos que las otras no —el desplegable
+«Select a Page» (elegir Boosty.digital) y las instrucciones paso a paso—.
 
 --- Human Agent -------------------------------------------------
 
@@ -42,21 +41,21 @@ We do not change any other Page setting with this permission. We do not modify t
 
 
 --- pages_utility_messaging -------------------------------------
-  (VERSION NUEVA: incluye el envio)
+  (CAMBIADO: incluye el envio y el cliente nativo)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
-We use pages_utility_messaging to manage and send the utility message templates of our user's Page: order updates, appointment reminders and account notices that the business needs to send outside a normal conversation.
+We use pages_utility_messaging to manage the utility message templates of our user's Page: order updates, appointment reminders and account notices that the business needs to send outside a normal conversation.
 
-What the screen recording shows: the templates screen in Kavea has a Messenger tab for the Page's utility templates. Kavea reads them live from Meta every time the screen is opened and shows each one with the status Meta gave it, including rejected ones with the reason. The operator creates a new template, writes its body using real field names from the contact's record, and Kavea sends it to Meta with category UTILITY. The recording then opens a Messenger conversation, selects that template, and a dialog shows the exact text that will be delivered with the placeholders already filled from the record. The operator sends it, and the recording opens Messenger in the native client to show the delivered message and the customer's reply arriving back in Kavea.
+What the screen recording shows: the templates screen in Kavea has a section for Messenger utility templates. Kavea reads the Page's templates live from Meta every time the screen is opened and shows each one with the status Meta gave it, including rejected ones. The operator then creates a new template, writes its body with numbered placeholders, fills in an example value for each placeholder, and Kavea sends it to Meta with category UTILITY. The new template appears in the list with the status Meta returned.
 
 One deliberate design decision the reviewer will notice: we do not store these templates in our own database. Their approval status belongs to Meta and can change after we read it, so a local copy would eventually show "approved" for a template Meta has already rejected. We read them live instead.
 
-Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing and sending them from the same place where the team answers messages is the point of the product.
+Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing them from the same place where the team answers messages is the point of the product.
 
 
 --- instagram_manage_comments -----------------------------------
-  (VERSION NUEVA: pestaña, y el bucle de editar y borrar)
+  (CAMBIADO: pestaña del buzon, y el bucle de editar y borrar)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; Kavea is their technology provider and is verified as such by Meta.
 
@@ -72,8 +71,20 @@ Why the business needs it: a comment left unanswered on a post is visible to eve
 
 
 --- pages_messaging ---------------------------------------------
-  (SIN TEXTO DECLARADO EN LA BITACORA: leer el del formulario y,
-   si dice algo que ya no es cierto, avisar antes de tocarlo)
+  (CAMBIADO: ultimo parrafo nuevo: los tres puntos de la nota)
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_messaging to receive the Messenger conversations that customers start with our user's Page, and to send the replies that our user's staff writes.
+
+End-to-end flow, which is what the screen recording shows: a customer sends a message to the Page. Kavea receives the messages webhook and shows the conversation in that business's shared inbox, next to the same customer's WhatsApp and Instagram threads when it is the same person. Several staff members can see it, assign it and answer. When a staff member writes a reply, Kavea sends it through the Send API on behalf of the Page with messaging_type=RESPONSE, inside the standard 24-hour window, and shows the delivery and read receipts on the thread.
+
+Value for the person using the app: these businesses answer Messenger from the Facebook app on someone's phone, which means one person holds the conversation and nobody else can see it. Kavea turns it into a shared inbox with assignment, history and a single view of each customer across all three channels.
+
+Without this permission Kavea cannot receive or answer Messenger conversations, which is one of the three channels the product exists to unify.
+
+What the recording shows, in the order you asked for: (1) the connected asset is visible — the Page name and its ID appear on the channels screen during setup, and the conversation header names the Page the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Messenger app is then opened on the customer's side to show the delivered message.
+
 
 --- instagram_manage_messages -----------------------------------
 

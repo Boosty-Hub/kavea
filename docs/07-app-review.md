@@ -405,6 +405,55 @@ El párrafo que acota lo que **no** se hace está puesto a conciencia: este perm
 concede la Business Manager API entera, incluida publicidad, y un revisor que lee
 «business_management» sin más piensa en anuncios.
 
+### `pages_messaging`
+
+**Meta:** *«allows your app to manage and access Page conversations and calling in
+Messenger.»*
+
+**Tampoco tenía sección aquí hasta el 25-ago.** Capturado del formulario al
+preparar el segundo envío, por lo mismo que el de comentarios: un texto que solo
+vive en un formulario de un tercero no se puede releer contra el producto.
+
+**Kavea responde:**
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_messaging to receive the Messenger conversations that customers start with our user's Page, and to send the replies that our user's staff writes.
+
+End-to-end flow, which is what the screen recording shows: a customer sends a message to the Page. Kavea receives the messages webhook and shows the conversation in that business's shared inbox, next to the same customer's WhatsApp and Instagram threads when it is the same person. Several staff members can see it, assign it and answer. When a staff member writes a reply, Kavea sends it through the Send API on behalf of the Page with messaging_type=RESPONSE, inside the standard 24-hour window, and shows the delivery and read receipts on the thread.
+
+Value for the person using the app: these businesses answer Messenger from the Facebook app on someone's phone, which means one person holds the conversation and nobody else can see it. Kavea turns it into a shared inbox with assignment, history and a single view of each customer across all three channels.
+
+Without this permission Kavea cannot receive or answer Messenger conversations, which is one of the three channels the product exists to unify.
+
+What the recording shows, in the order you asked for: (1) the connected asset is visible — the Page name and its ID appear on the channels screen during setup, and the conversation header names the Page the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Messenger app is then opened on the customer's side to show the delivered message.
+```
+
+**El último párrafo se añadió el 25-ago.** Los cinco primeros describían el
+producto bien y no decían nada falso, pero no prometían las tres cosas que la
+nota de rechazo enumera. Contestar con las mismas palabras de la lista es lo que
+permite al revisor marcar sus casillas sin interpretar nada.
+
+**Esta tarjeta tiene dos campos que las otras no**, y los dos son obligatorios:
+
+- **`Select a Page`** — hay que elegir **Boosty.digital**. Es un desplegable
+  pequeño encima del campo de instrucciones y se pasa por alto con facilidad.
+- **Instrucciones paso a paso.** El propio formulario advierte de lo que ya
+  sabíamos: *«create a real account on Facebook and grant this account the Tester
+  role. Do not submit a test user created in App Roles. Test users created in App
+  Roles are not able to receive bot messages.»*
+
+```
+1. Grant the Tester role in App Roles to a real Facebook account. Test users created in App Roles cannot receive messages from a Page.
+2. From that account, send a message to the Boosty.digital Page (m.me/boosty.digital).
+3. Sign in at https://boosty.kavea.ai with the credentials in the reviewer instructions. The conversation appears in Bandeja (Inbox) within seconds.
+4. Open it, type a reply in the composer and press Enviar. The reply is delivered to the Facebook account from step 2.
+```
+
+**Vídeo:** `pages_messaging`. Activo visible, envío en vivo, y el mensaje
+entregado en Messenger.
+
 ### `instagram_manage_messages`
 
 ```
