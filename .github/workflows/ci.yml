@@ -169,6 +169,45 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # LAS EDGE FUNCTIONS TAMBIEN SE COMPRUEBAN.
+      #
+      # `supabase functions deploy` NO comprueba tipos: sube lo que le den. El
+      # 24-ago se desplego el despachador con tres campos que no existian en su
+      # tipo —`plantilla`, `idioma`, `parametros`— y funciono, porque en tiempo
+      # de ejecucion a JavaScript le da igual. Se descubrio corriendo
+      # `deno check` a mano, y de paso salio un segundo fallo real: se indexaba
+      # el cuerpo con una clave que podia ser `undefined`, lo que produce una
+      # propiedad llamada «undefined» que Meta ignora — un envio con media que
+      # llega sin media y sin error.
+      #
+      # Un despliegue que no comprueba nada necesita que alguien compruebe antes.
+      - name: Las funciones de borde compilan
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # SE CORRE DESDE `supabase/functions`, no desde la raiz. Deno ve el
+      # `pnpm-workspace.yaml` de arriba, decide que es un monorepo suyo y
+      # ESCRIBE un campo `workspaces` en el package.json del repositorio. Lo hizo
+      # de verdad al probarlo. Desde dentro no hay workspace que migrar.
+      - name: deno check
+        working-directory: supabase/functions
+        # `DENO_NO_PACKAGE_JSON` porque Deno, al ver el `pnpm-workspace.yaml` de
+        # arriba, decide migrarlo y ESCRIBE un campo `workspaces` en el
+        # package.json del repositorio. Lo hizo de verdad al probarlo, dos veces.
+        env:
+          DENO_NO_PACKAGE_JSON: '1'
+        run: |
+          fallos=0
+          for f in */index.ts; do
+            if ! deno check "$f" >/tmp/dc.log 2>&1; then
+              echo "--- $f"; cat /tmp/dc.log; fallos=$((fallos+1))
+            fi
+          done
+          if [ "$fallos" -gt 0 ]; then
+            echo ""; echo "$fallos funcion(es) de borde no compilan."; exit 1
+          fi
+          echo "Todas las funciones de borde compilan."
+
       # El docs/06 avisa de que la configuración vive en más de un sitio y puede
       # desincronizarse, y de que se mitiga con una prueba, no con disciplina.
       - name: La versión de Graph API vive en un solo sitio

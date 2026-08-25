@@ -14,6 +14,17 @@
  * la plataforma responde 401 antes de llegar a este código.
  */
 
+/**
+ * `EdgeRuntime` lo inyecta la plataforma de Supabase y Deno no lo conoce: sin
+ * esta declaración, `deno check` da cuatro «Cannot find name 'EdgeRuntime'»
+ * sobre código que funciona perfectamente en producción.
+ *
+ * Se declara aquí y no se silencia el comprobador. Un `// @ts-ignore` habría
+ * tapado también el día que `waitUntil` cambie de forma, y esta función es el
+ * receptor de webhooks: lo último que conviene es que deje de comprobarse.
+ */
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void }
+
 import { firmaValida, iguales, sha256Hex } from '../_compartido/firma.ts'
 import {
   alertar,

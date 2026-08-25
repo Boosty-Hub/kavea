@@ -149,6 +149,18 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }
     }
 
+    /**
+     * EL LATIDO, solo si la pasada terminó. Una función que revienta puede
+     * avisar; una que deja de EJECUTARSE no puede avisar de nada, y ese es el
+     * fallo que de verdad ocurre —un cron desprogramado, un secreto caducado—.
+     * Lo único que lo detecta es echar de menos algo que debería estar, y para
+     * echarlo de menos hay que haberlo tenido. Ver la 0108.
+     */
+    await sql('rpc/anotar_latido', {
+      method: 'POST',
+      body: JSON.stringify({ p_clave: 'comentarios', p_detalle: resumen }),
+    }).catch(() => {})
+
     return new Response(JSON.stringify({ ...resumen, avisos, ms: Date.now() - t0 }), {
       status: 200, headers: { 'content-type': 'application/json' },
     })

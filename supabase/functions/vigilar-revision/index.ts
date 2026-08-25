@@ -31,6 +31,9 @@ const RESEND = Deno.env.get('RESEND_API_KEY') ?? ''
 const DESTINO = Deno.env.get('KAVEA_CORREO_ALERTAS') ?? ''
 const REMITENTE = 'Kavea <support@kavea.ai>'
 
+/** El salto de linea, con nombre: pegarlo dentro de un literal lo parte. */
+const SALTO = String.fromCharCode(10)
+
 function json(cuerpo: unknown, estado = 200) {
   return new Response(JSON.stringify(cuerpo), {
     status: estado,
@@ -103,13 +106,27 @@ Deno.serve(async (req: Request): Promise<Response> => {
       }, 502)
     }
 
+    /**
+     * DE PASO, LOS LATIDOS. Este vigilante ya corre una vez al día y ya sabe
+     * mandar correo; darle un segundo trabajo aquí es más barato y más fiable
+     * que un cron nuevo que también habría que vigilar.
+     */
+    const viejos = (await rpc('latidos_viejos', {}).catch(() => [])) as
+      Array<{ clave: string; horas: number }>
+
     const res = await rpc('anotar_revision', { p_permisos: d.data })
     const cambios = (res?.cambios ?? []) as Array<{ permiso: string; estado: string }>
 
-    if (res?.primera_vez) {
+    // Un trabajo que dejó de latir se avisa aunque los permisos no hayan
+    // cambiado: son dos silencios distintos y el segundo también importa.
+    const lineaLatidos = viejos.length
+      ? viejos.map((l) => `  · ${l.clave}: sin señales desde hace ${l.horas} h`).join(SALTO)
+      : ''
+
+    if (res?.primera_vez && !viejos.length) {
       return json({ ok: true, primera_vez: true, permisos: d.data.length, avisado: false })
     }
-    if (!res?.alerta) {
+    if (!res?.alerta && !viejos.length) {
       return json({ ok: true, cambios: 0, permisos: d.data.length, avisado: false })
     }
 
@@ -126,21 +143,28 @@ Deno.serve(async (req: Request): Promise<Response> => {
         body: JSON.stringify({
           from: REMITENTE,
           to: [DESTINO],
-          subject: `Kavea · App Review: ${cambios.length} cambio${cambios.length === 1 ? '' : 's'}`,
-          text: cuerpoDelAviso(cambios),
+          subject: viejos.length && !cambios.length
+          ? `Kavea · ${viejos.length} trabajo${viejos.length === 1 ? '' : 's'} sin señales`
+          : `Kavea · App Review: ${cambios.length} cambio${cambios.length === 1 ? '' : 's'}`,
+          text: cuerpoDelAviso(cambios)
+            + (lineaLatidos
+              ? SALTO + SALTO
+                + 'Y hay trabajos periódicos que dejaron de dar señales:' + SALTO
+                + lineaLatidos
+              : ''),
         }),
         signal: AbortSignal.timeout(15_000),
       }).catch(() => null)
 
       if (envio?.ok) {
-        await rpc('alerta_notificada', { p_alerta: res.alerta })
+        if (res?.alerta) await rpc('alerta_notificada', { p_alerta: res.alerta })
         avisado = true
       } else {
         motivo = `el proveedor de correo devolvió ${envio?.status ?? 'nada'}`
       }
     }
 
-    return json({ ok: true, cambios, alerta: res.alerta, avisado, motivo })
+    return json({ ok: true, cambios, latidos_viejos: viejos, alerta: res?.alerta ?? null, avisado, motivo })
   } catch (e) {
     return json({ error: limpiar(String(e)) }, 500)
   }

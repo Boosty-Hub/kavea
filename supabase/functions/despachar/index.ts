@@ -42,7 +42,18 @@ type Envio = {
      * `payload`: no hay objeto que descargar, así que tampoco hay ruta que
      * firmar.
      */
-    tipo?: 'image' | 'audio' | 'video' | 'file' | 'like_heart'
+    tipo?: 'image' | 'audio' | 'video' | 'file' | 'like_heart' | 'plantilla'
+    /**
+     * Carril de plantilla, solo WhatsApp (0105). Los parámetros van EN ORDEN:
+     * Meta empareja el primero con `{{1}}` y no hay forma de nombrarlos.
+     *
+     * Estos tres campos existían en la base y no en este tipo, y el despliegue
+     * pasó igual: `supabase functions deploy` no comprueba tipos. Lo cazó
+     * `deno check` a mano, que es el guardián que a CI todavía le falta.
+     */
+    plantilla?: string
+    idioma?: string
+    parametros?: string[]
     ruta?: string
     nombre?: string
   }
@@ -257,9 +268,14 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
       // además exactamente lo que Meta devuelve en el echo de Instagram.
       cuerpoWa.type = 'text'
       cuerpoWa.text = { body: '❤' }
-    } else if (urlMedia) {
+    } else if (urlMedia && e.cuerpo.tipo) {
       // WhatsApp acepta media por enlace, y la URL se firma en el despacho igual
       // que para los otros canales: una firma hecha al encolar llegaría caducada.
+      //
+      // El `&& e.cuerpo.tipo` no es defensivo de más: sin él se indexa el cuerpo
+      // con una clave que puede ser `undefined`, y lo que sale es una propiedad
+      // literalmente llamada «undefined» que Meta ignora. Un envío con media que
+      // llega sin media y sin error.
       cuerpoWa.type = e.cuerpo.tipo
       cuerpoWa[e.cuerpo.tipo] = { link: urlMedia }
     } else {
