@@ -85,8 +85,13 @@ export default async function PaginaCanales({
         </p>
       ) : null}
 
+      {/* `div` y no `p`, y no es cosmético: dentro va el botón de soltar, que es
+          un `div`, y un `div` dentro de un `p` es HTML inválido. El navegador
+          cierra el párrafo antes de tiempo, el DOM deja de coincidir con lo que
+          React pintó y salta el error de hidratación 418. Compilaba y se veía
+          bien; lo dijo la consola. */}
       {puedeConectar === true ? (
-        <p style={{ margin: '0 0 24px' }}>
+        <div style={{ margin: '0 0 24px' }}>
           {yaAutorizo && !autorizacionMuerta ? (
             <>
               <a className="boton" href="/ajustes/canales/elegir">Elegir qué conectar</a>
@@ -112,7 +117,7 @@ export default async function PaginaCanales({
               </span>
             </>
           )}
-        </p>
+        </div>
       ) : null}
 
       <Canales
