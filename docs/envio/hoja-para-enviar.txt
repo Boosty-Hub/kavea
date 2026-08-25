@@ -1,0 +1,147 @@
+HOJA PARA ENVIAR EL APP REVIEW — 25-ago-2026
+============================================
+
+1. LO QUE HAY QUE CAMBIAR EN EL FORMULARIO, ANTES DE NADA
+---------------------------------------------------------
+
+a) «Is Facebook Login integrated on this platform?»  ->  cambiar NO por SI.
+
+   Esto es lo mas importante de todo. Los ocho rechazos dicen lo mismo: el
+   screencast no ensena el flujo de login de Meta. En el envio anterior este
+   campo decia NO, y era verdad entonces. Hoy Facebook Login for Business esta
+   en produccion —la ruta /api/meta/oauth/start responde y el video login.mp4
+   graba el dialogo entero—. Dejarlo en NO contradice los videos nuevos y el
+   texto nuevo.
+
+b) El bloque de instrucciones de prueba: reemplazarlo por el de la seccion 3.
+   El que esta puesto tiene dos frases que ya no son ciertas:
+     - «Open Comentarios in the left menu» -> es una pestana dentro de Bandeja.
+     - «A new template can be created from there» -> el revisor tiene rol
+       agente y crear plantillas exige rol de administracion. Lo que si puede
+       es ENVIARLAS, que es lo que el permiso pide.
+
+c) Las credenciales NO se tocan. Comprobadas hoy contra produccion:
+     revisor@kavea.ai / Kavea-Review-2026.Meta  -> entra y aterriza en Bandeja.
+
+
+2. TEXTO PARA «REQUEST AGAIN» (Permission usage / notas del envio)
+------------------------------------------------------------------
+
+How users authenticate with Meta in our app
+-------------------------------------------
+Kavea supports two connection paths, and which requirements are visible in a
+screencast depends on which one the customer uses.
+
+1. Self-service customers connect through Facebook Login for Business. The
+   customer signs in with Meta, grants the permissions in Meta's own dialog, and
+   is returned to our app, where they choose which of their Pages and Instagram
+   professional accounts to connect. The complete Meta login flow and the consent
+   screen are both part of this path and are shown in the screencasts.
+
+2. Customers whose assets are already in our Tech Provider portfolio are
+   connected server to server with a system user token. There is no frontend
+   login for this path, by design: the business grants us access on the Meta side
+   and our backend uses the system user token. Per point 5 of your screencast
+   requirements, we are indicating this explicitly so it is clear that a frontend
+   Meta login flow is not visible in that case.
+
+Our previous submission was rejected on all eight permissions for "Screencast Not
+Aligned with Use Case Details". At that time path 1 did not exist and the
+screencasts could not show a login that the product did not have. Path 1 is now
+in production and the new recordings show it.
+
+What each screencast shows
+--------------------------
+- instagram_manage_comments: a complete moderation loop on a real Instagram post
+  of the connected professional account: we publish a comment from our app, edit
+  it, and delete it. Instagram's Graph API does not allow editing the text of a
+  comment, so our app publishes the replacement and deletes the previous one, and
+  the UI states this before the user confirms. The final state is then confirmed
+  in the native Instagram app.
+- pages_read_engagement: Page selection, then the Page's posts, photos and events
+  retrieved live from Graph and rendered in our UI with the Page name, category,
+  followers and Page ID visible in the header.
+- instagram_basic: the selected Instagram professional account with its handle
+  and its numeric ID visible, its profile fields (name, biography, followers,
+  following, media count, website), and its media list labelled for that account.
+- pages_messaging and instagram_manage_messages: the connected asset is visible
+  with its name and ID, a message is sent live from our app, and the delivered
+  message is shown in the native client.
+- pages_manage_metadata: the screen where our app subscribes the Page to webhook
+  fields, followed by an event for that same Page arriving in our inbox.
+- pages_utility_messaging: selecting a utility template, filling its placeholders,
+  sending it, and the delivered template message in the native client.
+- Human Agent: a conversation past the 24 hour window, where our UI marks it as
+  human-agent only and the reply is sent with the HUMAN_AGENT tag.
+
+Data handling has not changed since the approved submission.
+
+
+3. INSTRUCCIONES DE PRUEBA (campo de credenciales / como probar)
+----------------------------------------------------------------
+
+Kavea is a shared team inbox. The workspace below belongs to Boosty Digital LLC and is used for testing: every conversation in it is with Boosty's own accounts, so no third-party customer data is exposed.
+
+URL: https://boosty.kavea.ai
+Email: revisor@kavea.ai
+Password: (see the credentials field)
+
+The workspace is connected to the Boosty.digital Facebook Page, its linked Instagram professional account, and Boosty's WhatsApp Business number, so all three channels can be tested against real accounts.
+
+To test Messenger (pages_messaging):
+1. Grant the Tester role in App Roles to a real Facebook account. Test users created in App Roles cannot receive messages from a Page.
+2. From that account, send a message to the Boosty.digital Page (m.me/boosty.digital).
+3. Sign in above. The conversation appears in Bandeja (Inbox) within seconds.
+4. Open it, type a reply in the composer and press Enviar. The reply is delivered to the Facebook account from step 2.
+
+To test Instagram (instagram_manage_messages, instagram_basic, Human Agent):
+Open the conversation in Bandeja. The header shows the remaining messaging window per channel. When a conversation is older than 24 hours the header reads "solo intervención humana" and the composer states that the reply will be sent as a human agent intervention.
+
+To test comments (instagram_manage_comments):
+Open Bandeja (Inbox) and switch to the Comentarios tab at the top. Press "Traer de Meta" to read the comments of the connected Instagram account, then reply to one in public. You can also hide, edit or delete a comment from there; editing publishes a replacement and deletes the previous one, because Instagram's API does not allow editing a comment's text, and the UI says so before you confirm.
+
+To test WhatsApp (whatsapp_business_messaging, whatsapp_business_management):
+Open Ajustes > Canales to see each connected channel with its state. WhatsApp conversations appear in the same inbox.
+
+To test utility templates (pages_utility_messaging):
+Open Ajustes > Plantillas and select the Messenger tab. The list is read live from Meta every time the screen opens and shows each template with the status Meta gave it, including rejected ones with the reason.
+
+To send one: open a Messenger conversation in Bandeja, press the "Plantillas" button just above the reply box, and pick a template from the "Se envían enteras" group. A dialog shows the exact text that will be delivered with the placeholders already filled from the contact's record, and any missing value can be typed in that same dialog. Press "Enviar la plantilla" and the message is delivered through Messenger.
+
+Note on the reviewer account: it has the "agente" role, which can send templates but not create them, because creating one changes the workspace for everyone. If you need to create a template during the review, tell us and we will raise the role.
+
+
+4. UN VIDEO POR PERMISO
+-----------------------
+
+  human_agent                    5.2 MB   screencasts/entrega/human_agent.mp4
+  instagram_basic                5.1 MB   screencasts/entrega/instagram_basic.mp4
+  instagram_manage_comments     18.8 MB   screencasts/entrega/instagram_manage_comments.mp4
+  instagram_manage_messages      6.1 MB   screencasts/entrega/instagram_manage_messages.mp4
+  pages_manage_metadata          4.9 MB   screencasts/entrega/pages_manage_metadata.mp4
+  pages_messaging                6.6 MB   screencasts/entrega/pages_messaging.mp4
+  pages_read_engagement          4.7 MB   screencasts/entrega/pages_read_engagement.mp4
+  pages_utility_messaging       13.3 MB   screencasts/entrega/pages_utility_messaging.mp4
+
+  El nombre del fichero ES el permiso al que va. Ninguno se comparte.
+
+
+5. ORDEN DE LOS PASOS EN EL PANEL DE META
+-----------------------------------------
+
+  1. Cambiar «Is Facebook Login integrated» a SI.
+  2. Pegar el texto del punto 2 en las notas del envio.
+  3. Pegar las instrucciones del punto 3 en el campo de credenciales de prueba.
+  4. Pulsar «Request again».
+  5. Por cada uno de los ocho permisos rechazados, subir SU video del punto 4.
+  6. Repasar que los ocho tengan video antes de enviar. Un permiso sin video
+     nuevo vuelve con la misma nota.
+  7. Enviar.
+
+
+6. LO QUE NO SE PUEDE COMPROBAR DESDE AQUI
+------------------------------------------
+
+  - Que el revisor de Meta reciba el mensaje que le pide escribir a la Pagina:
+    depende de que le den rol Tester, y eso lo hace el revisor.
+  - Nada mas. El resto esta verificado hoy contra produccion.

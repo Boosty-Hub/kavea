@@ -1,0 +1,101 @@
+LOS OCHO TEXTOS DECLARADOS, uno por permiso
+===========================================
+
+Compara cada uno con lo que ya hay en su caja del formulario. La caja tiene
+barra de desplazamiento: puede que el texto completo ya este puesto y solo se
+vea el primer parrafo. Solo se pega si falta.
+
+El de pages_utility_messaging va CAMBIADO: el que se declaro no mencionaba el
+envio, y ahora Kavea envia. Es justo el punto por el que lo rechazaron.
+
+--- Human Agent -------------------------------------------------
+
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Human Agent is what lets a person from the business answer a customer after the standard 24-hour messaging window has closed.
+
+Why our users need it: a customer writes on Instagram or Messenger and the answer sometimes cannot be given within 24 hours. The business is closed for the weekend, the question needs a quote from a supplier, or a shipment has to be checked with a courier. In our markets most of what arrives on a Friday night is answered on Monday.
+
+How it works in the product, as shown in the recording: Kavea displays the state of the messaging window on the conversation itself. Between 24 hours and 7 days the conversation header reads "solo intervención humana" (human intervention only), and the composer shows a notice explaining that the reply will be sent as a human agent intervention and is only valid up to 7 days. A staff member writes the reply and Kavea sends it with messaging_type=MESSAGE_TAG and tag=HUMAN_AGENT.
+
+Two guarantees enforced in code, not by policy. First, the tag is only offered between 24 hours and 7 days: before that the standard window is used, and after that the composer is closed and tells the operator that the customer has to write again. Second, automated senders can never use it: our window function refuses the tag to any sender that is not a human, so an AI agent cannot emit HUMAN_AGENT under any circumstance.
+
+Without this feature the business loses the conversation the moment 24 hours pass.
+
+
+--- pages_manage_metadata ---------------------------------------
+
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_manage_metadata for one purpose: to subscribe our app to the Page's webhooks so that the messages customers send actually reach the business inbox. Without that subscription no message ever arrives and the product does nothing at all.
+
+We subscribe only to the messaging fields we need: messages, message_echoes, message_reads, message_reactions, messaging_postbacks, messaging_referrals, messaging_optins, messaging_handovers and feed.
+
+We also read the subscription back, and this is why the permission matters beyond initial setup. When webhook deliveries fail for about an hour, Meta unsubscribes the Page silently and per customer, with no error and no notification. The business would simply stop receiving messages without knowing why. Kavea re-checks the subscription every day and shows its state on the channels screen, which is what the screen recording shows: each connected channel with the result of every individual check, so the operator can tell exactly which part is failing instead of only that something is wrong.
+
+We do not change any other Page setting with this permission. We do not modify the Page name, description, profile picture or published content.
+
+
+--- pages_utility_messaging -------------------------------------
+  (VERSION NUEVA: incluye el envio. Sustituye la que haya.)
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_utility_messaging to manage and send the utility message templates of our user's Page: order updates, appointment reminders and account notices that the business needs to send outside a normal conversation.
+
+What the screen recording shows: the templates screen in Kavea has a Messenger tab for the Page's utility templates. Kavea reads them live from Meta every time the screen is opened and shows each one with the status Meta gave it, including rejected ones with the reason. The operator creates a new template, writes its body using real field names from the contact's record, and Kavea sends it to Meta with category UTILITY. The recording then opens a Messenger conversation, selects that template, and a dialog shows the exact text that will be delivered with the placeholders already filled from the record. The operator sends it, and the recording opens Messenger in the native client to show the delivered message and the customer's reply arriving back in Kavea.
+
+One deliberate design decision the reviewer will notice: we do not store these templates in our own database. Their approval status belongs to Meta and can change after we read it, so a local copy would eventually show "approved" for a template Meta has already rejected. We read them live instead.
+
+Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing and sending them from the same place where the team answers messages is the point of the product.
+
+
+--- instagram_manage_comments ---
+  (NO ESTA EN LA BITACORA: revisar)
+
+--- pages_messaging ---
+  (NO ESTA EN LA BITACORA: revisar)
+
+--- instagram_manage_messages -----------------------------------
+
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; they connect it to Kavea, and Kavea is their technology provider, verified as such by Meta.
+
+We use instagram_manage_messages to receive the Instagram Direct messages people send to our user's business account, and to send the replies our user's staff writes.
+
+End-to-end flow, which is what the screen recording shows: a customer sends a Direct message to the business account. Kavea receives the messages webhook and shows the conversation in that business's shared inbox, where several staff members can see it, assign it and answer, next to the same person's WhatsApp and Messenger threads when it is the same contact. When a staff member writes a reply, Kavea calls the Send API on behalf of that account inside the standard 24-hour window, and the thread shows the delivery and read receipts.
+
+We also read the sender's username and profile picture so the person appears in the inbox with their real identity instead of a numeric ID.
+
+Value for the person using the app: today these businesses answer Instagram from the app on one person's phone. Kavea turns that into a shared inbox with assignment and history, and one view of each customer across all three channels.
+
+Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
+
+
+--- pages_read_engagement ---------------------------------------
+
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
+
+We use pages_read_engagement together with pages_show_list to read what a Page IS, not what happens on it: its name, its identifier, and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: a person who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
+
+The screen recording shows the portfolio view, where each Page is listed with its name and connection state.
+
+We do not read posts, comments, reactions, insights or any engagement metric with this permission, and Kavea has no screen that would show them.
+
+Without it we cannot show a person a recognisable name for the Pages they manage, only numeric identifiers, and they cannot tell which one to connect.
+
+
+--- instagram_basic ---------------------------------------------
+
+
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account, which they connect to Kavea through the Facebook Page it is linked to.
+
+We use instagram_basic to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
+
+The screen recording shows the inbox of a connected account, where the Instagram conversations of that specific account are the ones that appear.
+
+With this permission we read the account id and username. We do not read media, followers, insights or any content of the account.
+
+Without instagram_basic there is no way to know which Instagram account belongs to the Page being connected, so no Instagram feature of the product can work.
+
