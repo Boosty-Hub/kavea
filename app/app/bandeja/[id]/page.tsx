@@ -17,6 +17,7 @@ import {
   type Adjunto,
   type ConversacionDeTarjeta,
 } from '@/lib/bandeja'
+import { puedeHacer } from '@/lib/equipo'
 import { todasLasEtapas } from '@/lib/embudo'
 import { archivosDe, documentosDe, resumenDe } from '@/lib/comercial'
 import { plantillasUsables, plantillasMessenger, plantillasWhatsApp } from '@/lib/plantillas'
@@ -60,7 +61,8 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const convIds = tarjeta.conversations.map((c) => c.id)
 
   const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas,
-         miembros, plantillas, plantillasWa, plantillasMs, archivos, documentos, resumen] =
+         miembros, plantillas, plantillasWa, plantillasMs, archivos, documentos, resumen,
+         puedeConfigurar] =
     await Promise.all([
       obtenerHilo(id),
       adjuntosDe(convIds),
@@ -78,6 +80,9 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       archivosDe(id, contactoId),
       contactoId ? documentosDe(contactoId) : Promise.resolve([]),
       contactoId ? resumenDe(contactoId) : Promise.resolve([]),
+      // Para saber si se le ofrece crear campos desde la ficha. La base lo
+      // comprueba igual; esto evita ofrecer un botón que dice que no.
+      puedeHacer(org.id, 'configurar'),
     ])
 
   const porMensaje = new Map<string, Adjunto[]>()
@@ -218,6 +223,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             tarjetaId={id}
             contactoId={contactoId}
             contactoNombre={tarjeta.contacts?.nombre ?? null}
+            puedeConfigurar={puedeConfigurar}
             canales={canales}
             otras={otras}
             camposTarjeta={campoT}

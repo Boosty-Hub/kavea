@@ -233,6 +233,56 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Los campos personalizados se crean donde se echan de menos
+
+«Tampoco veo la opción custom en la ficha donde se podían crear los campos personalizados». Era
+verdad: se pedían el 24-ago y lo que se construyó fue `Ajustes → Campos`, una pantalla aparte. La
+ficha los PINTABA y los rellenaba, pero para crear uno mandaba fuera: «Sin campos definidos. Se
+crean en Ajustes → Campos».
+
+El momento en que uno descubre que le falta un campo es **mirando una ficha**, no navegando por
+Ajustes: «esto necesitaría una fecha de entrega» se piensa con el cliente delante. Mandar a otra
+pantalla, con su formulario y su vuelta, es donde se pierde la idea.
+
+Ahora cada bloque —«Datos de este asunto» y «Datos de la persona»— tiene su **+ Nuevo campo**: una
+etiqueta, un tipo, y ya está en la ficha. El ámbito lo decide el bloque en el que se pulsa, así que
+no hay que elegirlo. Los tipos son los que se pidieron: texto corto, texto largo, número, importe,
+fecha, sí/no.
+
+Detalles que deciden si sirve:
+
+- **La clave técnica no se pide.** Es un dato para la base —acaba dentro de una plantilla como
+  `{{campo_fecha_de_entrega}}`— y pedirla obligaría a explicar qué es. Se saca de la etiqueta: sin
+  tildes, minúsculas, lo que no sea letra o número a guion bajo. Y se enseña la marca resultante,
+  porque **cada campo es una variable de plantilla** y eso no se adivina.
+- **Los tipos con opciones no se hacen aquí.** `seleccion` y `multiseleccion` exigen una lista de
+  opciones —lo obliga una restricción de la tabla— y pedirla en un hueco de 260 píxeles saldría mal.
+  Se dice dónde se hacen.
+- **El botón solo sale a quien puede.** `definir_campo` exige rol de administración y lo comprueba
+  igual; esto evita ofrecer un botón que va a decir que no. Rellenar un campo es de quien atiende;
+  definirlo cambia la ficha de toda la organización.
+
+### Y el registro decía «por WhatsApp» sobre un envío de Messenger
+
+Al mirar el hilo salió: «envió la plantilla pedido_devuelto **por WhatsApp**» en una conversación de
+Messenger. El canal viajaba en el detalle desde la 0112 y la traducción tenía «por WhatsApp» escrito
+a mano, de cuando las plantillas eran solo de WhatsApp. En un registro que sirve para auditar, decir
+el canal equivocado es peor que no decirlo.
+
+### Y lo que faltaba por comprobar, comprobado
+
+**El envío de plantilla por Messenger salió de verdad**, y no lo hice yo: Gabriel lo mandó desde el
+diálogo nuevo. `messaging_type` UTILITY, estado `enviado`, `mid` devuelto por Meta, y el contacto
+contestó «Gracias» en el hilo. El punto (3) de la nota de `pages_utility_messaging` —«sending the
+message to a test recipient»— ya se puede grabar de punta a punta.
+
+### Una nota sobre las pruebas que escriben
+
+El servidor de desarrollo apunta a **la misma base que producción**: no hay entorno donde escribir
+sin consecuencias. Crear el campo de prueba «Fecha de entrega» creó un campo real, y se archivó
+después. La regla real no es «probar contra desarrollo» sino: **una prueba que escribe deja rastro
+en los datos del cliente, y se limpia en el mismo turno.**
+
 ### 2026-08-25 — Una plantilla se ve antes de mandarla, y sus huecos se rellenan ahí
 
 Una plantilla de Meta sale ENTERA: no se corrige después y se factura. El único aviso era un
@@ -1236,6 +1286,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- La función se construye donde se echa de menos, no en la pantalla de configuración: la idea se
+  pierde en el viaje.
+- Un texto de interfaz con el canal escrito a mano se queda mintiendo el día que hay un segundo
+  canal. El canal se lee del dato.
+- El servidor de desarrollo comparte base con producción: una prueba que escribe deja rastro real y
+  se limpia en el mismo turno.
 - Una comprobación que ESCRIBE se hace contra desarrollo. Contra producción solo se lee: el
   usuario está trabajando ahí al mismo tiempo.
 - Una previsualización tiene que salir de la misma función que el envío. Un segundo cálculo «para

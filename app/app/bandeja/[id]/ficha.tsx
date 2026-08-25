@@ -32,13 +32,20 @@ const PESTANAS = [
  * conversación salga todo lo que hace el usuario.
  */
 export function Ficha({
-  organizacionId, tarjetaId, contactoId, contactoNombre, canales, otras,
+  organizacionId, tarjetaId, contactoId, contactoNombre, puedeConfigurar, canales, otras,
   camposTarjeta, camposContacto,
   etapas, etapaActual, valor, moneda, archivos, documentos, resumen, conversaciones,
 }: {
   organizacionId: string
   tarjetaId: string
   contactoId: string | null
+  /**
+   * Quién puede DEFINIR campos, que no es lo mismo que rellenarlos. Rellenar es
+   * de quien atiende; definir cambia la ficha de toda la organización, y eso lo
+   * comprueba `definir_campo` de todas formas. Esto solo evita ofrecer un botón
+   * que va a decir que no.
+   */
+  puedeConfigurar: boolean
   /**
    * El nombre de la persona, que hasta hoy no se podía escribir en ninguna
    * pantalla. Venía de Meta cuando Meta lo daba y, cuando no, la persona se
@@ -252,6 +259,9 @@ export function Ficha({
         titulo="Datos de este asunto"
         campos={camposTarjeta}
         destino={tarjetaId}
+        ambito="tarjeta"
+        organizacionId={organizacionId}
+        puedeConfigurar={puedeConfigurar}
         ocupado={ocupado}
         llamar={llamar}
       />
@@ -261,6 +271,9 @@ export function Ficha({
           titulo="Datos de la persona"
           campos={camposContacto}
           destino={contactoId}
+          ambito="contacto"
+          organizacionId={organizacionId}
+          puedeConfigurar={puedeConfigurar}
           ocupado={ocupado}
           llamar={llamar}
         />
@@ -419,12 +432,143 @@ function NombreDePersona({
   )
 }
 
+/**
+ * Crear un campo personalizado sin salir de la conversación.
+ *
+ * POR QUÉ AQUÍ Y NO SOLO EN AJUSTES. El momento en que uno descubre que le falta
+ * un campo es mirando una ficha, no navegando por Ajustes: «esto necesitaría una
+ * fecha de entrega» se piensa con el cliente delante. Mandar a otra pantalla, con
+ * su formulario y su vuelta, es donde se pierde la idea.
+ *
+ * Y CADA CAMPO ES UNA VARIABLE DE PLANTILLA. `variables_disponibles` lee
+ * `campos`, así que lo que se cree aquí aparece al momento en el selector de
+ * campos de las plantillas. Eso se dice, porque no se adivina.
+ *
+ * LOS TIPOS CON OPCIONES NO SE HACEN AQUÍ. `seleccion` y `multiseleccion` exigen
+ * una lista de opciones —lo obliga una restricción de la tabla— y pedirla en este
+ * hueco de 260 píxeles saldría mal. Se dice dónde se hacen.
+ */
+function NuevoCampo({
+  ambito, organizacionId, ocupado, llamar,
+}: {
+  ambito: 'tarjeta' | 'contacto'
+  organizacionId: string
+  ocupado: boolean
+  llamar: (fn: string, args: Record<string, unknown>) => Promise<boolean>
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [etiqueta, setEtiqueta] = useState('')
+  const [tipo, setTipo] = useState('texto')
+
+  /**
+   * La clave técnica, sacada de la etiqueta.
+   *
+   * No se pide: es un dato para la base —`campo.fecha_de_entrega` acaba dentro de
+   * una plantilla— y pedirla obligaría a explicar qué es. Sin tildes, minúsculas,
+   * y lo que no sea letra o número pasa a guion bajo, que es lo que la
+   * restricción de la tabla admite.
+   */
+  const clave = etiqueta
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '').slice(0, 39)
+
+  const valida = /^[a-z][a-z0-9_]{1,38}$/.test(clave)
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        style={{
+          border: 0, background: 'transparent', color: 'var(--k-accent)',
+          cursor: 'pointer', font: 'inherit', fontSize: 13, padding: 0,
+          textAlign: 'left', marginTop: 4,
+        }}
+      >
+        + Nuevo campo
+      </button>
+    )
+  }
+
+  return (
+    <form
+      style={{ display: 'grid', gap: 6, marginTop: 6 }}
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (!valida) return
+        const ok = await llamar('definir_campo', {
+          p_org: organizacionId,
+          p_clave: clave,
+          p_etiqueta: etiqueta.trim(),
+          p_tipo: tipo,
+          p_ambito: ambito,
+          p_opciones: null,
+          p_ayuda: null,
+          p_obligatorio: false,
+        })
+        if (ok) { setEtiqueta(''); setTipo('texto'); setAbierto(false) }
+      }}
+    >
+      <input
+        className="campo"
+        placeholder="Cómo se llama el campo"
+        value={etiqueta}
+        onChange={(e) => setEtiqueta(e.target.value)}
+        maxLength={60}
+        required
+        autoFocus
+        aria-label="Nombre del campo"
+      />
+      <select
+        className="campo"
+        value={tipo}
+        onChange={(e) => setTipo(e.target.value)}
+        aria-label="Tipo del campo"
+      >
+        <option value="texto">Texto corto</option>
+        <option value="texto_largo">Texto largo</option>
+        <option value="numero">Número</option>
+        <option value="moneda">Importe</option>
+        <option value="fecha">Fecha</option>
+        <option value="booleano">Sí o no</option>
+      </select>
+      {etiqueta.trim() && !valida ? (
+        <span className="error" role="alert" style={{ fontSize: 12 }}>
+          Ese nombre no deja una clave válida. Empieza por una letra.
+        </span>
+      ) : null}
+      <span className="ficha__ayuda">
+        {valida ? <>Se podrá usar en plantillas como <code>{`{{campo_${clave}}}`}</code>. </> : null}
+        Para listas de opciones, en <Link href="/ajustes/campos">Ajustes → Campos</Link>.
+      </span>
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button type="submit" className="btn" style={{ fontSize: 13 }} disabled={ocupado || !valida}>
+          Crear
+        </button>
+        <button
+          type="button"
+          className="operar__control"
+          style={{ cursor: 'pointer', fontSize: 13 }}
+          onClick={() => { setAbierto(false); setEtiqueta('') }}
+        >
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
 function Campos({
-  titulo, campos, destino, ocupado, llamar,
+  titulo, campos, destino, ambito, organizacionId, puedeConfigurar, ocupado, llamar,
 }: {
   titulo: string
   campos: CampoDeFicha[]
   destino: string
+  /** `tarjeta` o `contacto`: decide dónde nace el campo nuevo. */
+  ambito: 'tarjeta' | 'contacto'
+  organizacionId: string
+  puedeConfigurar: boolean
   ocupado: boolean
   llamar: (fn: string, args: Record<string, unknown>) => Promise<boolean>
 }) {
@@ -433,13 +577,24 @@ function Campos({
       <p className="ficha__titulo">{titulo}</p>
       {campos.length === 0 ? (
         <p className="ficha__vacia">
-          Sin campos definidos. Se crean en <Link href="/ajustes/campos">Ajustes → Campos</Link>.
+          Sin campos todavía.
+          {puedeConfigurar ? ' Se crean aquí abajo.' : (
+            <> Los crea quien administra la organización.</>
+          )}
         </p>
       ) : (
         campos.map((c) => (
           <Campo key={c.campo_id} c={c} destino={destino} ocupado={ocupado} llamar={llamar} />
         ))
       )}
+      {puedeConfigurar ? (
+        <NuevoCampo
+          ambito={ambito}
+          organizacionId={organizacionId}
+          ocupado={ocupado}
+          llamar={llamar}
+        />
+      ) : null}
     </section>
   )
 }

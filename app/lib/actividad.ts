@@ -184,8 +184,15 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
       return d.nombre
         ? `preparó la plantilla ${d.nombre} para usarla desde Kavea`
         : 'preparó una plantilla de WhatsApp'
-    case 'plantilla.enviada':
-      return d.nombre ? `envió la plantilla ${d.nombre} por WhatsApp` : 'envió una plantilla por WhatsApp'
+    // El canal viaja en el detalle desde la 0112, cuando las plantillas dejaron
+    // de ser solo de WhatsApp. Decía «por WhatsApp» sobre un envío de Messenger,
+    // que en un registro que sirve para auditar es peor que no decir el canal.
+    case 'plantilla.enviada': {
+      const donde = d.canal === 'messenger' ? ' por Messenger'
+        : d.canal === 'whatsapp' ? ' por WhatsApp'
+          : typeof d.canal === 'string' ? ` por ${d.canal}` : ''
+      return d.nombre ? `envió la plantilla ${d.nombre}${donde}` : `envió una plantilla${donde}`
+    }
     case 'conexion.archivada':
       return d.nombre ? `retiró ${d.nombre} de la lista de canales` : 'retiró un canal de la lista'
     case 'conexion.desarchivada':
