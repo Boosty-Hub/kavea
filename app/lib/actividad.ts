@@ -168,6 +168,10 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     // el identificador de Meta no le dice nada a quien lee la actividad.
     // Soltar la cuenta entera (0101). Se dice cuántos canales cayó por delante,
     // porque es la diferencia entre esto y desconectar uno.
+    // El camino de vuelta (0103). Se nombra el canal, que es lo que la persona
+    // reconoce; el número de rutas es detalle de máquina y no entra.
+    case 'conexion.reconectada':
+      return d.nombre ? `volvió a conectar ${d.nombre}` : 'volvió a conectar un canal'
     case 'meta.desautorizada':
       return typeof d.conexiones === 'number' && d.conexiones > 0
         ? `desconectó la cuenta de Facebook y con ella ${d.conexiones} ${d.conexiones === 1 ? 'conexión' : 'conexiones'}`

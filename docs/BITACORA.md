@@ -223,6 +223,37 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — WhatsApp restaurado, y el camino de vuelta que no existía
+
+**Reparado `+1 321-393-1397`**, que el botón de soltar Facebook se había llevado por delante. Los
+tres pasos, comprobados uno a uno: la fila vuelve a `connected` con su ruta
+`whatsapp_phone_number` y su canal encendido · la credencial la reemite el borde
+(`credencial_whatsapp`) **verificándola contra Meta antes de guardar** —`+1 321-393-1397`,
+«Boosty Admin», calidad GREEN, CLOUD_API— · y la WABA `2459716937850832` estaba con
+`subscribed_apps: []`, lo que confirma que el corte la dio de baja; vuelta a suscribir.
+
+Estado final: dos conexiones vivas, cada una con sus rutas, canales activos y credencial.
+
+**Y salió una asimetría de fondo.** Desde la 0079 existe `desconectar_conexion` y **no existe nada
+que lo deshaga**. Para una Página da igual: «Elegir qué conectar» la registra otra vez desde el
+BISU. Para WhatsApp no hay equivalente —entra por el portafolio, con token de system user, desde una
+pantalla de staff—, así que un número desconectado por error se quedaba así hasta que alguien
+escribiera SQL a mano. Es la misma queja que motivó el botón de soltar, del revés: si hay puerta de
+salida tiene que haber puerta de vuelta.
+
+La 0103 añade `reconectar_conexion`, que rehace lo que la desconexión deshizo del lado de Postgres
+—estado, rutas y canales— y **dice lo que no puede hacer**: devuelve `falta: ['credencial',
+'suscripcion']`, porque esas dos viven fuera y prometer una reconexión completa sería mentir sobre
+lo que la función puede saber. Dos detalles que decidieron su forma: las rutas se derivan de la fila
+y no se reciben —aceptarlas sería ofrecer una forma de enrutar activos ajenos a este espacio—, y los
+canales solo se reencienden si los apagó una desconexión: uno pausado a mano por otro motivo sigue
+pausado, porque reconectar no es deshacer todas las decisiones tomadas mientras tanto.
+
+**Y antes de aplicarla, la restricción.** La 0003 creó `meta_asset_routes.tipo` con solo
+`page | ig_business_account`. Insertar `whatsapp_phone_number` habría reventado con 23514 — el mismo
+fallo que costó la 0089. Comprobado contra la base viva antes de aplicar: una migración posterior ya
+lo había ampliado.
+
 ### 2026-08-24 (cierre) — El botón se llevó un WhatsApp que no era suyo
 
 La 0101 se desplegó y Gabriel la usó esa misma noche. La actividad lo cuenta entero: **01:52:41**
@@ -1568,3 +1599,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   camino, no por la tabla en la que acabaron.
 - Una confirmación destructiva tiene que decir también lo que NO se lleva. El silencio sobre lo que
   sobrevive se lee como que no sobrevive nada, o peor: no se lee, y se descubre después.
+- Toda operación destructiva necesita su inversa antes de tener botón. `desconectar_conexion` vivió
+  dieciocho días sin `reconectar_conexion` y no se notó hasta que algo se desconectó por error.
+- Una función que solo puede hacer la mitad del trabajo tiene que devolver cuál es la otra mitad.
+  «Reconectado» a secas habría dejado un número sin credencial y sin webhooks, con aspecto de estar
+  bien.
+- Antes de insertar un valor nuevo en una columna con CHECK, leer el CHECK de la base viva y no la
+  migración que la creó. Ya hubo una restricción ampliada por el camino, y la anterior vez se
+  descubrió reventando.
