@@ -215,17 +215,45 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
   // `ventana_de()`, así que si llegamos hasta aquí es que está abierta; si estaba
   // cerrada, el envío se marcó fallido con su motivo y nunca entra en esta rama.
   //
-  // La plantilla NO se elige automáticamente a propósito. Las 25 aprobadas de
-  // Boosty son todas MARKETING, tienen coste por conversación y usar una para
-  // contestar a alguien que escribió hace dos días es spam facturado. Que falle
-  // con un motivo legible es mejor que meter al cliente en un cargo que no pidió.
+  // LA PLANTILLA NO SE ELIGE SOLA, y eso no ha cambiado: la elige una persona en
+  // el compositor y llega aquí ya encolada con su nombre y sus parámetros
+  // (0105). Elegirla automáticamente sería meter al cliente en un cargo por
+  // conversación que no pidió, para contestar a alguien que escribió hace dos
+  // días. Lo que sí cambió es que ahora hay una forma de mandarla.
   if (e.canal === 'whatsapp') {
     const cuerpoWa: Record<string, unknown> = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
       to: e.cuerpo.destinatario,
     }
-    if (e.cuerpo.tipo === 'like_heart') {
+    if (e.cuerpo.tipo === 'plantilla') {
+      /**
+       * LA PLANTILLA, que es la única salida fuera de las 24 horas.
+       *
+       * Los parámetros van EN ORDEN y sin nombre: Meta empareja el primero con
+       * `{{1}}`, el segundo con `{{2}}`, y no hay forma de decírselo de otra
+       * manera. Por eso `encolar_plantilla` los resuelve posicionalmente en vez
+       * de mandar el texto montado — el texto no se puede volver a trocear.
+       *
+       * Y no se manda `parameters` si no hay ninguno: una plantilla sin huecos
+       * con un `components` vacío es un error de Meta, no una plantilla sin
+       * huecos.
+       */
+      const params = Array.isArray(e.cuerpo.parametros) ? e.cuerpo.parametros as string[] : []
+      cuerpoWa.type = 'template'
+      cuerpoWa.template = {
+        name: e.cuerpo.plantilla,
+        language: { code: e.cuerpo.idioma ?? 'es_ES' },
+        ...(params.length > 0
+          ? {
+              components: [{
+                type: 'body',
+                parameters: params.map((t) => ({ type: 'text', text: String(t) })),
+              }],
+            }
+          : {}),
+      }
+    } else if (e.cuerpo.tipo === 'like_heart') {
       // No hay sticker de corazón en Cloud API. Se manda el carácter, que es
       // además exactamente lo que Meta devuelve en el echo de Instagram.
       cuerpoWa.type = 'text'

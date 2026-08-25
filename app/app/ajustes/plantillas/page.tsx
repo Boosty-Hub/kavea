@@ -45,7 +45,13 @@ export default async function PaginaPlantillas() {
             puedeConfigurar={puedeConfigurar}
           />
         }
-        whatsapp={<PlantillasDeWhatsApp puedeConfigurar={puedeConfigurar} />}
+        whatsapp={
+          <PlantillasDeWhatsApp
+            puedeConfigurar={puedeConfigurar}
+            organizacionId={org.id}
+            variables={variables}
+          />
+        }
         messenger={<PlantillasDeUtilidad puedeConfigurar={puedeConfigurar} />}
       />
     </main>

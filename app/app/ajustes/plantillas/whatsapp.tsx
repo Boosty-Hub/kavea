@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
+import { crearClienteNavegador } from '@/lib/supabase/navegador'
 
 /**
  * Las plantillas de WhatsApp, leídas de la WABA y creadas contra ella.
@@ -105,7 +106,28 @@ function botonVacio(): Boton {
   return { tipo: 'QUICK_REPLY', texto: '', url: '', telefono: '', ejemplo: '' }
 }
 
-export function PlantillasDeWhatsApp({ puedeConfigurar }: { puedeConfigurar: boolean }) {
+/**
+ * De dónde salen los valores de los huecos.
+ *
+ * Meta sabe que una plantilla tiene `{{1}}`. NO SABE —ni puede saber— que ese
+ * hueco es el nombre del contacto. Ese emparejamiento es de Kavea, se guarda en
+ * `plantillas.variables` y es lo que convierte una plantilla aprobada en algo
+ * que se puede mandar sin escribir nada a mano.
+ *
+ * Las opciones salen de `variables_disponibles`, que ya incluye los campos
+ * propios del espacio: los que se crean en Ajustes → Campos aparecen aquí como
+ * `campo.loquesea` sin tocar nada más.
+ */
+export function PlantillasDeWhatsApp({
+  puedeConfigurar, organizacionId, variables,
+}: {
+  puedeConfigurar: boolean
+  organizacionId: string
+  variables: Array<{ clave: string; etiqueta: string; ejemplo: string | null }>
+}) {
+  const [mapeando, setMapeando] = useState<string | null>(null)
+  const [mapa, setMapa] = useState<string[]>([])
+  const [vinculando, setVinculando] = useState(false)
   const [lista, setLista] = useState<Plantilla[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
@@ -189,6 +211,30 @@ export function PlantillasDeWhatsApp({ puedeConfigurar }: { puedeConfigurar: boo
     } finally {
       setGuardando(false)
     }
+  }
+
+  /**
+   * Guardar el emparejamiento. No manda nada a Meta: la plantilla ya está
+   * aprobada allí y esto es puramente de Kavea.
+   */
+  async function vincular(p: Plantilla, cuerpoTexto: string, huecos: number) {
+    if (mapa.slice(0, huecos).some((v) => !v)) {
+      setError('Cada hueco necesita su variable.')
+      return
+    }
+    setVinculando(true); setError(null); setAviso(null)
+    const { error } = await crearClienteNavegador().rpc('vincular_plantilla_whatsapp', {
+      p_org: organizacionId,
+      p_meta_nombre: p.name,
+      p_idioma: p.language,
+      p_categoria: p.category,
+      p_cuerpo: cuerpoTexto,
+      p_variables: mapa.slice(0, huecos),
+    })
+    setVinculando(false)
+    if (error) { setError(error.message); return }
+    setMapeando(null); setMapa([])
+    setAviso(`«${p.name}» ya se puede elegir en el compositor de WhatsApp.`)
   }
 
   async function borrar(p: Plantilla) {
@@ -285,6 +331,67 @@ export function PlantillasDeWhatsApp({ puedeConfigurar }: { puedeConfigurar: boo
                   ) : null}
                   {motivo ? (
                     <div style={{ fontSize: 13, color: 'var(--k-escalada-fg)', marginTop: 4 }}>{motivo}</div>
+                  ) : null}
+
+                  {/* EL EMPAREJAMIENTO, solo sobre las aprobadas: preparar una
+                      rechazada sería ofrecer un envío que Meta va a rechazar. */}
+                  {puedeConfigurar && p.status === 'APPROVED' ? (
+                    mapeando === p.name ? (
+                      <div style={{ marginTop: 10, display: 'grid', gap: 8, maxWidth: 460 }}>
+                        {Array.from({ length: variablesDe(body) }, (_, i) => (
+                          <label key={i} style={{ display: 'grid', gap: 4 }}>
+                            <span className="label">{`Qué rellena {{${i + 1}}}`}</span>
+                            <select
+                              className="campo"
+                              value={mapa[i] ?? ''}
+                              onChange={(e) => { const v = [...mapa]; v[i] = e.target.value; setMapa(v) }}
+                            >
+                              <option value="">Elige un dato de la ficha…</option>
+                              {variables.map((v) => (
+                                <option key={v.clave} value={v.clave}>
+                                  {v.etiqueta}{v.ejemplo ? ` — ${v.ejemplo}` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ))}
+                        {variablesDe(body) === 0 ? (
+                          <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: 0 }}>
+                            Esta plantilla no tiene huecos: se manda tal cual.
+                          </p>
+                        ) : null}
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button
+                            type="button" className="btn" style={{ fontSize: 13 }}
+                            disabled={vinculando}
+                            onClick={() => void vincular(p, body, variablesDe(body))}
+                          >
+                            {vinculando ? 'Guardando' : 'Dejar lista para usar'}
+                          </button>
+                          <button
+                            type="button" className="operar__control" style={{ cursor: 'pointer', fontSize: 13 }}
+                            onClick={() => { setMapeando(null); setMapa([]) }}
+                          >
+                            Cancelar
+                          </button>
+                        </div>
+                        <p style={{ fontSize: 12, color: 'var(--k-text-2)', margin: 0 }}>
+                          Los datos salen de la ficha del contacto. Para tener más, créalos en{' '}
+                          <a href="/ajustes/campos">Ajustes → Campos</a> y aparecerán aquí.
+                        </p>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className="operar__control"
+                        style={{ cursor: 'pointer', fontSize: 12, marginTop: 8 }}
+                        onClick={() => { setMapeando(p.name ?? null); setMapa([]); setError(null) }}
+                      >
+                        {variablesDe(body) > 0
+                          ? `Emparejar sus ${variablesDe(body)} hueco${variablesDe(body) > 1 ? 's' : ''} con la ficha`
+                          : 'Dejar lista para usar'}
+                      </button>
+                    )
                   ) : null}
                 </div>
                 <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>

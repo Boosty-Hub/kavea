@@ -41,7 +41,7 @@ function porDonde(c: { canal: string; nombre: string | null }) {
 }
 
 export function Compositor({
-  conversaciones, tarjetaId, plantillas,
+  conversaciones, tarjetaId, plantillas, plantillasWa,
 }: {
   conversaciones: Array<{
     id: string
@@ -52,6 +52,15 @@ export function Compositor({
   }>
   tarjetaId: string
   plantillas: Array<{ id: string; nombre: string; atajo: string | null }>
+  /**
+   * Las de WhatsApp aprobadas y ya emparejadas con la ficha.
+   *
+   * Son la ÚNICA salida cuando la ventana de 24 h se cerró: Meta prohíbe el texto
+   * libre y hasta hoy Kavea no sabía mandar plantillas, así que el compositor se
+   * deshabilitaba con un motivo y ahí terminaba la conversación. Van aparte de
+   * `plantillas` porque no se insertan en la caja: se envían enteras.
+   */
+  plantillasWa: Array<{ id: string; nombre: string; cuerpo: string; huecos: number }>
 }) {
   const router = useRouter()
   const [faltan, setFaltan] = useState<string[]>([])
@@ -63,6 +72,13 @@ export function Compositor({
   const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // ARRIBA DEL TODO, con los demás. Estaban debajo del `return null` de más
+  // abajo, y un hook detrás de un retorno condicional se salta en algunos
+  // renderizados: React cuenta los hooks por orden y el orden dejaba de ser el
+  // mismo. Compilaba; lo cazó el typecheck por otro motivo.
+  const [plantillaWa, setPlantillaWa] = useState('')
+  const [mandandoWa, setMandandoWa] = useState(false)
+  const [errorWa, setErrorWa] = useState<string | null>(null)
 
   const conv = conversaciones.find((c) => c.id === activa)
   if (!conv) return null
@@ -71,6 +87,26 @@ export function Compositor({
   const tope = conv.canal === 'instagram' ? 1000 : 4000
   const pasado = bytes > tope
   const cerrada = conv.ventana.clase === 'cerrada'
+
+  /**
+   * Mandar la plantilla. Los huecos NO se piden aquí: los resuelve
+   * `encolar_plantilla` contra la ficha, y si falta alguno se niega a encolar
+   * con el nombre del que falta. Preguntarlos en el compositor sería duplicar la
+   * ficha en un formulario y dejar que se separen.
+   */
+  const convId = conv.id
+  async function mandarPlantilla() {
+    if (!plantillaWa) return
+    setMandandoWa(true); setErrorWa(null)
+    const { error } = await crearClienteNavegador()
+      .rpc('encolar_plantilla', { p_conversacion: convId, p_plantilla: plantillaWa })
+    setMandandoWa(false)
+    if (error) { setErrorWa(error.message); return }
+    setPlantillaWa('')
+    router.refresh()
+    fetch('/api/despachar', { method: 'POST' }).catch(() => {})
+    setTimeout(() => { router.refresh(); alFondo() }, 2500)
+  }
 
   /**
    * Baja el hilo hasta el final. Lo escucha `AlFinal`, que es quien conoce el
@@ -146,6 +182,50 @@ export function Compositor({
           Respondes por {porDonde(conv)}
         </p>
       )}
+
+      {/* LA SALIDA CUANDO NO HAY SALIDA. Solo con la ventana cerrada, solo en
+          WhatsApp y solo con plantillas ya emparejadas: ofrecerla en cualquier
+          otro caso sería empujar a un envío facturado por conversación que se
+          podía haber hecho con texto normal y gratis. */}
+      {cerrada && conv.canal === 'whatsapp' && plantillasWa.length > 0 ? (
+        <div
+          className="compositor__aviso"
+          style={{ background: 'var(--k-surface-2)', display: 'grid', gap: 8 }}
+        >
+          <span style={{ fontSize: 13 }}>
+            Fuera de las 24 horas solo se puede escribir con una plantilla aprobada. Los huecos
+            se rellenan solos con los datos de la ficha.
+          </span>
+          {errorWa ? <span className="error" role="alert">{errorWa}</span> : null}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+            <select
+              className="campo"
+              style={{ flex: '1 1 240px' }}
+              value={plantillaWa}
+              onChange={(e) => { setPlantillaWa(e.target.value); setErrorWa(null) }}
+              aria-label="Plantilla de WhatsApp"
+            >
+              <option value="">Elegir plantilla…</option>
+              {plantillasWa.map((p) => (
+                <option key={p.id} value={p.id}>{p.nombre}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn"
+              disabled={!plantillaWa || mandandoWa}
+              onClick={() => void mandarPlantilla()}
+            >
+              {mandandoWa ? 'Enviando' : 'Enviar plantilla'}
+            </button>
+          </div>
+          {plantillaWa ? (
+            <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
+              {plantillasWa.find((p) => p.id === plantillaWa)?.cuerpo}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {conv.ventana.motivo ? (
         <p

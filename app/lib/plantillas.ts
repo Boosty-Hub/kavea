@@ -56,3 +56,18 @@ export const plantillasUsables = cache(async () => {
   if (error) throw new Error(error.message)
   return (data ?? []) as Array<{ id: string; nombre: string; atajo: string | null; cuerpo: string }>
 })
+
+/**
+ * Las de WhatsApp que ya se pueden mandar: aprobadas en Meta y emparejadas con
+ * la ficha. El compositor solo las ofrece con la ventana cerrada, que es cuando
+ * son la única salida.
+ */
+export const plantillasWhatsApp = cache(async (organizacionId: string) => {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .rpc('plantillas_whatsapp_usables', { p_org: organizacionId })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Array<{
+    id: string; nombre: string; cuerpo: string; idioma: string; categoria: string; huecos: number
+  }>
+})

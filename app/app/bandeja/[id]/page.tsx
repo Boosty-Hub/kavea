@@ -19,7 +19,7 @@ import {
 } from '@/lib/bandeja'
 import { todasLasEtapas } from '@/lib/embudo'
 import { archivosDe, documentosDe, resumenDe } from '@/lib/comercial'
-import { plantillasUsables } from '@/lib/plantillas'
+import { plantillasUsables, plantillasWhatsApp } from '@/lib/plantillas'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
@@ -59,7 +59,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
   const convIds = tarjeta.conversations.map((c) => c.id)
 
   const [entradas, adjuntos, lista, conteos, canales, otras, campoT, campoC, etapas,
-         miembros, plantillas, archivos, documentos, resumen] =
+         miembros, plantillas, plantillasWa, archivos, documentos, resumen] =
     await Promise.all([
       obtenerHilo(id),
       adjuntosDe(convIds),
@@ -72,6 +72,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
       todasLasEtapas(),
       miembrosDe(org.id),
       plantillasUsables(),
+      plantillasWhatsApp(org.id),
       archivosDe(id, contactoId),
       contactoId ? documentosDe(contactoId) : Promise.resolve([]),
       contactoId ? resumenDe(contactoId) : Promise.resolve([]),
@@ -227,6 +228,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
         <Compositor
           tarjetaId={id}
           plantillas={plantillas}
+          plantillasWa={plantillasWa}
           conversaciones={canalesVivos}
         />
       </section>

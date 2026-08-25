@@ -172,6 +172,14 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     // reconoce; el número de rutas es detalle de máquina y no entra.
     // Retirar de la lista (0104). Se dice «de la lista» y no «borró», porque no
     // borra: el historial del canal sigue detrás.
+    // Plantillas de WhatsApp (0105). «Vinculada» es decidir qué campo de la
+    // ficha rellena cada hueco; Meta no sabe eso ni puede saberlo.
+    case 'plantilla.vinculada':
+      return d.nombre
+        ? `preparó la plantilla ${d.nombre} para usarla desde Kavea`
+        : 'preparó una plantilla de WhatsApp'
+    case 'plantilla.enviada':
+      return d.nombre ? `envió la plantilla ${d.nombre} por WhatsApp` : 'envió una plantilla por WhatsApp'
     case 'conexion.archivada':
       return d.nombre ? `retiró ${d.nombre} de la lista de canales` : 'retiró un canal de la lista'
     case 'conexion.desarchivada':
