@@ -53,7 +53,7 @@ de git de este mismo archivo.
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
 | Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
-| Página de Boosty (`1790677317841377`) | ✅ **Reconectada por OAuth el 24-ago** | `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado y **primer BISU de la base**. V1–V7 en verde salvo V6 |
+| Página de Boosty (`1790677317841377`) | ✅ Conectada por el **portafolio**, no por el diálogo | `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado y **primer BISU de la base**. V1–V7 en verde salvo V6 |
 | Facebook Login for Business | ✅ **Estrenado el 24-ago** | Un canje real completo de extremo a extremo: diálogo, código, BISU cifrado, webhooks suscritos y rediagnóstico. Falta hacerlo desde un portafolio que no sea el de Boosty |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
 | Embedded Signup de WhatsApp | 🟡 Desbloqueado, sin construir | Tech Provider (4-ago), permisos de WhatsApp (7-ago) y negocio `verified`. El token tiene `manage_app_solution`; `/{app}/whatsapp_business_solutions` existe y devuelve `[]` |
@@ -222,6 +222,28 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-24 (cierre) — El portafolio que es dueño de la app no se puede elegir en el diálogo
+
+Gabriel intentó reconectar Boosty.digital por el diálogo de Facebook Login for Business y no
+aparecía. La razón la escribe Meta en la propia lista, en gris y sin poder marcarla:
+
+> **Boosty Digital LLC** — *This Meta Business Account owns the app*
+
+**El portafolio que es dueño de la app no se puede compartir consigo mismo.** No es un permiso que
+falte ni un fallo de Kavea: es la regla del diálogo. Y en la misma lista está el otro caso ya
+conocido, con su propio motivo — *Centro Mármol: You need full control of this business portfolio*,
+que es el acceso parcial del 24-ago.
+
+**Consecuencia para el producto, y no es pequeña:** las Páginas del propio portafolio de Boosty
+**nunca** entrarán por autoservicio. Tienen su camino, que es el de siempre —`/api/portafolio` con
+token de system user, desde el panel interno— y ese sigue funcionando: Boosty.digital volvió con
+`suscrito: true`, dos rutas, credencial, los dos canales activos y nueve campos suscritos en Meta.
+
+**Consecuencia para los vídeos:** el recorrido de autoservicio solo se puede grabar con una Página
+de un portafolio que NO sea dueño de la app. Es exactamente lo que Gabriel grabó sin saberlo, con
+`gabrielmontieltoro`. Si hubiera intentado grabarlo con Boosty.digital, el vídeo habría enseñado una
+opción en gris.
 
 ### 2026-08-24 (cierre) — La separación, probada por el propio usuario
 
@@ -1627,3 +1649,7 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Antes de insertar un valor nuevo en una columna con CHECK, leer el CHECK de la base viva y no la
   migración que la creó. Ya hubo una restricción ampliada por el camino, y la anterior vez se
   descubrió reventando.
+- Un desplegable en gris con su motivo escrito al lado es documentación: «This Meta Business Account
+  owns the app» explicaba en siete palabras algo que no está en ninguna guía que hubiéramos leído.
+- Que algo estuviera conectado antes no prueba que se pueda conectar por el camino que se está
+  intentando ahora. Boosty.digital llevaba meses conectada — por la otra puerta.
