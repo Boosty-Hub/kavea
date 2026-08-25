@@ -1,0 +1,513 @@
+'use client'
+
+import { useCallback, useEffect, useState } from 'react'
+
+/**
+ * Las plantillas de WhatsApp, leídas de la WABA y creadas contra ella.
+ *
+ * POR QUÉ ESTA PANTALLA ES NUEVA. Kavea llevaba las plantillas de WhatsApp en su
+ * propia tabla, rellenada A MANO «para llevar el registro de lo que ya está
+ * aprobado allí» (0042). Un registro a mano de algo que decide otro se
+ * desincroniza el primer día: Meta pausa o inhabilita una plantilla y Kavea sigue
+ * enseñando lo que se tecleó en su día. Aquí se lee en vivo, como en Messenger.
+ *
+ * UNA PLANTILLA DE WHATSAPP NO ES UN TEXTO, y el formulario lo refleja: es una
+ * categoría, un idioma, una cabecera opcional, un cuerpo, un pie opcional y hasta
+ * diez botones. Cada pieza tiene su regla y Meta rechaza en el acto la que no la
+ * cumple. Todo lo que se puede comprobar antes se comprueba antes, porque una
+ * plantilla rechazada deja el nombre ocupado para siempre.
+ *
+ * LA CATEGORÍA VA PRIMERA Y EXPLICADA. `codigo_ingreso` se rechazó el 24-ago con
+ * `INCORRECT_CATEGORY` por mandar un código de acceso como utilidad. Elegir a
+ * ciegas entre tres palabras en inglés es cómo se repite ese error.
+ */
+
+type Componente = {
+  type?: string
+  format?: string
+  text?: string
+  buttons?: Array<{ type?: string; text?: string; url?: string; phone_number?: string }>
+}
+
+type Plantilla = {
+  id?: string
+  name?: string
+  language?: string
+  status?: string
+  category?: string
+  components?: Componente[]
+  rejected_reason?: string
+}
+
+const CARA: Record<string, { texto: string; fg: string; bg: string }> = {
+  APPROVED: { texto: 'Aprobada', fg: 'var(--k-resuelta-fg)', bg: 'var(--k-resuelta-bg)' },
+  PENDING: { texto: 'En revisión', fg: 'var(--k-esperando-fg)', bg: 'var(--k-esperando-bg)' },
+  REJECTED: { texto: 'Rechazada', fg: 'var(--k-escalada-fg)', bg: 'var(--k-escalada-bg)' },
+  PAUSED: { texto: 'Pausada', fg: 'var(--k-esperando-fg)', bg: 'var(--k-esperando-bg)' },
+  DISABLED: { texto: 'Inhabilitada', fg: 'var(--k-escalada-fg)', bg: 'var(--k-escalada-bg)' },
+}
+
+const MOTIVO: Record<string, string> = {
+  INCORRECT_CATEGORY:
+    'Categoría equivocada. Los códigos de acceso son de autenticación y las promociones, de marketing.',
+  INVALID_FORMAT:
+    'Formato inválido. Casi siempre son los ejemplos: una plantilla con {{1}} y sin ejemplo se rechaza al crearse.',
+  ABUSIVE_CONTENT: 'Contenido no permitido por las normas de Meta.',
+  PROMOTIONAL: 'Es promocional y se envió como utilidad. Va en marketing.',
+  TAG_CONTENT_MISMATCH: 'El contenido no encaja con la etiqueta declarada.',
+  SCAM: 'Meta lo leyó como un intento de engaño.',
+}
+
+/**
+ * Las tres categorías, con lo que significan de verdad.
+ *
+ * El texto no es de relleno: es la diferencia entre que Meta apruebe o rechace, y
+ * es lo que la consola de Meta explica en una página aparte que nadie abre.
+ */
+const CATEGORIAS = [
+  {
+    valor: 'UTILITY',
+    nombre: 'Utilidad',
+    ayuda: 'Sobre algo que el cliente ya hizo: su pedido, su cita, su cuenta, su factura. '
+      + 'No puede vender nada.',
+  },
+  {
+    valor: 'MARKETING',
+    nombre: 'Marketing',
+    ayuda: 'Ofertas, novedades, recordatorios de carrito. El cliente puede darse de baja y '
+      + 'Meta limita cuántas se mandan.',
+  },
+  {
+    valor: 'AUTHENTICATION',
+    nombre: 'Autenticación',
+    ayuda: 'Códigos de un solo uso para entrar o verificar. Si el mensaje lleva un código, '
+      + 'es esta y no utilidad.',
+  },
+] as const
+
+const IDIOMAS = [
+  { valor: 'es_ES', nombre: 'Español (España)' },
+  { valor: 'es_MX', nombre: 'Español (México)' },
+  { valor: 'es', nombre: 'Español' },
+  { valor: 'en_US', nombre: 'Inglés (EE. UU.)' },
+  { valor: 'pt_BR', nombre: 'Portugués (Brasil)' },
+]
+
+type Boton = { tipo: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'; texto: string; url: string; telefono: string; ejemplo: string }
+
+function variablesDe(texto: string): number {
+  const vistos = new Set<string>()
+  for (const m of texto.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) vistos.add(m[1]!)
+  return vistos.size
+}
+
+function botonVacio(): Boton {
+  return { tipo: 'QUICK_REPLY', texto: '', url: '', telefono: '', ejemplo: '' }
+}
+
+export function PlantillasDeWhatsApp({ puedeConfigurar }: { puedeConfigurar: boolean }) {
+  const [lista, setLista] = useState<Plantilla[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+  const [abierto, setAbierto] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [borrando, setBorrando] = useState<string | null>(null)
+
+  const [nombre, setNombre] = useState('')
+  const [categoria, setCategoria] = useState<string>('UTILITY')
+  const [idioma, setIdioma] = useState('es_ES')
+  const [cabecera, setCabecera] = useState('')
+  const [ejemploCabecera, setEjemploCabecera] = useState('')
+  const [cuerpo, setCuerpo] = useState('')
+  const [ejemplos, setEjemplos] = useState<string[]>([])
+  const [pie, setPie] = useState('')
+  const [botones, setBotones] = useState<Boton[]>([])
+
+  const necesarias = variablesDe(cuerpo)
+  const cabeceraVariable = variablesDe(cabecera) === 1
+
+  const cargar = useCallback(async () => {
+    setError(null)
+    try {
+      const r = await fetch('/api/plantillas-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'listar' }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(j.error ?? 'No se pudo leer de Meta.'); setLista([]); return }
+      setLista(j.plantillas ?? [])
+    } catch {
+      setError('No se pudo leer de Meta ahora mismo.')
+      setLista([])
+    }
+  }, [])
+
+  useEffect(() => { void cargar() }, [cargar])
+
+  function limpiar() {
+    setNombre(''); setCategoria('UTILITY'); setIdioma('es_ES')
+    setCabecera(''); setEjemploCabecera(''); setCuerpo('')
+    setEjemplos([]); setPie(''); setBotones([])
+  }
+
+  async function crear(ev: React.FormEvent) {
+    ev.preventDefault()
+    setGuardando(true); setError(null); setAviso(null)
+    try {
+      const r = await fetch('/api/plantillas-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accion: 'crear', nombre, categoria, idioma,
+          cabecera, ejemplo_cabecera: ejemploCabecera,
+          cuerpo, ejemplos, pie,
+          botones: botones.map((b) => ({
+            tipo: b.tipo, texto: b.texto, url: b.url, telefono: b.telefono, ejemplo: b.ejemplo,
+          })),
+        }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(j.error ?? 'Meta no aceptó la plantilla.'); return }
+
+      /**
+       * NACE RECHAZADA CON FRECUENCIA, y la llamada sale bien.
+       *
+       * Meta devuelve 200 con `status: REJECTED`. Decir «creada» y callar el
+       * estado es cómo alguien descubre el rechazo tres días después, cuando va a
+       * mandarla. Se dice en el momento.
+       */
+      const estado = j.creada?.status
+      setAviso(estado === 'REJECTED'
+        ? `Meta la creó y la rechazó en el acto. Revisa la categoría y los ejemplos: el nombre «${nombre}» ya queda ocupado.`
+        : estado === 'APPROVED'
+          ? 'Aprobada. Ya se puede usar.'
+          : 'Enviada. Meta suele tardar unos minutos en revisarla.')
+      setAbierto(false)
+      limpiar()
+      await cargar()
+    } finally {
+      setGuardando(false)
+    }
+  }
+
+  async function borrar(p: Plantilla) {
+    if (!p.name) return
+    // Meta borra POR NOMBRE y se lleva todas las traducciones. Se dice antes.
+    if (!confirm(
+      `Borrar «${p.name}» en Meta.\n\n`
+      + 'Se borran todas sus traducciones, no solo la de este idioma, y no se puede deshacer.',
+    )) return
+    setBorrando(p.name); setError(null); setAviso(null)
+    try {
+      const r = await fetch('/api/plantillas-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accion: 'borrar', nombre: p.name }),
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) { setError(j.error ?? 'Meta no aceptó el borrado.'); return }
+      await cargar()
+    } finally {
+      setBorrando(null)
+    }
+  }
+
+  const cat = CATEGORIAS.find((c) => c.valor === categoria)
+
+  return (
+    <section style={{ marginTop: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+        <h2 style={{ fontSize: 16, margin: 0 }}>Plantillas de WhatsApp</h2>
+        <button
+          type="button"
+          className="operar__control"
+          style={{ cursor: 'pointer', marginLeft: 'auto', fontSize: 13 }}
+          onClick={() => void cargar()}
+        >
+          Volver a leer
+        </button>
+      </div>
+
+      <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: '6px 0 0', maxWidth: 640 }}>
+        Las que viven en la cuenta de WhatsApp del negocio. Las aprueba Meta, no Kavea, y su estado
+        se lee de Meta cada vez que se abre esta pantalla. Hacen falta para escribir a alguien
+        <strong> fuera de las 24 horas</strong>; dentro de la ventana se responde con texto normal.
+      </p>
+
+      {error ? <p className="error" role="alert" style={{ marginTop: 12 }}>{error}</p> : null}
+      {aviso ? <p className="exito" role="status" style={{ marginTop: 12 }}>{aviso}</p> : null}
+
+      <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
+        {lista === null ? (
+          <p className="ficha__vacia" style={{ padding: 16 }}>Leyendo de Meta…</p>
+        ) : lista.length === 0 ? (
+          <p className="ficha__vacia" style={{ padding: 16 }}>
+            Esta cuenta de WhatsApp no tiene ninguna plantilla todavía.
+          </p>
+        ) : (
+          lista.map((p) => {
+            const cara = CARA[p.status ?? ''] ?? { texto: p.status ?? '—', fg: 'var(--k-text-2)', bg: 'var(--k-surface-2)' }
+            const cab = p.components?.find((c) => c.type === 'HEADER')
+            const body = p.components?.find((c) => c.type === 'BODY')?.text ?? ''
+            const foot = p.components?.find((c) => c.type === 'FOOTER')?.text ?? ''
+            const btns = p.components?.find((c) => c.type === 'BUTTONS')?.buttons ?? []
+            const motivo = p.status === 'REJECTED' && p.rejected_reason && p.rejected_reason !== 'NONE'
+              ? (MOTIVO[p.rejected_reason] ?? p.rejected_reason)
+              : null
+            return (
+              <div key={p.id ?? p.name} className="miembro" style={{ alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 500 }}>
+                    <code>{p.name}</code>
+                    <span style={{ fontWeight: 400, color: 'var(--k-text-2)' }}>
+                      {' · '}{p.language}
+                      {p.category ? ` · ${CATEGORIAS.find((c) => c.valor === p.category)?.nombre ?? p.category}` : ''}
+                    </span>
+                  </div>
+                  {cab?.text ? (
+                    <div style={{ fontSize: 13, fontWeight: 500, marginTop: 3 }}>{cab.text}</div>
+                  ) : null}
+                  {body ? (
+                    <div style={{ fontSize: 13, color: 'var(--k-text-2)', marginTop: 2 }}>{body}</div>
+                  ) : null}
+                  {foot ? (
+                    <div style={{ fontSize: 12, color: 'var(--k-text-2)', marginTop: 2, opacity: .8 }}>{foot}</div>
+                  ) : null}
+                  {btns.length ? (
+                    <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                      {btns.map((b, i) => (
+                        <span key={i} className="pildora" style={{ background: 'var(--k-surface-2)', fontSize: 12 }}>
+                          {b.text}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                  {motivo ? (
+                    <div style={{ fontSize: 13, color: 'var(--k-escalada-fg)', marginTop: 4 }}>{motivo}</div>
+                  ) : null}
+                </div>
+                <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="pildora" style={{ background: cara.bg, color: cara.fg }}>{cara.texto}</span>
+                  {puedeConfigurar ? (
+                    <button
+                      type="button"
+                      className="operar__control"
+                      style={{ cursor: 'pointer', fontSize: 12 }}
+                      disabled={borrando === p.name}
+                      onClick={() => void borrar(p)}
+                    >
+                      {borrando === p.name ? 'Borrando' : 'Borrar'}
+                    </button>
+                  ) : null}
+                </span>
+              </div>
+            )
+          })
+        )}
+      </div>
+
+      {!puedeConfigurar ? null : !abierto ? (
+        <button type="button" className="btn" style={{ marginTop: 12 }} onClick={() => setAbierto(true)}>
+          Nueva plantilla de WhatsApp
+        </button>
+      ) : (
+        <form onSubmit={crear} className="tarjeta" style={{ marginTop: 12, display: 'grid', gap: 14 }}>
+          {/* LA CATEGORÍA, PRIMERO Y EXPLICADA. Es lo que más rechazos causa. */}
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span className="label">Categoría</span>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {CATEGORIAS.map((c) => (
+                <button
+                  key={c.valor}
+                  type="button"
+                  className="operar__control"
+                  aria-pressed={categoria === c.valor}
+                  style={{
+                    cursor: 'pointer', fontSize: 13,
+                    borderColor: categoria === c.valor ? 'var(--k-accent)' : undefined,
+                    color: categoria === c.valor ? 'var(--k-accent)' : undefined,
+                  }}
+                  onClick={() => setCategoria(c.valor)}
+                >
+                  {c.nombre}
+                </button>
+              ))}
+            </div>
+            {cat ? (
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>{cat.ayuda}</span>
+            ) : null}
+          </div>
+
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+            <label style={{ display: 'grid', gap: 4, flex: '1 1 220px' }}>
+              <span className="label">Nombre en Meta</span>
+              <input
+                className="campo" value={nombre} onChange={(e) => setNombre(e.target.value)}
+                placeholder="pedido_en_camino" required
+              />
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                Minúsculas, números y guion bajo. Si Meta la rechaza, ese nombre queda ocupado.
+              </span>
+            </label>
+            <label style={{ display: 'grid', gap: 4, flex: '0 1 200px' }}>
+              <span className="label">Idioma</span>
+              <select className="campo" value={idioma} onChange={(e) => setIdioma(e.target.value)}>
+                {IDIOMAS.map((i) => <option key={i.valor} value={i.valor}>{i.nombre}</option>)}
+              </select>
+            </label>
+          </div>
+
+          <label style={{ display: 'grid', gap: 4 }}>
+            <span className="label">Cabecera (opcional)</span>
+            <input
+              className="campo" value={cabecera} onChange={(e) => setCabecera(e.target.value)}
+              placeholder="Su pedido {{1}}" maxLength={60}
+            />
+            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Hasta 60 caracteres y una variable como mucho. Las cabeceras de imagen, vídeo o
+              documento todavía no se pueden crear desde aquí: Meta exige subir el fichero por su
+              API de subida y ese camino está por hacer.
+            </span>
+          </label>
+
+          {cabeceraVariable ? (
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span className="label">Ejemplo para la variable de la cabecera</span>
+              <input
+                className="campo" value={ejemploCabecera}
+                onChange={(e) => setEjemploCabecera(e.target.value)} required
+              />
+            </label>
+          ) : null}
+
+          <label style={{ display: 'grid', gap: 4 }}>
+            <span className="label">Cuerpo</span>
+            <textarea
+              className="campo" rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
+              placeholder="Hola {{1}}, su pedido {{2}} ya va en camino." required maxLength={1024}
+            />
+            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Los huecos van numerados: <code>{'{{1}}'}</code>, <code>{'{{2}}'}</code>.
+            </span>
+          </label>
+
+          {/* Un ejemplo por hueco. Sin ellos Meta rechaza al crear. */}
+          {Array.from({ length: necesarias }, (_, i) => (
+            <label key={i} style={{ display: 'grid', gap: 4 }}>
+              <span className="label">{`Ejemplo para {{${i + 1}}}`}</span>
+              <input
+                className="campo" value={ejemplos[i] ?? ''} required
+                onChange={(e) => { const v = [...ejemplos]; v[i] = e.target.value; setEjemplos(v) }}
+              />
+            </label>
+          ))}
+          {necesarias > 0 ? (
+            <p style={{ fontSize: 12, color: 'var(--k-text-2)', margin: 0 }}>
+              Meta exige un ejemplo por hueco. Sin ellos rechaza la plantilla nada más crearla
+              —motivo <code>INVALID_FORMAT</code>—.
+            </p>
+          ) : null}
+
+          <label style={{ display: 'grid', gap: 4 }}>
+            <span className="label">Pie (opcional)</span>
+            <input
+              className="campo" value={pie} onChange={(e) => setPie(e.target.value)}
+              placeholder="Boosty Digital" maxLength={60}
+            />
+            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Hasta 60 caracteres y sin variables, por regla de Meta.
+            </span>
+          </label>
+
+          {/* BOTONES */}
+          <div style={{ display: 'grid', gap: 8 }}>
+            <span className="label">Botones (opcional)</span>
+            {botones.map((b, i) => (
+              <div key={i} className="tarjeta" style={{ padding: 10, display: 'grid', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                  <label style={{ display: 'grid', gap: 4, flex: '0 1 180px' }}>
+                    <span className="label">Tipo</span>
+                    <select
+                      className="campo" value={b.tipo}
+                      onChange={(e) => {
+                        const v = [...botones]; v[i] = { ...b, tipo: e.target.value as Boton['tipo'] }; setBotones(v)
+                      }}
+                    >
+                      <option value="QUICK_REPLY">Respuesta rápida</option>
+                      <option value="URL">Abrir un enlace</option>
+                      <option value="PHONE_NUMBER">Llamar</option>
+                    </select>
+                  </label>
+                  <label style={{ display: 'grid', gap: 4, flex: '1 1 180px' }}>
+                    <span className="label">Texto del botón</span>
+                    <input
+                      className="campo" value={b.texto} maxLength={25} required
+                      onChange={(e) => { const v = [...botones]; v[i] = { ...b, texto: e.target.value }; setBotones(v) }}
+                    />
+                  </label>
+                  <button
+                    type="button" className="operar__control" style={{ cursor: 'pointer', fontSize: 13 }}
+                    onClick={() => setBotones(botones.filter((_, j) => j !== i))}
+                  >
+                    Quitar
+                  </button>
+                </div>
+                {b.tipo === 'URL' ? (
+                  <>
+                    <label style={{ display: 'grid', gap: 4 }}>
+                      <span className="label">Enlace</span>
+                      <input
+                        className="campo" value={b.url} placeholder="https://kavea.ai/pedido/{{1}}" required
+                        onChange={(e) => { const v = [...botones]; v[i] = { ...b, url: e.target.value }; setBotones(v) }}
+                      />
+                    </label>
+                    {variablesDe(b.url) > 0 ? (
+                      <label style={{ display: 'grid', gap: 4 }}>
+                        <span className="label">Ejemplo del enlace completo</span>
+                        <input
+                          className="campo" value={b.ejemplo} required
+                          placeholder="https://kavea.ai/pedido/A-1042"
+                          onChange={(e) => { const v = [...botones]; v[i] = { ...b, ejemplo: e.target.value }; setBotones(v) }}
+                        />
+                      </label>
+                    ) : null}
+                  </>
+                ) : null}
+                {b.tipo === 'PHONE_NUMBER' ? (
+                  <label style={{ display: 'grid', gap: 4 }}>
+                    <span className="label">Teléfono</span>
+                    <input
+                      className="campo" value={b.telefono} placeholder="+13213931397" required
+                      onChange={(e) => { const v = [...botones]; v[i] = { ...b, telefono: e.target.value }; setBotones(v) }}
+                    />
+                  </label>
+                ) : null}
+              </div>
+            ))}
+            {botones.length < 10 ? (
+              <button
+                type="button" className="operar__control" style={{ cursor: 'pointer', fontSize: 13, justifySelf: 'start' }}
+                onClick={() => setBotones([...botones, botonVacio()])}
+              >
+                Añadir botón
+              </button>
+            ) : null}
+          </div>
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn" disabled={guardando}>
+              {guardando ? 'Enviando a Meta' : 'Crear y enviar a Meta'}
+            </button>
+            <button
+              type="button" className="operar__control" style={{ cursor: 'pointer' }}
+              onClick={() => { setAbierto(false); limpiar() }}
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
+  )
+}

@@ -117,7 +117,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // --- listar ---------------------------------------------------------------
     if (cuerpo.accion === 'listar' || !cuerpo.accion) {
-      const r = await fetch(base, { headers: { Authorization: `Bearer ${token}` } })
+      // `rejected_reason` SE PIDE POR SU NOMBRE. Meta no lo manda si no se
+      // nombra, y sin él la pantalla enseña «Rechazada» y nada más — que es lo
+      // que pasó el 24-ago: dos plantillas en rojo y ninguna pista. Los motivos
+      // eran `INCORRECT_CATEGORY` y `INVALID_FORMAT`, y los dos se arreglan
+      // solos en cuanto se leen.
+      const campos = 'id,name,status,category,language,components,rejected_reason'
+      const r = await fetch(`${base}?fields=${campos}&limit=200`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
       const j = await r.json() as { data?: Plantilla[]; error?: { message?: string } }
       if (j.error) {
         return new Response(JSON.stringify({ error: j.error.message }), { status: 502 })

@@ -22,6 +22,30 @@ type Plantilla = {
   status?: string
   category?: string
   components?: Array<{ type?: string; text?: string }>
+  /** Solo cuando `status` es REJECTED. Meta lo manda si se le pide por su nombre. */
+  rejected_reason?: string
+}
+
+/**
+ * Los motivos de rechazo de Meta, en castellano y con la salida al lado.
+ *
+ * El código a secas —`INCORRECT_CATEGORY`— no le dice nada a quien acaba de
+ * escribir una plantilla, y buscarlo es una visita a la documentación de Meta.
+ * Los dos primeros son los que ya se han cobrado una plantilla cada uno el
+ * 24-ago; los demás están porque el día que salgan no habrá que volver aquí.
+ */
+const MOTIVO: Record<string, string> = {
+  INCORRECT_CATEGORY:
+    'Categoría equivocada. Meta cree que el contenido pertenece a otra: los códigos de acceso '
+    + 'son de autenticación y las promociones, de marketing.',
+  INVALID_FORMAT:
+    'Formato inválido. Casi siempre son los ejemplos: una plantilla con {{1}} y sin ejemplo se '
+    + 'crea y se rechaza en el mismo instante.',
+  ABUSIVE_CONTENT: 'Contenido no permitido por las normas de Meta.',
+  PROMOTIONAL: 'Es promocional y se envió como utilidad. Va en la categoría de marketing.',
+  TAG_CONTENT_MISMATCH: 'El contenido no encaja con la etiqueta declarada.',
+  SCAM: 'Meta lo leyó como un intento de engaño.',
+  NONE: 'Meta no dio motivo.',
 }
 
 const CARA: Record<string, { texto: string; fg: string; bg: string }> = {
@@ -122,6 +146,12 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
           lista.map((p) => {
             const cara = CARA[p.status ?? ''] ?? { texto: p.status ?? '—', fg: 'var(--k-text-2)', bg: 'var(--k-surface-2)' }
             const body = p.components?.find((c) => c.type === 'BODY')?.text ?? ''
+            // El motivo se enseña SIEMPRE que exista. Una pantalla que dice
+            // «Rechazada» y calla por qué obliga a ir al panel de Meta a
+            // averiguar algo que la API ya había contestado.
+            const motivo = p.status === 'REJECTED' && p.rejected_reason && p.rejected_reason !== 'NONE'
+              ? (MOTIVO[p.rejected_reason] ?? p.rejected_reason)
+              : null
             return (
               <div key={p.id ?? p.name} className="miembro" style={{ alignItems: 'flex-start' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -131,6 +161,11 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
                   </div>
                   {body ? (
                     <div style={{ fontSize: 13, color: 'var(--k-text-2)', marginTop: 2 }}>{body}</div>
+                  ) : null}
+                  {motivo ? (
+                    <div style={{ fontSize: 13, color: 'var(--k-escalada-fg)', marginTop: 4 }}>
+                      {motivo}
+                    </div>
                   ) : null}
                 </div>
                 <span
@@ -169,7 +204,8 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
                 «Aviso de envío» y Kavea lo convierte por su cuenta, la plantilla
                 que ve en el panel de Meta no es la que él nombró. */}
             <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-              Minúsculas, números y guion bajo. Lo exige Meta y no se corrige solo.
+              Minúsculas, números y guion bajo. Lo exige Meta y no se corrige solo. Si Meta la
+              rechaza, ese nombre queda ocupado y hay que empezar con otro.
             </span>
           </label>
 
