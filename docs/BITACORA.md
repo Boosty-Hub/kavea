@@ -233,6 +233,59 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Una plantilla se ve antes de mandarla, y sus huecos se rellenan ahí
+
+Una plantilla de Meta sale ENTERA: no se corrige después y se factura. El único aviso era un
+`confirm()` del navegador con el nombre técnico dentro —«Enviar pedido_devuelto»— sin una palabra de
+lo que la persona iba a recibir. **Confirmar sin ver es firmar sin leer.**
+
+Ahora elegirla abre un diálogo con tres cosas: **cómo va a llegar** —el texto con los valores ya
+puestos, en la misma burbuja que usa el hilo, para poder compararlo sin traducir de la cabeza—, **los
+datos que lleva** con su etiqueta y su valor, y **una caja por cada hueco que falte**.
+
+Lo que se escribe en esas cajas se guarda **donde el dato vive de verdad**: el nombre en la persona,
+el importe en la ficha, un campo personalizado en su valor. `rellenar_variable` conoce esa
+correspondencia y el diálogo no tiene por qué —ni debe— saber que uno es una columna de `contacts` y
+el otro una fila de `campo_valores` con su tipo y su ámbito. Y reutiliza `renombrar_contacto`,
+`fijar_valor` y `guardar_campo` en vez de escribir las tablas a mano: son las que registran la
+actividad, y una segunda vía de escritura sin actividad es un cambio que no aparece en el hilo.
+
+Decisiones que se ven poco y cambian el resultado:
+
+- **Se guarda ANTES de mandar.** Al revés, el mensaje saldría con un dato que aquí no consta, y no
+  hay forma de retirarlo.
+- **La vista previa usa `parametros_de_plantilla`**, la misma función que llama el envío. Un segundo
+  cálculo «para la vista previa» es una previsualización que puede discrepar de lo que se manda, que
+  es peor que no tenerla.
+- **Un hueco vacío se marca `[falta]` en el texto** en vez de desaparecer: un mensaje con un agujero
+  invisible se lee como si estuviera completo.
+- **No todo se pide aquí.** La etapa del embudo es una lista cerrada y el nombre de quien escribe
+  sale de la sesión: pedirlos en una caja de texto produciría datos inventados. Esos se marcan con
+  dónde se tocan y el envío sigue bloqueado.
+- El texto se sustituye sobre la marcha al teclear en vez de volver a pedir la vista previa: una ida
+  y vuelta por pulsación haría parpadear la frase mientras se escribe.
+
+### Y un mismo importe se escribía de dos maneras
+
+Al mirar la vista previa salió: `tarjeta.valor` vale 2000 y las plantillas de Meta lo escribían
+**«2,000.00»** mientras las internas escribían **«2000»**. Dos formateadores para una columna, y el
+cliente recibía uno u otro según por dónde saliera el mensaje. La 0115 los une en
+`private.importe`: separador de miles siempre y decimales solo cuando los hay —«2,000» y
+«2,400.50»—. Un «.00» pegado detrás en un aviso de pedido se lee como un precio de catálogo.
+
+Las dos funciones se reaplicaron **generándolas desde `pg_get_functiondef`** en vez de
+transcribirlas: así se copia un cuerpo de ochenta líneas sin cambiarle una coma sin querer.
+
+### Y una cosa que hice mal
+
+Una de las comprobaciones con Playwright corrió **contra producción** y rellenó el campo del nombre
+con cadena vacía. El `onBlur` guarda al salir del foco, así que **borró el nombre que Gabriel acababa
+de escribir**, siete segundos después de que lo escribiera. Se restauró leyendo el valor anterior de
+la propia actividad —`{"antes": "Gabriel"}`— que es exactamente para lo que se registra.
+
+La regla que faltaba: **una comprobación que escribe se hace contra el servidor de desarrollo.**
+Contra producción solo se lee.
+
 ### 2026-08-25 — «Faltan datos: tarjeta.valor, contacto.nombre» señalaba a algo que no se podía tocar
 
 Dos fallos en una sola frase, y el segundo era el grave.
@@ -1183,6 +1236,12 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Una comprobación que ESCRIBE se hace contra desarrollo. Contra producción solo se lee: el
+  usuario está trabajando ahí al mismo tiempo.
+- Una previsualización tiene que salir de la misma función que el envío. Un segundo cálculo «para
+  la vista previa» es peor que no tenerla.
+- El mismo dato formateado por dos caminos distintos llega distinto al cliente. El formateador va
+  en un solo sitio.
 - Un error que señala a un dato que ninguna pantalla puede escribir es peor que no validar: manda
   al usuario a buscar una puerta que no existe.
 - Un mensaje de error nombra las cosas como las nombra la interfaz. La clave interna obliga a

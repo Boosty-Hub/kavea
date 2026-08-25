@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
+
+import { PreviaPlantilla } from './previa-plantilla'
 import { LogoCanal } from '@/lib/logos-canal'
 import { etiquetaCanal, colorCanal } from '@/lib/ventana'
 
@@ -172,6 +174,14 @@ export function Compositor({
   const cajaTexto = useRef<HTMLTextAreaElement | null>(null)
   /** El menú abierto con el icono, sin barra escrita. */
   const [menu, setMenu] = useState(false)
+  /**
+   * La plantilla que está en la vista previa.
+   *
+   * Elegir una en el menú ya NO manda: abre el diálogo. Una plantilla sale entera
+   * y se factura, así que entre elegirla y que salga tiene que haber una pantalla
+   * que enseñe lo que la persona va a recibir.
+   */
+  const [previa, setPrevia] = useState<{ id: string; nombre: string } | null>(null)
   const cajaMenu = useRef<HTMLDivElement | null>(null)
   const [mandandoWa, setMandandoWa] = useState(false)
   const [errorWa, setErrorWa] = useState<string | null>(null)
@@ -300,21 +310,22 @@ export function Compositor({
    * esconde la opción —esconderla obligaba a adivinar por qué no estaba— pero
    * tampoco se manda un cargo con un solo clic.
    */
-  async function mandarPlantillaMeta(id: string, nombre: string) {
+  /**
+   * Mandar la plantilla. Ya no pregunta: para cuando llega aquí, el diálogo de
+   * vista previa ha enseñado el texto y ha guardado los datos que faltaban.
+   *
+   * Los huecos no se resuelven aquí: los resuelve `encolar_plantilla` contra la
+   * ficha, y si falta alguno se niega diciendo cuál. Resolverlos en el compositor
+   * sería duplicar la ficha en un formulario y dejar que se separen.
+   */
+  async function mandarPlantillaMeta(id: string) {
     if (mandandoWa) return
-    const SALTO = String.fromCharCode(10)
-    if (!cerrada && !confirm(
-      `Enviar «${nombre}» como plantilla.` + SALTO + SALTO
-      + 'La ventana está abierta: puedes responder con texto normal y no cuesta nada. '
-      + 'Una plantilla se factura como conversación.' + SALTO + SALTO
-      + '¿Enviarla igualmente?',
-    )) return
-    setComando(null); setMenu(false)
     setMandandoWa(true); setErrorWa(null)
     const { error: err } = await crearClienteNavegador()
       .rpc('encolar_plantilla', { p_conversacion: convId, p_plantilla: id })
     setMandandoWa(false)
-    if (err) { setErrorWa(err.message); return }
+    if (err) { setErrorWa(err.message); throw new Error(err.message) }
+    setPrevia(null)
     router.refresh()
     fetch('/api/despachar', { method: 'POST' }).catch(() => {})
     setTimeout(() => { router.refresh(); alFondo() }, 2500)
@@ -357,6 +368,18 @@ export function Compositor({
 
   return (
     <footer className="compositor" ref={cajaMenu}>
+      {previa ? (
+        <PreviaPlantilla
+          plantillaId={previa.id}
+          nombre={previa.nombre}
+          tarjetaId={tarjetaId}
+          canal={etiquetaCanal(conv.canal)}
+          dentroDeVentana={conv.ventana.clase === 'abierta'}
+          alCerrar={() => setPrevia(null)}
+          alEnviar={() => mandarPlantillaMeta(previa.id)}
+        />
+      ) : null}
+
       {conversaciones.length > 1 ? (
         <div className="compositor__canales" style={{ alignItems: 'center' }}>
           {conversaciones.map((c) => (
@@ -504,7 +527,10 @@ export function Compositor({
                       onMouseDown={(ev) => {
                         ev.preventDefault()
                         if (pl.clase === 'interna') void insertarComando(pl.id)
-                        else void mandarPlantillaMeta(pl.id, pl.nombre)
+                        else {
+                          setMenu(false); setComando(null)
+                          setPrevia({ id: pl.id, nombre: pl.nombre })
+                        }
                       }}
                       onMouseEnter={() => setMarcada(i)}
                       style={{
@@ -594,7 +620,10 @@ export function Compositor({
                   e.preventDefault()
                   const el = coincidencias[marcada]!
                   if (el.clase === 'interna') void insertarComando(el.id)
-                  else void mandarPlantillaMeta(el.id, el.nombre)
+                  else {
+                    setMenu(false); setComando(null)
+                    setPrevia({ id: el.id, nombre: el.nombre })
+                  }
                   return
                 }
                 if (e.key === 'Escape') {
