@@ -80,9 +80,38 @@ async function tokenDePagina(pageId: string): Promise<string> {
  * `body_text` es una lista de listas: una fila de valores por cada juego de
  * ejemplos, y Meta con una tiene bastante.
  */
-function componentes(cuerpo: string, ejemplos: string[]): unknown[] {
+/**
+ * Los huecos CON NOMBRE, en orden y sin repetir.
+ *
+ * Messenger los admite igual que WhatsApp: `parameter_format: 'NAMED'` con
+ * `example.body_text_named_params`. Comprobado contra la Página el 25-ago — una
+ * plantilla con `{{contacto_nombre}}` salió APPROVED en segundos.
+ *
+ * Con nombres el texto ES el mapeo, y no hace falta una lista aparte que diga qué
+ * campo va en cada posición y que pueda discrepar del cuerpo.
+ */
+function nombradasDe(texto: string): string[] {
+  const vistos: string[] = []
+  for (const m of texto.matchAll(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g)) {
+    if (!vistos.includes(m[1]!)) vistos.push(m[1]!)
+  }
+  return vistos
+}
+
+function componentes(
+  cuerpo: string, ejemplos: string[], nombrados?: Record<string, string>,
+): unknown[] {
   const body: Record<string, unknown> = { type: 'BODY', text: cuerpo }
-  if (ejemplos.length > 0) body.example = { body_text: [ejemplos] }
+  const conNombre = nombradasDe(cuerpo)
+  if (conNombre.length > 0) {
+    body.example = {
+      body_text_named_params: conNombre.map((n) => ({
+        param_name: n, example: (nombrados ?? {})[n] ?? n,
+      })),
+    }
+  } else if (ejemplos.length > 0) {
+    body.example = { body_text: [ejemplos] }
+  }
   return [body]
 }
 
@@ -99,6 +128,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
   let cuerpo: {
     accion?: string; page_id?: string; nombre?: string
     idioma?: string; texto?: string; ejemplos?: string[]
+    /** Nombre → ejemplo, para los huecos con nombre. */
+    ejemplos_nombrados?: Record<string, string>
   }
   try {
     cuerpo = await req.json()
@@ -159,8 +190,16 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // sin ejemplos nace REJECTED y hay que borrarla y volver a empezar con otro
       // nombre; un error antes de llamar cuesta un intento y no ensucia la Página.
       const ejemplos = (cuerpo.ejemplos ?? []).map((s) => String(s).trim()).filter(Boolean)
+      const conNombre = nombradasDe(texto)
       const necesarias = variablesDe(texto)
-      if (ejemplos.length < necesarias) {
+
+      // Meta admite unos u otros, no los dos en el mismo cuerpo.
+      if (conNombre.length > 0 && necesarias > 0) {
+        return new Response(JSON.stringify({
+          error: 'El texto mezcla huecos numerados y con nombre. Meta admite unos u otros.',
+        }), { status: 400 })
+      }
+      if (conNombre.length === 0 && ejemplos.length < necesarias) {
         return new Response(JSON.stringify({
           error: `El texto usa ${necesarias} variable(s) y Meta exige un ejemplo para cada una. `
             + `Hay ${ejemplos.length}.`,
@@ -174,7 +213,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
           name: nombre,
           language: idioma,
           category: 'UTILITY',
-          components: componentes(texto, ejemplos.slice(0, necesarias)),
+          ...(conNombre.length > 0 ? { parameter_format: 'NAMED' } : {}),
+          components: componentes(
+            texto, ejemplos.slice(0, necesarias), cuerpo.ejemplos_nombrados,
+          ),
         }),
       })
       const j = await r.json() as Plantilla & { error?: { message?: string } }

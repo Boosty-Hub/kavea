@@ -54,6 +54,9 @@ type Envio = {
     plantilla?: string
     idioma?: string
     parametros?: string[]
+    /** Nombres de los huecos cuando la plantilla usa `parameter_format: NAMED`. */
+    nombres?: string[]
+    nombrada?: boolean
     ruta?: string
     nombre?: string
   }
@@ -250,6 +253,7 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
        * huecos.
        */
       const params = Array.isArray(e.cuerpo.parametros) ? e.cuerpo.parametros as string[] : []
+      const nombres = Array.isArray(e.cuerpo.nombres) ? e.cuerpo.nombres as string[] : []
       cuerpoWa.type = 'template'
       cuerpoWa.template = {
         name: e.cuerpo.plantilla,
@@ -258,7 +262,16 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
           ? {
               components: [{
                 type: 'body',
-                parameters: params.map((t) => ({ type: 'text', text: String(t) })),
+                /**
+                 * CON NOMBRE si la plantilla lo es. Meta empareja por
+                 * `parameter_name` y entonces el orden deja de importar; sin
+                 * nombre empareja por posición y el orden es lo único que hay.
+                 */
+                parameters: params.map((valor, i) => (
+                  e.cuerpo.nombrada && nombres[i]
+                    ? { type: 'text', parameter_name: nombres[i], text: String(valor) }
+                    : { type: 'text', text: String(valor) }
+                )),
               }],
             }
           : {}),

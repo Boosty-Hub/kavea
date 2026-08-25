@@ -70,7 +70,7 @@ function componentesAutenticacion(c: {
   caducidad?: number
   botonTexto: string
   otpTipo: string
-}): { ok: true; valor: unknown[] } | { ok: false; error: string } {
+}): { ok: true; valor: unknown[]; nombrada: boolean } | { ok: false; error: string } {
   const texto = (c.botonTexto ?? '').trim()
   if (!texto) return { ok: false, error: 'El botón necesita su texto.' }
   if (texto.length > 25) return { ok: false, error: 'El texto del botón pasa de 25 caracteres.' }
@@ -90,7 +90,7 @@ function componentesAutenticacion(c: {
     fuera.push({ type: 'FOOTER', code_expiration_minutes: c.caducidad })
   }
   fuera.push({ type: 'BUTTONS', buttons: [{ type: 'OTP', otp_type: c.otpTipo, text: texto }] })
-  return { ok: true, valor: fuera }
+  return { ok: true, valor: fuera, nombrada: false }
 }
 
 /** Los botones que esta versión sabe construir. */
@@ -160,6 +160,30 @@ function tokenPortafolio(): string {
   return t
 }
 
+/**
+ * Los huecos CON NOMBRE de un texto, en el orden en que aparecen y sin repetir.
+ *
+ * Meta los admite con `parameter_format: 'NAMED'`, y está comprobado contra las dos
+ * superficies: Messenger aprobó una en segundos, y WhatsApp la aceptó en cuanto el
+ * texto fue lo bastante largo —su primer rechazo era «demasiadas variables en
+ * relación con la longitud», que es otra regla suya, no un no al formato—.
+ *
+ * CON NOMBRES EL TEXTO ES EL MAPEO. Con `{{1}}` hacía falta una lista aparte que
+ * dijera qué campo va en cada posición, y esa lista puede discrepar del cuerpo:
+ * reordena las variables en el texto y el mapeo sigue apuntando a las posiciones
+ * viejas, sin error, mandando el presupuesto donde iba el nombre.
+ *
+ * El nombre no admite puntos, así que `campo.presupuesto_estimado` viaja como
+ * `campo_presupuesto_estimado`; la vuelta la hace `clave_desde_nombre_meta` (0110).
+ */
+function nombradasDe(texto: string): string[] {
+  const vistos: string[] = []
+  for (const m of texto.matchAll(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g)) {
+    if (!vistos.includes(m[1]!)) vistos.push(m[1]!)
+  }
+  return vistos
+}
+
 /** Cuántos `{{n}}` distintos lleva un texto. */
 function variablesDe(texto: string): number {
   const vistos = new Set<string>()
@@ -181,9 +205,11 @@ function componentes(c: {
   mediaHandle?: string
   cuerpo: string
   ejemplos: string[]
+  /** Nombre → ejemplo, para los huecos con nombre. */
+  ejemplosNombrados?: Record<string, string>
   pie?: string
   botones: Boton[]
-}): { ok: true; valor: unknown[] } | { ok: false; error: string } {
+}): { ok: true; valor: unknown[]; nombrada: boolean } | { ok: false; error: string } {
   const fuera: unknown[] = []
 
   // --- CABECERA DE MEDIA. Manda sobre la de texto: son excluyentes en Meta y
@@ -216,16 +242,37 @@ function componentes(c: {
   if (c.cuerpo.length < 1 || c.cuerpo.length > 1024) {
     return { ok: false, error: 'El cuerpo está vacío o pasa de 1024 caracteres.' }
   }
+  const conNombre = nombradasDe(c.cuerpo)
   const necesarias = variablesDe(c.cuerpo)
-  if (c.ejemplos.length < necesarias) {
+
+  // LAS DOS FORMAS NO SE MEZCLAN. Meta admite `{{1}}` o `{{nombre}}`, no ambas en
+  // el mismo cuerpo, y el error que da para eso no se entiende.
+  if (conNombre.length > 0 && necesarias > 0) {
     return {
       ok: false,
-      error: `El cuerpo usa ${necesarias} variable(s) y Meta exige un ejemplo para cada una. `
-        + `Hay ${c.ejemplos.length}.`,
+      error: 'El cuerpo mezcla huecos numerados y con nombre. Meta admite unos u otros, no los dos.',
     }
   }
+
   const body: Record<string, unknown> = { type: 'BODY', text: c.cuerpo }
-  if (necesarias > 0) body.example = { body_text: [c.ejemplos.slice(0, necesarias)] }
+  if (conNombre.length > 0) {
+    const faltan = conNombre.filter((n) => !(c.ejemplosNombrados ?? {})[n])
+    if (faltan.length) return { ok: false, error: `Faltan los ejemplos de: ${faltan.join(', ')}` }
+    body.example = {
+      body_text_named_params: conNombre.map((n) => ({
+        param_name: n, example: (c.ejemplosNombrados ?? {})[n],
+      })),
+    }
+  } else if (necesarias > 0) {
+    if (c.ejemplos.length < necesarias) {
+      return {
+        ok: false,
+        error: `El cuerpo usa ${necesarias} variable(s) y Meta exige un ejemplo para cada una. `
+          + `Hay ${c.ejemplos.length}.`,
+      }
+    }
+    body.example = { body_text: [c.ejemplos.slice(0, necesarias)] }
+  }
   fuera.push(body)
 
   // --- PIE. Sin variables, por regla de Meta.
@@ -267,7 +314,7 @@ function componentes(c: {
     fuera.push({ type: 'BUTTONS', buttons: lista })
   }
 
-  return { ok: true, valor: fuera }
+  return { ok: true, valor: fuera, nombrada: nombradasDe(c.cuerpo).length > 0 }
 }
 
 Deno.serve(async (req: Request): Promise<Response> => {
@@ -278,6 +325,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     nombre?: string; idioma?: string; categoria?: string
     cabecera?: string; ejemplo_cabecera?: string
     media_formato?: string; media_datos?: string; media_nombre?: string; media_tipo?: string
+    /** Nombre → ejemplo, para los huecos con nombre. */
+    ejemplos_nombrados?: Record<string, string>
     // Solo para AUTHENTICATION. Ver `componentesAutenticacion`.
     recomendacion?: boolean; caducidad?: number; boton_texto?: string; otp_tipo?: string
     cuerpo?: string; ejemplos?: string[]; pie?: string
@@ -377,6 +426,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         mediaHandle,
         cuerpo: (c.cuerpo ?? '').trim(),
         ejemplos: (c.ejemplos ?? []).map((s) => String(s).trim()).filter(Boolean),
+        ejemplosNombrados: c.ejemplos_nombrados ?? {},
         pie: (c.pie ?? '').trim() || undefined,
         botones: (c.botones ?? []).filter((b) => (b.texto ?? '').trim()),
       })
@@ -385,7 +435,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const r = await fetch(base, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: nombre, language: idioma, category: categoria, components: piezas.valor }),
+        body: JSON.stringify({
+          name: nombre, language: idioma, category: categoria,
+          // Solo cuando el cuerpo lo usa: declarar NAMED con huecos numerados es
+          // una contradicción y Meta la rechaza.
+          ...(piezas.nombrada ? { parameter_format: 'NAMED' } : {}),
+          components: piezas.valor,
+        }),
       })
       const j = await r.json() as {
         id?: string; status?: string; category?: string; error?: { message?: string }
@@ -424,6 +480,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
             ejemploCabecera: (c.ejemplo_cabecera ?? '').trim() || undefined,
             cuerpo: (c.cuerpo ?? '').trim(),
             ejemplos: (c.ejemplos ?? []).map((x) => String(x).trim()).filter(Boolean),
+            ejemplosNombrados: c.ejemplos_nombrados ?? {},
             pie: (c.pie ?? '').trim() || undefined,
             botones: (c.botones ?? []).filter((b) => (b.texto ?? '').trim()),
           })

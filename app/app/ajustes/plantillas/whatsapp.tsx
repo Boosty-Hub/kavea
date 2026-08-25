@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 
 /**
@@ -96,6 +96,27 @@ const IDIOMAS = [
 
 type Boton = { tipo: 'QUICK_REPLY' | 'URL' | 'PHONE_NUMBER'; texto: string; url: string; telefono: string; ejemplo: string }
 
+/**
+ * El nombre con el que un campo de Kavea viaja a Meta.
+ *
+ * Meta no admite puntos en el nombre de un hueco, así que
+ * `campo.presupuesto_estimado` se escribe `{{campo_presupuesto_estimado}}`. La
+ * vuelta la hace la base (0110) con la lista cerrada de ámbitos, así que la
+ * conversión es reversible y no hay que guardar un mapeo aparte.
+ */
+function nombreMeta(clave: string): string {
+  return clave.replace(/\./g, '_')
+}
+
+/** Los huecos con nombre de un texto, en orden y sin repetir. */
+function nombradasDe(texto: string): string[] {
+  const vistos: string[] = []
+  for (const m of texto.matchAll(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g)) {
+    if (!vistos.includes(m[1]!)) vistos.push(m[1]!)
+  }
+  return vistos
+}
+
 function variablesDe(texto: string): number {
   const vistos = new Set<string>()
   for (const m of texto.matchAll(/\{\{\s*(\d+)\s*\}\}/g)) vistos.add(m[1]!)
@@ -164,6 +185,31 @@ export function PlantillasDeWhatsApp({
 
   const necesarias = variablesDe(cuerpo)
   const cabeceraVariable = variablesDe(cabecera) === 1
+  /** Los campos que el cuerpo pide por nombre, y si mezcla las dos formas. */
+  const conNombre = nombradasDe(cuerpo)
+  const mezcla = conNombre.length > 0 && necesarias > 0
+  const cajaCuerpo = useRef<HTMLTextAreaElement | null>(null)
+
+  /**
+   * Insertar un campo DONDE ESTÁ EL CURSOR, no al final.
+   *
+   * Escribir el mensaje y luego tener que mover a mano cada variable al hueco que
+   * le toca es peor que teclearla: quien redacta piensa la frase entera y coloca
+   * el dato al pasar por él.
+   */
+  function insertarCampo(clave: string) {
+    const marca = `{{${nombreMeta(clave)}}}`
+    const caja = cajaCuerpo.current
+    if (!caja) { setCuerpo((c) => c + marca); return }
+    const i = caja.selectionStart ?? cuerpo.length
+    const j = caja.selectionEnd ?? i
+    const nuevo = cuerpo.slice(0, i) + marca + cuerpo.slice(j)
+    setCuerpo(nuevo)
+    requestAnimationFrame(() => {
+      caja.focus()
+      caja.setSelectionRange(i + marca.length, i + marca.length)
+    })
+  }
 
   const cargar = useCallback(async () => {
     setError(null)
@@ -267,6 +313,14 @@ export function PlantillasDeWhatsApp({
           media_nombre: fichero?.nombre ?? '',
           media_tipo: fichero?.tipo ?? '',
           cuerpo, ejemplos, pie,
+          // El ejemplo de cada hueco con nombre sale de la propia variable. Meta
+          // los exige y pedirlos a mano cuando ya se conocen es trabajo inventado.
+          ejemplos_nombrados: Object.fromEntries(
+            conNombre.map((n) => {
+              const v = variables.find((x) => nombreMeta(x.clave) === n)
+              return [n, v?.ejemplo || v?.etiqueta || n]
+            }),
+          ),
           botones: botones.map((b) => ({
             tipo: b.tipo, texto: b.texto, url: b.url, telefono: b.telefono, ejemplo: b.ejemplo,
           })),
@@ -716,16 +770,56 @@ export function PlantillasDeWhatsApp({
           <label style={{ display: 'grid', gap: 4 }}>
             <span className="label">Cuerpo</span>
             <textarea
+              ref={cajaCuerpo}
               className="campo" rows={3} value={cuerpo} onChange={(e) => setCuerpo(e.target.value)}
-              placeholder="Hola {{1}}, su pedido {{2}} ya va en camino." required maxLength={1024}
+              placeholder="Hola {{contacto_nombre}}, su pedido ya va en camino."
+              required maxLength={1024}
             />
-            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-              Los huecos van numerados: <code>{'{{1}}'}</code>, <code>{'{{2}}'}</code>.
-            </span>
           </label>
 
+          {/* LOS CAMPOS DEL SISTEMA, para pulsar en vez de teclear.
+              Meta admite huecos con nombre —`parameter_format: NAMED`— así que el
+              cuerpo puede llevar el campo de verdad y no un {{1}} que hay que
+              mapear aparte. Con nombres el texto ES el mapeo: no hay dos sitios
+              que puedan discrepar cuando se reordenan las variables. */}
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span className="label">Insertar un dato de la ficha</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {variables.map((v) => (
+                <button
+                  key={v.clave}
+                  type="button"
+                  className="operar__control"
+                  style={{ cursor: 'pointer', fontSize: 12 }}
+                  title={`Se escribe {{${nombreMeta(v.clave)}}}${v.ejemplo ? ` — ejemplo: ${v.ejemplo}` : ''}`}
+                  onClick={() => insertarCampo(v.clave)}
+                >
+                  {v.etiqueta}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Se rellenan solos con la ficha de cada contacto. Para tener más, créalos en{' '}
+              <a href="/ajustes/campos">Ajustes → Campos</a>. También puedes usar huecos numerados
+              —<code>{'{{1}}'}</code>— pero entonces hay que decir aparte qué va en cada uno.
+            </span>
+            {mezcla ? (
+              <span className="error" role="alert" style={{ fontSize: 12 }}>
+                El cuerpo mezcla huecos con nombre y numerados. Meta admite unos u otros, no los dos.
+              </span>
+            ) : null}
+            {conNombre.length > 0 ? (
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                {conNombre.length === 1 ? 'Un hueco' : `${conNombre.length} huecos`} con nombre. Los
+                ejemplos que Meta pide se sacan solos de cada campo: no hay que escribirlos.
+              </span>
+            ) : null}
+          </div>
+
           {/* Un ejemplo por hueco. Sin ellos Meta rechaza al crear. */}
-          {Array.from({ length: necesarias }, (_, i) => (
+          {/* Los ejemplos a mano SOLO para los numerados: los de nombre salen del
+              propio campo, que ya trae su ejemplo. */}
+          {Array.from({ length: conNombre.length > 0 ? 0 : necesarias }, (_, i) => (
             <label key={i} style={{ display: 'grid', gap: 4 }}>
               <span className="label">{`Ejemplo para {{${i + 1}}}`}</span>
               <input
@@ -734,7 +828,7 @@ export function PlantillasDeWhatsApp({
               />
             </label>
           ))}
-          {necesarias > 0 ? (
+          {necesarias > 0 && conNombre.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--k-text-2)', margin: 0 }}>
               Meta exige un ejemplo por hueco. Sin ellos rechaza la plantilla nada más crearla
               —motivo <code>INVALID_FORMAT</code>—.

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 /**
  * Las plantillas de utilidad de Messenger.
@@ -61,7 +61,26 @@ function variablesDe(texto: string): number {
   return vistos.size
 }
 
-export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boolean }) {
+/** El nombre con el que un campo de Kavea viaja a Meta: sin puntos. */
+function nombreMeta(clave: string): string {
+  return clave.replace(/\./g, '_')
+}
+
+/** Los huecos con nombre de un texto, en orden y sin repetir. */
+function nombradasDe(texto: string): string[] {
+  const vistos: string[] = []
+  for (const m of texto.matchAll(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g)) {
+    if (!vistos.includes(m[1]!)) vistos.push(m[1]!)
+  }
+  return vistos
+}
+
+export function PlantillasDeUtilidad({
+  puedeConfigurar, variables,
+}: {
+  puedeConfigurar: boolean
+  variables: Array<{ clave: string; etiqueta: string; ejemplo: string | null }>
+}) {
   const [lista, setLista] = useState<Plantilla[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState(false)
@@ -72,6 +91,27 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
   const [ejemplos, setEjemplos] = useState<string[]>([])
 
   const necesarias = variablesDe(texto)
+  const conNombre = nombradasDe(texto)
+  const mezcla = conNombre.length > 0 && necesarias > 0
+  const caja = useRef<HTMLTextAreaElement | null>(null)
+
+  /**
+   * Insertar el campo DONDE ESTÁ EL CURSOR, no al final.
+   *
+   * Quien redacta piensa la frase entera y coloca el dato al pasar por él; tener
+   * que mover a mano cada variable después es peor que teclearla.
+   */
+  function insertarCampo(clave: string) {
+    const marca = `{{${nombreMeta(clave)}}}`
+    const c = caja.current
+    if (!c) { setTexto((x) => x + marca); return }
+    const i = c.selectionStart ?? texto.length
+    const j = c.selectionEnd ?? i
+    setTexto(texto.slice(0, i) + marca + texto.slice(j))
+    requestAnimationFrame(() => {
+      c.focus(); c.setSelectionRange(i + marca.length, i + marca.length)
+    })
+  }
 
   const cargar = useCallback(async () => {
     setError(null)
@@ -102,6 +142,14 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
         body: JSON.stringify({
           accion: 'crear', nombre, texto, idioma: 'es_ES',
           ejemplos: ejemplos.slice(0, necesarias),
+          // El ejemplo de cada hueco con nombre sale de la propia variable: Meta
+          // los exige y pedirlos a mano cuando ya se conocen es trabajo inventado.
+          ejemplos_nombrados: Object.fromEntries(
+            conNombre.map((n) => {
+              const v = variables.find((x) => nombreMeta(x.clave) === n)
+              return [n, v?.ejemplo || v?.etiqueta || n]
+            }),
+          ),
         }),
       })
       const j = await r.json().catch(() => ({}))
@@ -212,22 +260,52 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
           <label style={{ display: 'grid', gap: 4 }}>
             <span className="label">Texto</span>
             <textarea
+              ref={caja}
               className="campo"
               rows={3}
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
-              placeholder="Hola {{1}}, su pedido {{2}} ya va en camino."
+              placeholder="Hola {{contacto_nombre}}, su pedido ya va en camino."
               required
             />
-            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-              Los huecos van numerados: <code>{'{{1}}'}</code>, <code>{'{{2}}'}</code>.
-            </span>
           </label>
+
+          {/* LOS CAMPOS DEL SISTEMA, para pulsar en vez de teclear.
+              Messenger admite huecos CON NOMBRE igual que WhatsApp
+              —`parameter_format: NAMED`, comprobado contra la Página el 25-ago—,
+              así que el texto puede llevar el campo de verdad en vez de un
+              {{1}} que hay que mapear aparte. Con nombres el texto ES el mapeo. */}
+          <div style={{ display: 'grid', gap: 6 }}>
+            <span className="label">Insertar un dato de la ficha</span>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {variables.map((v) => (
+                <button
+                  key={v.clave} type="button" className="operar__control"
+                  style={{ cursor: 'pointer', fontSize: 12 }}
+                  title={`Se escribe {{${nombreMeta(v.clave)}}}${v.ejemplo ? ` — ejemplo: ${v.ejemplo}` : ''}`}
+                  onClick={() => insertarCampo(v.clave)}
+                >
+                  {v.etiqueta}
+                </button>
+              ))}
+            </div>
+            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+              Se rellenan con la ficha de cada contacto. Para tener más, créalos en{' '}
+              <a href="/ajustes/campos">Ajustes → Campos</a>.
+            </span>
+            {mezcla ? (
+              <span className="error" role="alert" style={{ fontSize: 12 }}>
+                Mezcla huecos con nombre y numerados. Meta admite unos u otros, no los dos.
+              </span>
+            ) : null}
+          </div>
 
           {/* LOS EJEMPLOS SE PIDEN AQUÍ Y NO SON OPCIONALES. Una plantilla con
               variables y sin ejemplos Meta la crea y la rechaza en el mismo
               instante, y hay que borrarla y empezar con otro nombre. */}
-          {Array.from({ length: necesarias }, (_, i) => (
+          {/* Los ejemplos a mano solo para los numerados: los de nombre salen del
+              propio campo, que ya trae el suyo. */}
+          {Array.from({ length: conNombre.length > 0 ? 0 : necesarias }, (_, i) => (
             <label key={i} style={{ display: 'grid', gap: 4 }}>
               <span className="label">{`Ejemplo para {{${i + 1}}}`}</span>
               <input
@@ -240,7 +318,7 @@ export function PlantillasDeUtilidad({ puedeConfigurar }: { puedeConfigurar: boo
               />
             </label>
           ))}
-          {necesarias > 0 ? (
+          {necesarias > 0 && conNombre.length === 0 ? (
             <p style={{ fontSize: 12, color: 'var(--k-text-2)', margin: 0 }}>
               Meta exige un ejemplo por hueco. Sin ellos rechaza la plantilla nada más crearla.
             </p>
