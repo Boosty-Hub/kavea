@@ -147,6 +147,47 @@ async function subirMedia(
   return { ok: true, handle: fin.h }
 }
 
+/**
+ * El motivo de verdad de un error de Meta.
+ *
+ * `error.message` es casi siempre «Invalid parameter», que no dice nada. La
+ * explicación buena está en `error_user_msg` —Y EN CASTELLANO, porque Meta la
+ * traduce— y el titular en `error_user_title`. Mostrar solo `message` fue lo que
+ * dejó al operador con un «Invalid parameter» delante mientras Meta había escrito
+ * «las variables no pueden estar al principio ni al final de la plantilla».
+ *
+ * Se juntan los tres por orden de utilidad y sin repetir: el titular a veces es
+ * el resumen del mensaje y a veces añade algo.
+ */
+function motivoDeMeta(e: Record<string, unknown> | undefined): string {
+  if (!e) return 'Meta rechazó la petición sin decir por qué.'
+  const msg = typeof e.error_user_msg === 'string' ? e.error_user_msg.trim() : ''
+  const titulo = typeof e.error_user_title === 'string' ? e.error_user_title.trim() : ''
+  const generico = typeof e.message === 'string' ? e.message.trim() : ''
+  if (msg) return titulo && !msg.startsWith(titulo) ? `${titulo}: ${msg}` : msg
+  return titulo || generico || 'Meta rechazó la petición sin decir por qué.'
+}
+
+/**
+ * Una variable al principio o al final del cuerpo es un rechazo seguro.
+ *
+ * Regla de Meta, comprobada el 25-ago: «Las variables no pueden estar al principio
+ * ni al final de la plantilla». No está en ninguna guía que hubiéramos leído y su
+ * error es un «Invalid parameter» pelado. Se para aquí, que cuesta un intento
+ * menos y no gasta el nombre.
+ */
+function huecoEnBorde(cuerpo: string): string | null {
+  const t = cuerpo.trim()
+  if (/^\{\{/.test(t)) {
+    return 'El cuerpo no puede EMPEZAR por una variable. Meta lo rechaza: pon algo de texto delante.'
+  }
+  if (/\}\}$/.test(t)) {
+    return 'El cuerpo no puede TERMINAR en una variable. Meta lo rechaza: añade algo de texto detrás, '
+      + 'aunque sea un punto o una frase corta.'
+  }
+  return null
+}
+
 function json(cuerpo: unknown, estado = 200) {
   return new Response(JSON.stringify(cuerpo), {
     status: estado,
@@ -242,6 +283,9 @@ function componentes(c: {
   if (c.cuerpo.length < 1 || c.cuerpo.length > 1024) {
     return { ok: false, error: 'El cuerpo está vacío o pasa de 1024 caracteres.' }
   }
+  const borde = huecoEnBorde(c.cuerpo)
+  if (borde) return { ok: false, error: borde }
+
   const conNombre = nombradasDe(c.cuerpo)
   const necesarias = variablesDe(c.cuerpo)
 
@@ -353,7 +397,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         headers: { Authorization: `Bearer ${token}` },
       })
       const j = await r.json() as { data?: unknown[]; error?: { message?: string } }
-      if (j.error) return json({ error: j.error.message }, 502)
+      if (j.error) return json({ error: motivoDeMeta(j.error) }, 502)
       return json({ plantillas: j.data ?? [] })
     }
 
@@ -446,7 +490,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const j = await r.json() as {
         id?: string; status?: string; category?: string; error?: { message?: string }
       }
-      if (j.error) return json({ error: j.error.message }, 502)
+      if (j.error) return json({ error: motivoDeMeta(j.error) }, 502)
 
       // Nace REJECTED con frecuencia y la llamada «funciona». Se devuelve el
       // estado para que la pantalla lo diga en el momento, no en la siguiente
@@ -492,7 +536,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         body: JSON.stringify({ components: piezas.valor }),
       })
       const j = await r.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
-      if (j.error) return json({ error: j.error.message }, 502)
+      if (j.error) return json({ error: motivoDeMeta(j.error) }, 502)
       return json({ editada: Boolean(j.success) })
     }
 
@@ -509,7 +553,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
         headers: { Authorization: `Bearer ${token}` },
       })
       const j = await r.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
-      if (j.error) return json({ error: j.error.message }, 502)
+      if (j.error) return json({ error: motivoDeMeta(j.error) }, 502)
       return json({ borrada: Boolean(j.success) })
     }
 

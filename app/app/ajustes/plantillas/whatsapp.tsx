@@ -108,6 +108,22 @@ function nombreMeta(clave: string): string {
   return clave.replace(/\./g, '_')
 }
 
+/**
+ * Una variable al principio o al final es un rechazo seguro.
+ *
+ * Regla de Meta, comprobada contra la WABA el 25-ago: «Las variables no pueden
+ * estar al principio ni al final de la plantilla» (subcódigo 2388299). No está en
+ * ninguna guía que hubiéramos leído y su error es un «Invalid parameter» pelado,
+ * así que se dice aquí mientras se escribe: llegar hasta Meta para esto cuesta el
+ * nombre de la plantilla, que no se puede reutilizar.
+ */
+function bordeDe(cuerpo: string): string | null {
+  const t = cuerpo.trim()
+  if (/^\{\{/.test(t)) return 'no puede EMPEZAR por una variable'
+  if (/\}\}$/.test(t)) return 'no puede TERMINAR en una variable'
+  return null
+}
+
 /** Los huecos con nombre de un texto, en orden y sin repetir. */
 function nombradasDe(texto: string): string[] {
   const vistos: string[] = []
@@ -188,6 +204,7 @@ export function PlantillasDeWhatsApp({
   /** Los campos que el cuerpo pide por nombre, y si mezcla las dos formas. */
   const conNombre = nombradasDe(cuerpo)
   const mezcla = conNombre.length > 0 && necesarias > 0
+  const borde = bordeDe(cuerpo)
   const cajaCuerpo = useRef<HTMLTextAreaElement | null>(null)
 
   /**
@@ -808,6 +825,12 @@ export function PlantillasDeWhatsApp({
                 El cuerpo mezcla huecos con nombre y numerados. Meta admite unos u otros, no los dos.
               </span>
             ) : null}
+            {borde ? (
+              <span className="error" role="alert" style={{ fontSize: 12 }}>
+                El cuerpo {borde}: Meta lo rechaza. Escribe algo de texto{' '}
+                {borde.includes('EMPEZAR') ? 'delante' : 'detrás'} —aunque sea una frase corta.
+              </span>
+            ) : null}
             {conNombre.length > 0 ? (
               <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
                 {conNombre.length === 1 ? 'Un hueco' : `${conNombre.length} huecos`} con nombre. Los
@@ -924,6 +947,13 @@ export function PlantillasDeWhatsApp({
           </>
           )}
 
+          {/* EL MOTIVO, JUNTO AL BOTÓN QUE LO PROVOCÓ.
+              El aviso de arriba queda a más de mil píxeles del botón cuando el
+              formulario está abierto: se pulsa «Crear y enviar a Meta», Meta
+              contesta y no se ve nada. Se repite aquí, donde está la mirada. */}
+          {error ? (
+            <p className="error" role="alert" style={{ margin: 0 }}>{error}</p>
+          ) : null}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn" disabled={guardando}>
               {guardando

@@ -233,6 +233,49 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — «Invalid parameter» lo explicaba Meta, y Kavea lo tiraba a la basura
+
+Al crear `numero_presupuesto` con el cuerpo
+
+    Hola {{contacto_nombre}}, tu monto presupuestado es {{campo_presupuesto_estimado}}
+
+la pantalla decía **`Invalid parameter`** y nada más. Reproducido contra la WABA con curl, la
+respuesta completa era:
+
+    message:           Invalid parameter
+    code:              100
+    error_subcode:     2388299
+    error_user_title:  No se permite incluir parámetros al principio ni al final
+    error_user_msg:    Las variables no pueden estar al principio ni al final de la plantilla.
+
+Meta lo explicaba, en castellano, en el mismo cuerpo de la respuesta. Kavea leía `error.message`
+—que en las plantillas es casi siempre «Invalid parameter»— y descartaba `error_user_title` y
+`error_user_msg`, que son los únicos campos con contenido. Cuatro llamadas en
+`plantillas-whatsapp` y dos en `plantillas-utilidad` hacían lo mismo: crear, editar, borrar y
+listar.
+
+**Dos arreglos, uno por cada mitad del problema.**
+
+`motivoDeMeta()` en las dos funciones prefiere `error_user_msg`, lo encabeza con
+`error_user_title` cuando añade algo, y solo cae a `message` si no hay ninguno de los dos.
+Comprobado en la pantalla con un rechazo que Kavea no puede prever —demasiadas variables para lo
+corto que es el cuerpo, subcódigo `2388293`—: el aviso ahora dice *«La proporción entre parámetros
+y palabras es superior al límite: esta plantilla tiene demasiadas variables en relación con su
+longitud»*.
+
+`bordeDe()` en las dos pantallas avisa **mientras se escribe** de que el cuerpo empieza o acaba en
+variable, y las dos funciones lo rechazan antes de llamar a Meta. La regla no está en ninguna guía
+que hubiéramos leído y su error es un «Invalid parameter» pelado; llegar hasta Meta para
+descubrirla cuesta el nombre de la plantilla, que **queda ocupado aunque el alta falle**.
+
+Y una tercera cosa que salió al mirarlo: el aviso vivía solo arriba de la lista, a más de mil
+píxeles del botón. Se pulsaba «Crear y enviar a Meta» al fondo del formulario, Meta contestaba, y
+no se veía nada. Ahora el motivo se repite junto al botón que lo provocó.
+
+**Lo que sí funciona**, verificado: `pedido_en_camino` con
+`Hola {{contacto_nombre}}, su pedido va en camino` está APPROVED. La variable en medio, texto a
+los dos lados. Las tres pruebas de rechazo no dejaron rastro en la WABA: sigue con dos plantillas.
+
 ### 2026-08-25 — «Application does not have permission» era una Página desconectada
 
 `(#10) Application does not have permission for this action` en la pestaña de Messenger, con la
@@ -812,6 +855,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Un error de un tercero se lee entero antes de mostrarlo: el campo que se enseña por costumbre
+  (`message`) puede ser el único sin información, y el motivo estar al lado sin que nadie lo mire.
+- Un aviso lejos del control que lo provocó es un aviso que no existe.
 - Grabar el producto es la prueba más honesta: no se puede grabar una intención.
 - Una medición que no vuelve al código no sirve de nada.
 - Un camino solo probado por fuera del producto (a mano, saltándose la función) no está probado.

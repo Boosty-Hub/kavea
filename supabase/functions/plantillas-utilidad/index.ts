@@ -90,6 +90,47 @@ async function tokenDePagina(pageId: string): Promise<string> {
  * Con nombres el texto ES el mapeo, y no hace falta una lista aparte que diga qué
  * campo va en cada posición y que pueda discrepar del cuerpo.
  */
+/**
+ * El motivo de verdad de un error de Meta.
+ *
+ * `error.message` es casi siempre «Invalid parameter», que no dice nada. La
+ * explicación buena está en `error_user_msg` —Y EN CASTELLANO, porque Meta la
+ * traduce— y el titular en `error_user_title`. Mostrar solo `message` fue lo que
+ * dejó al operador con un «Invalid parameter» delante mientras Meta había escrito
+ * «las variables no pueden estar al principio ni al final de la plantilla».
+ *
+ * Se juntan los tres por orden de utilidad y sin repetir: el titular a veces es
+ * el resumen del mensaje y a veces añade algo.
+ */
+function motivoDeMeta(e: Record<string, unknown> | undefined): string {
+  if (!e) return 'Meta rechazó la petición sin decir por qué.'
+  const msg = typeof e.error_user_msg === 'string' ? e.error_user_msg.trim() : ''
+  const titulo = typeof e.error_user_title === 'string' ? e.error_user_title.trim() : ''
+  const generico = typeof e.message === 'string' ? e.message.trim() : ''
+  if (msg) return titulo && !msg.startsWith(titulo) ? `${titulo}: ${msg}` : msg
+  return titulo || generico || 'Meta rechazó la petición sin decir por qué.'
+}
+
+/**
+ * Una variable al principio o al final del cuerpo es un rechazo seguro.
+ *
+ * Regla de Meta, comprobada el 25-ago: «Las variables no pueden estar al principio
+ * ni al final de la plantilla». No está en ninguna guía que hubiéramos leído y su
+ * error es un «Invalid parameter» pelado. Se para aquí, que cuesta un intento
+ * menos y no gasta el nombre.
+ */
+function huecoEnBorde(cuerpo: string): string | null {
+  const t = cuerpo.trim()
+  if (/^\{\{/.test(t)) {
+    return 'El cuerpo no puede EMPEZAR por una variable. Meta lo rechaza: pon algo de texto delante.'
+  }
+  if (/\}\}$/.test(t)) {
+    return 'El cuerpo no puede TERMINAR en una variable. Meta lo rechaza: añade algo de texto detrás, '
+      + 'aunque sea un punto o una frase corta.'
+  }
+  return null
+}
+
 function nombradasDe(texto: string): string[] {
   const vistos: string[] = []
   for (const m of texto.matchAll(/\{\{\s*([a-z][a-z0-9_]*)\s*\}\}/g)) {
@@ -157,9 +198,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const r = await fetch(`${base}?fields=${campos}&limit=200`, {
         headers: { Authorization: `Bearer ${token}` },
       })
-      const j = await r.json() as { data?: Plantilla[]; error?: { message?: string } }
+      const j = await r.json() as { data?: Plantilla[]; error?: Record<string, unknown> }
       if (j.error) {
-        return new Response(JSON.stringify({ error: j.error.message }), { status: 502 })
+        return new Response(JSON.stringify({ error: motivoDeMeta(j.error) }), { status: 502 })
       }
       return new Response(JSON.stringify({ plantillas: j.data ?? [] }), {
         status: 200, headers: { 'content-type': 'application/json' },
@@ -190,6 +231,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // sin ejemplos nace REJECTED y hay que borrarla y volver a empezar con otro
       // nombre; un error antes de llamar cuesta un intento y no ensucia la Página.
       const ejemplos = (cuerpo.ejemplos ?? []).map((s) => String(s).trim()).filter(Boolean)
+      const borde = huecoEnBorde(texto)
+      if (borde) return new Response(JSON.stringify({ error: borde }), { status: 400 })
+
       const conNombre = nombradasDe(texto)
       const necesarias = variablesDe(texto)
 
@@ -219,9 +263,9 @@ Deno.serve(async (req: Request): Promise<Response> => {
           ),
         }),
       })
-      const j = await r.json() as Plantilla & { error?: { message?: string } }
+      const j = await r.json() as Plantilla & { error?: Record<string, unknown> }
       if (j.error) {
-        return new Response(JSON.stringify({ error: j.error.message }), { status: 502 })
+        return new Response(JSON.stringify({ error: motivoDeMeta(j.error) }), { status: 502 })
       }
       return new Response(JSON.stringify({ creada: { id: j.id, status: j.status, category: j.category } }), {
         status: 200, headers: { 'content-type': 'application/json' },
