@@ -82,6 +82,8 @@ export function PlantillasDeUtilidad({
   variables: Array<{ clave: string; etiqueta: string; ejemplo: string | null }>
 }) {
   const [lista, setLista] = useState<Plantilla[] | null>(null)
+  /** De qué Página son las que se están viendo. Ver la ruta de API. */
+  const [pagina, setPagina] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [abierto, setAbierto] = useState(false)
   const [guardando, setGuardando] = useState(false)
@@ -124,6 +126,7 @@ export function PlantillasDeUtilidad({
       const j = await r.json().catch(() => ({}))
       if (!r.ok) { setError(j.error ?? 'No se pudieron leer las plantillas.'); setLista([]); return }
       setLista(j.plantillas ?? [])
+      setPagina(j.pagina ?? null)
     } catch {
       setError('No se pudo hablar con Meta ahora mismo.')
       setLista([])
@@ -164,7 +167,12 @@ export function PlantillasDeUtilidad({
   return (
     <section style={{ marginTop: 32 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
-        <h2 style={{ fontSize: 16, margin: 0 }}>De utilidad, en Messenger</h2>
+        <h2 style={{ fontSize: 16, margin: 0 }}>
+          De utilidad, en Messenger
+          {pagina ? (
+            <span style={{ fontWeight: 400, color: 'var(--k-text-2)' }}>{' · '}{pagina}</span>
+          ) : null}
+        </h2>
         <button
           type="button"
           className="operar__control"

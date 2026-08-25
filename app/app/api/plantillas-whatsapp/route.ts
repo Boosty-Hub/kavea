@@ -59,6 +59,9 @@ export async function POST(req: Request) {
     .select('waba_id')
     .not('waba_id', 'is', null)
     .eq('estado', 'connected')
+    // Con dos WABA conectadas, «la primera» vuelve a ser la que devuelva
+    // Postgres. Hoy hay una; el `order` es para el día que haya dos.
+    .order('waba_id', { ascending: true })
     .limit(1)
     .maybeSingle()
 
