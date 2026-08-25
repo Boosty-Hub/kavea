@@ -655,6 +655,21 @@ personal, que no es lo que se quiere declarar.
 Son compromisos sobre procesos internos. **Solo se marca lo que sea verdad hoy**,
 no lo que suene bien: Meta puede pedir que se demuestre.
 
+Las cuatro que quedaron marcadas, verificadas en el formulario el 25-ago:
+
+- Required review of the legality of these requests.
+- Provisions for challenging these requests if they are considered unlawful.
+- Data minimization policy — the ability to disclose the minimum information necessary.
+- Documentation of these requests, including your responses to the requests and
+  the legal reasoning and actors involved.
+
+Sin marcar: *None of the above* y *We are prohibited by law or company policy
+from answering this question*.
+
+**Es la única sección del formulario cuya respuesta no se comprueba mirando el
+producto.** Las demás se pueden releer contra el código y la pantalla; estas
+cuatro solo contra lo que la empresa haga de verdad.
+
 ## 3.ter Acceso del revisor
 
 El revisor entra en **`boosty.kavea.ai`** con un usuario propio,
