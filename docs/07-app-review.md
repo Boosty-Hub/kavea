@@ -324,9 +324,20 @@ One deliberate design decision the reviewer will notice: we do not store these t
 Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing them from the same place where the team answers messages is the point of the product.
 ```
 
-**Vídeo:** `pages_utility_messaging`. La sección leyendo de Meta, la lista con dos
-plantillas aprobadas y una rechazada, y la creación de una nueva de punta a
-punta hasta verla aparecer aprobada.
+**Vídeo:** `pages_utility_messaging`, montado el 25-ago. Login completo, luego un
+rótulo, luego la pestaña **Messenger** con las plantillas de la Página leídas de
+Meta —cinco aprobadas y dos rechazadas, con su motivo— y la creación de
+`pedido_devuelto` de punta a punta hasta verla aprobada. Detrás, con su propio
+rótulo, la misma pantalla en WhatsApp como contexto.
+
+**Lo que este vídeo NO enseña, y hay que decirlo:** la nota de rechazo pide además
+*«sending the message to a test recipient and showing the delivered template
+message in the native client»*. Kavea no tiene todavía ese carril: el envío de
+plantilla en `despachar` vive entero dentro de `if (canal === 'whatsapp')`. La vía
+existe y está sondeada —`POST /{page-id}/messages` con `messaging_type: 'UTILITY'`
+y `message.template`; con un destinatario inválido Meta se queja del destinatario,
+no de la forma— pero no está construida. Es el punto flojo conocido de esta
+solicitud.
 
 ### `business_management`
 

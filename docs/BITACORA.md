@@ -233,6 +233,41 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Los ocho montajes, y el punto flojo que queda a la vista
+
+`plantilla.mp4` era la última toma que faltaba, y llegó en dos piezas: las plantillas de la Página
+en Messenger —lo que el permiso pide— y las de WhatsApp, grabadas antes.
+
+Se unieron en ese orden, Messenger primero, porque el permiso que se revisa es de Página y lo
+primero que ve el revisor debe ser aquello por lo que está mirando. Entre las dos mitades va un
+**rótulo de dos segundos y medio**: sin él la superficie cambia de Messenger a WhatsApp Manager sin
+que nada lo explique, y una pregunta sin contestar en un vídeo de App Review se contesta sola y
+mal.
+
+De aire muerto se fueron **126 s de 257** entre las dos tomas. La de Messenger se recortó con un
+margen mayor —tres segundos por parada en vez de 1,6— porque sus paradas son justo las pantallas
+que hay que leer: la lista con los estados y la plantilla recién creada. Recortar por recortar
+habría tirado la prueba.
+
+Con eso los **ocho montajes están hechos**. `pages_utility_messaging` sale de 318 s.
+
+**Y el punto flojo, dicho en voz alta:** su nota pide tres cosas y el vídeo cubre dos. Falta
+*«sending the message to a test recipient and showing the delivered template message in the native
+client»*, porque el carril de plantilla de `despachar` está entero dentro de
+`if (canal === 'whatsapp')`. La vía para Messenger existe y se sondeó
+—`POST /{page-id}/messages` con `messaging_type: 'UTILITY'`— pero no está construida. Se manda
+sabiendo esto, no por no haberlo mirado.
+
+Tres cosas más que salieron de las grabaciones, sin buscarlas:
+
+- El aviso nuevo del borde **quedó grabado funcionando**: se inserta la variable al final, salta
+  «El cuerpo no puede TERMINAR en una variable», se sigue la frase y Meta la aprueba. Es mejor
+  material que una pantalla sin errores: se ve el producto guiando.
+- Las plantillas de la Página **admiten huecos con nombre**, no solo `{{1}}`. Confirmado con dos
+  altas aprobadas.
+- Los rótulos con `drawtext` no pueden llevar la letra de unidad en la ruta de la fuente: los dos
+  puntos separan opciones del filtro. Se copia la fuente al lado y se nombra en relativo.
+
 ### 2026-08-25 — «Message Template Creation Failed» era Meta fallando, no Kavea
 
 Al grabar la toma de Messenger, el alta de `numero_pedido` murió con **«Message Template Creation
@@ -894,6 +929,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Al recortar una grabación, la pausa larga suele SER la prueba: el margen se elige por lo que
+  hay que leer, no por acortar.
+- Cuando un vídeo cambia de superficie, un rótulo de dos segundos evita la pregunta que el
+  revisor se contestaría solo.
 - Antes de culpar al código, reproducir por capas: la de fuera puede fallar por algo que ya no
   falla, y un error de un tercero puede ser pasajero sin decirlo en el texto.
 - `is_transient` contesta la única pregunta que el operador se hace ante un error opaco.

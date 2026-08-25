@@ -18,7 +18,11 @@
  *   login.mp4              ← el diálogo de Meta completo. OBLIGATORIO.
  *   messenger.mp4          ← envío desde Kavea + llegada en Messenger
  *   instagram.mp4          ← envío desde Kavea + llegada en Instagram
- *   plantilla.mp4          ← plantilla de utilidad + llegada en WhatsApp
+ *   plantilla.mp4          ← plantillas de utilidad de la PÁGINA en Messenger
+ *                            —que es lo que pide `pages_utility_messaging`— y detrás
+ *                            las de WhatsApp como contexto. Lleva un rótulo delante de
+ *                            cada mitad: el revisor ve cambiar de canal y nada se lo
+ *                            explicaría.
  *   comentarios-nativo.mp4 ← la publicación en Instagram sin el comentario borrado
  *
  * Y en `screencasts/video/`, lo que grabó `grabar-screencasts.mjs`.
