@@ -233,6 +233,40 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Los huecos con nombre: el campo real dentro del mensaje
+
+**Lo que se pidió:** poner los campos del sistema en el cuerpo de la plantilla, tipo
+`{{presupuesto}}`, en vez de un `{{1}}` que no dice nada. **Y resulta que Meta ya lo permite:**
+`parameter_format: 'NAMED'` con `example.body_text_named_params`.
+
+Comprobado contra **las dos** superficies antes de escribir código. Messenger aprobó una en
+segundos. WhatsApp la rechazó la primera vez, pero no por el formato: *«La proporción entre
+parámetros y palabras es superior al límite»* — otra regla suya, sobre cuántas variables caben en un
+texto corto. Con el texto más largo, aceptada.
+
+**Lo que eso cambia no es cosmético.** Con huecos numerados hacía falta un mapeo aparte —qué campo va
+en cada posición— y ese mapeo **puede discrepar del texto**: reordena las variables en el cuerpo y el
+mapeo sigue apuntando a las posiciones viejas, sin dar error, mandando el presupuesto donde iba el
+nombre. **Con nombres el texto es el mapeo.** No hay dos sitios que puedan contradecirse.
+
+El nombre en Meta se deriva de la clave con el punto convertido en guion bajo
+—`campo.presupuesto_estimado` ↔ `campo_presupuesto_estimado`— y la vuelta es fiable porque el ámbito
+es una lista cerrada: `contacto`, `tarjeta`, `campo`, `agente`, `org` (0110).
+
+**Y los ejemplos dejan de pedirse.** Meta exige uno por hueco, y cada variable ya trae el suyo en
+`variables_disponibles`. Pedirlos a mano cuando ya se conocen era trabajo inventado; ahora solo
+aparecen para los huecos numerados, que son los que no se sabe qué contienen.
+
+**Las dos formas no se mezclan.** Meta admite `{{1}}` o `{{nombre}}`, no ambas en el mismo cuerpo, y
+el error que da para eso no se entiende. Se para antes, en castellano.
+
+Probado desde la pantalla: pulsar «Nombre de la persona» y «Presupuesto estimado» escribió
+`{{contacto_nombre}}` y `{{campo_presupuesto_estimado}}` **en la posición del cursor**, no al final;
+no pidió ningún ejemplo; y Meta la guardó con `parameter_format: NAMED` y sus dos
+`body_text_named_params`. Borrada después.
+
+Lo posicional sigue funcionando: hay plantillas aprobadas con `{{1}}` que no se van a rehacer.
+
 ### 2026-08-25 — Dos fallos que solo se veían usándolo
 
 **El propietario no podía crear plantillas.** La pantalla le decía «No puedes crear, editar ni
@@ -1051,3 +1085,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   función se llama en siete sitios, copiar uno de esos siete es más seguro que escribirla de nuevo.
 - Comprobar que un formulario se pinta no es comprobar que funciona. Lo único que recorre la ruta,
   su guarda y la llamada al tercero es pulsar el botón.
+- Antes de construir un apaño para una limitación de un tercero, comprobar si sigue siendo una
+  limitación. El mapeo posicional se construyó ayer y hoy sobraba: Meta admite nombres desde hace
+  tiempo.
+- Un rechazo de Meta hay que leerlo entero antes de concluir que la función no existe. «Demasiadas
+  variables en relación con la longitud» no es «no admito nombres», y confundirlos habría cerrado el
+  camino bueno.
+- Dos sitios que describen lo mismo acaban discrepando. Un mapeo de posiciones aparte del texto se
+  rompe en silencio al reordenar; el nombre dentro del texto no puede desalinearse consigo mismo.
