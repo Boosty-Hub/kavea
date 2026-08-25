@@ -468,9 +468,24 @@ We also read the sender's username and profile picture so the person appears in 
 Value for the person using the app: today these businesses answer Instagram from the app on one person's phone. Kavea turns that into a shared inbox with assignment and history, and one view of each customer across all three channels.
 
 Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
+What the recording shows, in the order you asked for: (1) the connected asset is visible — the Instagram professional account's handle and its numeric ID appear on the channels screen during setup, and the conversation header names the account the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Instagram app is then opened on the customer's side to show the delivered message.
 ```
 
 **Vídeo:** `instagram_manage_messages`. Bandeja y un hilo abierto.
+
+**El recuadro amarillo de esta tarjeta, que no sale en ninguna otra.** Meta avisa
+de dos casos y pide información adicional en cada uno:
+
+> *«…for the purpose of using and processing data **on behalf of other Instagram
+> business accounts**»* — **este es el de Kavea**, y es lo que dice su propio
+> texto declarado.
+>
+> *«…to use and process data for your **own** instagram business account»* — no
+> aplica.
+
+Hay que abrir el `View requirements` del primero y comprobar que no falte nada.
+Es el tipo de requisito que bloquea la aprobación sin aparecer en la nota de
+rechazo, así que no se da por cubierto: se mira.
 
 ### `pages_read_engagement`
 

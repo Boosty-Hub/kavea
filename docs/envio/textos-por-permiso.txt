@@ -1,16 +1,21 @@
 LOS OCHO TEXTOS DECLARADOS, uno por permiso
 ===========================================
 
-Los ocho estan ya en docs/07-app-review.md. Esta hoja es una copia plana para
+Los ocho estan en docs/07-app-review.md. Esta hoja es la copia plana para
 tenerla al lado del formulario, que pide una pantalla por permiso.
 
 CAMBIADOS respecto a lo que habia en el formulario de Meta:
   - pages_utility_messaging: incluye el envio y el cliente nativo
   - instagram_manage_comments: pestaña del buzon, y el bucle de editar y borrar
   - pages_messaging: ultimo parrafo nuevo: los tres puntos de la nota
+  - instagram_manage_messages: ultimo parrafo nuevo: los tres puntos de la nota
 
-OJO en pages_messaging: tiene DOS campos que las otras no —el desplegable
-«Select a Page» (elegir Boosty.digital) y las instrucciones paso a paso—.
+CAMPOS QUE SOLO TIENEN ALGUNAS TARJETAS:
+  - pages_messaging: desplegable «Select a Page» (elegir Boosty.digital) y
+    las instrucciones paso a paso. Los dos obligatorios.
+  - instagram_manage_messages: recuadro amarillo con «View requirements».
+    El caso que aplica es el PRIMERO, procesar datos por cuenta de cuentas
+    de Instagram de terceros. Hay que abrirlo y comprobar que no falta nada.
 
 --- Human Agent -------------------------------------------------
 
@@ -87,7 +92,7 @@ What the recording shows, in the order you asked for: (1) the connected asset is
 
 
 --- instagram_manage_messages -----------------------------------
-
+  (CAMBIADO: ultimo parrafo nuevo: los tres puntos de la nota)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; they connect it to Kavea, and Kavea is their technology provider, verified as such by Meta.
 
@@ -100,6 +105,7 @@ We also read the sender's username and profile picture so the person appears in 
 Value for the person using the app: today these businesses answer Instagram from the app on one person's phone. Kavea turns that into a shared inbox with assignment and history, and one view of each customer across all three channels.
 
 Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
+What the recording shows, in the order you asked for: (1) the connected asset is visible — the Instagram professional account's handle and its numeric ID appear on the channels screen during setup, and the conversation header names the account the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Instagram app is then opened on the customer's side to show the delivered message.
 
 
 --- pages_read_engagement ---------------------------------------
