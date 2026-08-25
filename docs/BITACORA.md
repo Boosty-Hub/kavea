@@ -233,6 +233,35 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — «Application does not have permission» era una Página desconectada
+
+`(#10) Application does not have permission for this action` en la pestaña de Messenger, con la
+lista vacía debajo. Dos síntomas que no señalan a la causa: el primero suena a permiso de la app y
+el segundo a que no hay nada creado.
+
+**La causa era la elección de la Página.** `/api/plantillas-utilidad` la resolvía así:
+
+    .not('page_id', 'is', null).limit(1)
+
+sin filtro de estado y sin `order`: la primera fila que devolviera Postgres. Hoy devolvía
+**«Centromarca Mercedes», desconectada** —de tres filas con `page_id`, dos lo estaban— y con su
+token derivado no hay permiso sobre esa Página ni plantillas que listar.
+
+**Es la tercera vez que aparece el mismo patrón.** La 0089 lo tuvo en `registrar_conexion`,
+`sincronizar-comentarios` y `responder-comentario` lo tuvieron el 24-ago con
+`meta_asset_routes?limit=1`, y esta ruta lo tenía desde que se escribió. «La primera fila de la
+tabla» acierta mientras haya una fila; en cuanto hay tres, contesta con la de otro y **no da error**.
+
+Arreglado: filtra por conectada y ordena. La de WhatsApp gana el `order` por lo mismo, para el día
+que haya dos WABA.
+
+**Y ahora la pantalla dice de qué Página lee** —«De utilidad, en Messenger · Boosty.digital»—. Eso
+es lo que faltaba para que el fallo fuera visible: con varias conectadas se enseñaba una lista sin
+decir de quién era, y cuando la elección salió mal no había forma de notarlo desde la interfaz.
+
+Comprobado tras desplegar: sin `(#10)`, ocho plantillas listadas, los dos motivos de rechazo a la
+vista, doce botones de campo en el formulario y cero errores de consola.
+
 ### 2026-08-25 — Los huecos con nombre: el campo real dentro del mensaje
 
 **Lo que se pidió:** poner los campos del sistema en el cuerpo de la plantilla, tipo
@@ -1093,3 +1122,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   camino bueno.
 - Dos sitios que describen lo mismo acaban discrepando. Un mapeo de posiciones aparte del texto se
   rompe en silencio al reordenar; el nombre dentro del texto no puede desalinearse consigo mismo.
+- «La primera fila de la tabla» es el fallo que más veces ha aparecido en este proyecto: cuatro
+  sitios distintos, todos correctos mientras hubo una fila. El patrón a buscar es un `limit(1)` sin
+  `where` que ate al dueño y sin `order` que lo haga repetible.
+- Un error de permiso de un tercero puede ser un error de selección propio. «Application does not
+  have permission» era cierto: la app no tiene permiso sobre esa Página, que no era la que tocaba.
+- Una pantalla que actúa sobre uno de varios activos tiene que decir sobre cuál. Sin eso, elegir mal
+  produce síntomas que apuntan a cualquier otro sitio.
