@@ -62,6 +62,23 @@ export const plantillasUsables = cache(async () => {
  * la ficha. El compositor solo las ofrece con la ventana cerrada, que es cuando
  * son la única salida.
  */
+/**
+ * Las de la Página, aprobadas y emparejadas con la ficha.
+ *
+ * Van aparte de las de WhatsApp a propósito: una plantilla de la Página no
+ * existe para la cuenta de WhatsApp ni al revés, y una sola lista invitaría a
+ * ofrecer en un hilo la que ese canal no tiene.
+ */
+export const plantillasMessenger = cache(async (organizacionId: string) => {
+  const supabase = await crearClienteServidor()
+  const { data, error } = await supabase
+    .rpc('plantillas_messenger_usables', { p_org: organizacionId })
+  if (error) throw new Error(error.message)
+  return (data ?? []) as Array<{
+    id: string; nombre: string; cuerpo: string; idioma: string; categoria: string; huecos: number
+  }>
+})
+
 export const plantillasWhatsApp = cache(async (organizacionId: string) => {
   const supabase = await crearClienteServidor()
   const { data, error } = await supabase

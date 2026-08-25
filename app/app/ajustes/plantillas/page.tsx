@@ -52,7 +52,13 @@ export default async function PaginaPlantillas() {
             variables={variables}
           />
         }
-        messenger={<PlantillasDeUtilidad puedeConfigurar={puedeConfigurar} variables={variables} />}
+        messenger={
+          <PlantillasDeUtilidad
+            puedeConfigurar={puedeConfigurar}
+            organizacionId={org.id}
+            variables={variables}
+          />
+        }
       />
     </main>
   )

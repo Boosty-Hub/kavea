@@ -3,7 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
-import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
+import { ESTADOS, etiquetaCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
+import { LogoCanal } from './logo-canal'
 import { Refrescador } from './refrescador'
 import { AvisosDelSistema } from './avisos-del-sistema'
 import { Buscador } from './buscador'
@@ -201,7 +202,7 @@ function Fila({ t, huso }: { t: FilaBandeja; huso: string }) {
               style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}
               title={nombre ?? etiquetaCanal(c.canal)}
             >
-              <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+              <LogoCanal canal={c.canal} lado={14} />
               {repetido && cola ? `${etiquetaCanal(c.canal)} ·${cola}` : etiquetaCanal(c.canal)}
             </span>
           )

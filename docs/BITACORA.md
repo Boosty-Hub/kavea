@@ -233,6 +233,57 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Una plantilla de la Página ya se puede mandar, y la fila dice por dónde va
+
+`pages_utility_messaging` pide tres cosas y Kavea cubría dos: crear la plantilla de utilidad de la
+Página y rellenar sus variables. Faltaba la tercera —mandarla y verla llegar— porque el carril de
+plantilla vivía entero dentro de la rama de WhatsApp del despachador.
+
+**Se sondeó la vía antes de escribir una línea.** `POST /{page-id}/messages` con `messaging_type`
+en UTILITY y `message.template`, con un destinatario inválido a propósito: Meta se queja del
+DESTINATARIO y no de la forma. Es cómo se comprueba que una forma se acepta sin mandarle nada a
+nadie, y se repitió al final con el payload exacto que monta el código, parámetros con nombre
+incluidos.
+
+**Lo que se construyó, en la 0112:** vincular pasó a `private.vincular_plantilla_meta` con dos
+envoltorios públicos —eran dos copias de cincuenta líneas a punto de nacer, y la segunda copia se
+separa en el primer arreglo que se haga solo en una—; `plantillas_messenger_usables`;
+`parametros_de_plantilla` y `texto_de_plantilla` aceptando los dos canales; y `encolar_plantilla`
+generalizado. Lo único que cambia por canal son tres cosas: de qué columna sale la partición
+—número o Página—, de qué identidad sale el destinatario, y si lleva `messaging_type`. En WhatsApp
+no se manda; en Messenger es UTILITY.
+
+Hubo que **relajar tres restricciones** de `plantillas`: `tipo_check` no admitía `messenger`, y
+`estado_coherente` decía «solo las de WhatsApp pueden no estar en borrador», que era cierto cuando
+WhatsApp era el único canal con aprobación de Meta.
+
+En el despachador, la plantilla se monta ahora en **una sola función** para los dos canales. Eran
+la misma forma por dentro y lo que cambia es dónde se cuelga: en WhatsApp en la raíz, en Messenger
+dentro de `message`.
+
+**Cuándo se ofrece, que no es igual en los dos.** WhatsApp: solo con la ventana cerrada, porque
+dentro de las 24 h el texto libre es gratis y una plantilla se factura. Messenger: en cuanto la
+ventana deja de estar abierta, porque ahí ya no hay texto libre gratis —entre las 24 h y los 7 días
+existe la prórroga humana, pero exige que conteste una persona por un motivo real, y un aviso de
+utilidad no es eso—.
+
+**Lo que NO está verificado y hay que decirlo:** no se ha entregado un mensaje real. La única
+conversación de Messenger tiene la ventana abierta (13 h), y mandar una plantilla no solicitada a
+un contacto de verdad para probar no es algo que se haga sin pedirlo. Verificado: que la Página y
+el PSID se resuelven, que la plantilla se vincula y aparece en `plantillas_messenger_usables`, y
+que Meta acepta el payload. Lo que falta es pulsar el botón con la ventana cerrada.
+
+### Y los logos de canal en la lista
+
+La fila llevaba un punto de color más la etiqueta en texto. El color solo distingue si ya sabes qué
+color es cada canal, y la etiqueta hay que leerla: en una lista de veinte filas nadie lee veinte
+etiquetas.
+
+Ahora cada píldora lleva su icono en el color del canal —auricular en verde, rayo en azul, cámara
+en morado—. **No son las marcas oficiales a propósito:** redibujar de memoria el trazo exacto de
+una marca registrada sale mal, y mal dibujada es peor que no ponerla. Y el texto se queda: el color
+y la forma nunca comunican solos, que es la misma regla que ya seguían las píldoras de estado.
+
 ### 2026-08-25 — Los acentos llevaban días codificados dos veces y nadie lo había mirado
 
 Buscando por qué no salían las plantillas en una conversación, la propia pantalla enseñaba otra
@@ -991,6 +1042,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Una segunda copia de cincuenta líneas se separa en el primer arreglo que se haga solo en una:
+  el momento de extraer el cuerpo común es antes de escribirla, no después.
+- Una forma de API se comprueba con un destinatario inválido: Meta valida el cuerpo antes que el
+  destino, así que el error dice si la forma vale sin mandarle nada a nadie.
 - Un comentario que documenta media solución es peor que ninguno: cierra la pregunta sin cerrar
   el fallo.
 - Antes de reparar datos corrompidos hay que medir si la corrupción es total o parcial: el arreglo

@@ -203,6 +203,38 @@ async function anotarUso(e: Envio, r: Response, http: number, codigo?: number) {
  * llamada y un fallo de selección de token falle en voz alta en vez de mandar
  * desde la Página equivocada.
  */
+/**
+ * El objeto de plantilla que Meta espera, igual para los dos canales.
+ *
+ * Los parametros van CON NOMBRE si la plantilla lo es y POSICIONALES si no, y eso
+ * lo decidio la base al encolar leyendo el cuerpo (0110): aqui no se vuelve a
+ * adivinar. Y no se manda `components` cuando no hay huecos: una plantilla sin
+ * parametros con un `components` vacio es un error de Meta, no una plantilla sin
+ * parametros.
+ */
+function plantillaDe(e: Envio): Record<string, unknown> {
+  const params = Array.isArray(e.cuerpo.parametros) ? e.cuerpo.parametros as string[] : []
+  const nombres = Array.isArray(e.cuerpo.nombres) ? e.cuerpo.nombres as string[] : []
+  return {
+    name: e.cuerpo.plantilla,
+    language: { code: e.cuerpo.idioma ?? 'es_ES' },
+    ...(params.length > 0
+      ? {
+        components: [{
+          type: 'body',
+          parameters: params.map((valor, i) =>
+            e.cuerpo.nombrada && nombres[i]
+              // CON NOMBRE si la plantilla lo es: Meta empareja por
+              // `parameter_name` y el orden deja de importar. Sin nombre
+              // empareja por posición y el orden es lo único que hay.
+              ? { type: 'text', parameter_name: nombres[i], text: String(valor) }
+              : { type: 'text', text: String(valor) }),
+        }],
+      }
+      : {}),
+  }
+}
+
 function peticion(e: Envio, token: string, urlMedia?: string): { url: string; init: RequestInit } {
   // `is_reusable: false` a propósito. El plan lo deja escrito: no se depende de
   // `attachment_id` ni de la reutilización, que no están confirmados para esta
@@ -212,9 +244,16 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
   // mandarle un `payload: {}` vacío sería inventarse un campo.
   const mensaje: Record<string, unknown> = e.cuerpo.tipo === 'like_heart'
     ? { attachment: { type: 'like_heart' } }
-    : urlMedia
-      ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
-      : { text: e.cuerpo.texto }
+    : e.cuerpo.tipo === 'plantilla'
+      // LA PLANTILLA DE UNA PAGINA. Misma forma que en WhatsApp por dentro
+      // —nombre, idioma y componentes— pero dentro de `message`, porque la Send
+      // API de Messenger envuelve todo ahi. Sondeado contra la Pagina antes de
+      // escribirlo: con un destinatario invalido Meta se queja del destinatario,
+      // no de la forma.
+      ? { template: plantillaDe(e) }
+      : urlMedia
+        ? { attachment: { type: e.cuerpo.tipo, payload: { url: urlMedia, is_reusable: false } } }
+        : { text: e.cuerpo.texto }
 
   // --- WhatsApp -------------------------------------------------------------
   //
@@ -252,30 +291,11 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
        * con un `components` vacío es un error de Meta, no una plantilla sin
        * huecos.
        */
-      const params = Array.isArray(e.cuerpo.parametros) ? e.cuerpo.parametros as string[] : []
-      const nombres = Array.isArray(e.cuerpo.nombres) ? e.cuerpo.nombres as string[] : []
+      // La MISMA forma que en Messenger, y por eso vive en una sola función:
+      // eran dos copias a punto de separarse en el primer arreglo que se hiciera
+      // solo en una. Lo que cambia entre canales es dónde se cuelga, no qué es.
       cuerpoWa.type = 'template'
-      cuerpoWa.template = {
-        name: e.cuerpo.plantilla,
-        language: { code: e.cuerpo.idioma ?? 'es_ES' },
-        ...(params.length > 0
-          ? {
-              components: [{
-                type: 'body',
-                /**
-                 * CON NOMBRE si la plantilla lo es. Meta empareja por
-                 * `parameter_name` y entonces el orden deja de importar; sin
-                 * nombre empareja por posición y el orden es lo único que hay.
-                 */
-                parameters: params.map((valor, i) => (
-                  e.cuerpo.nombrada && nombres[i]
-                    ? { type: 'text', parameter_name: nombres[i], text: String(valor) }
-                    : { type: 'text', text: String(valor) }
-                )),
-              }],
-            }
-          : {}),
-      }
+      cuerpoWa.template = plantillaDe(e)
     } else if (e.cuerpo.tipo === 'like_heart') {
       // No hay sticker de corazón en Cloud API. Se manda el carácter, que es
       // además exactamente lo que Meta devuelve en el echo de Instagram.

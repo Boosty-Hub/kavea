@@ -41,7 +41,7 @@ function porDonde(c: { canal: string; nombre: string | null }) {
 }
 
 export function Compositor({
-  conversaciones, tarjetaId, plantillas, plantillasWa,
+  conversaciones, tarjetaId, plantillas, plantillasWa, plantillasMs,
 }: {
   conversaciones: Array<{
     id: string
@@ -61,6 +61,14 @@ export function Compositor({
    * `plantillas` porque no se insertan en la caja: se envían enteras.
    */
   plantillasWa: Array<{ id: string; nombre: string; cuerpo: string; huecos: number }>
+  /**
+   * Las de la PÁGINA, aprobadas y emparejadas. Son otras: viven en la Página, no
+   * en la cuenta de WhatsApp, y una no existe para la otra. Por eso son dos
+   * listas y no una con un campo `canal`: mezclarlas invita a ofrecer en un hilo
+   * una plantilla que ese canal no tiene, y Meta contesta con «nombre no
+   * encontrado», que no dice nada de la causa.
+   */
+  plantillasMs: Array<{ id: string; nombre: string; cuerpo: string; huecos: number }>
 }) {
   const router = useRouter()
   const [faltan, setFaltan] = useState<string[]>([])
@@ -87,6 +95,27 @@ export function Compositor({
   const tope = conv.canal === 'instagram' ? 1000 : 4000
   const pasado = bytes > tope
   const cerrada = conv.ventana.clase === 'cerrada'
+
+  /**
+   * CUÁNDO SE OFRECE UNA PLANTILLA, y no es lo mismo en los dos canales.
+   *
+   * WhatsApp: solo con la ventana cerrada. Dentro de las 24 h el texto libre es
+   * gratis y una plantilla se factura por conversación, así que ofrecerla antes
+   * sería empujar a un cargo evitable.
+   *
+   * Messenger: en cuanto la ventana deja de estar abierta —pasadas las 24 h—,
+   * porque ahí ya no hay texto libre gratis. Entre las 24 h y los 7 días existe
+   * la prórroga humana, pero exige que conteste una persona y por un motivo
+   * real; un aviso de utilidad no es eso, y para eso está `messaging_type`
+   * UTILITY, que es justo el permiso que Meta concede con
+   * `pages_utility_messaging`.
+   */
+  const deEsteCanal = conv.canal === 'whatsapp' ? plantillasWa
+    : conv.canal === 'messenger' ? plantillasMs
+      : []
+  const cabePlantilla = conv.canal === 'whatsapp'
+    ? cerrada
+    : conv.canal === 'messenger' && conv.ventana.clase !== 'abierta'
 
   /**
    * Mandar la plantilla. Los huecos NO se piden aquí: los resuelve
@@ -183,18 +212,21 @@ export function Compositor({
         </p>
       )}
 
-      {/* LA SALIDA CUANDO NO HAY SALIDA. Solo con la ventana cerrada, solo en
-          WhatsApp y solo con plantillas ya emparejadas: ofrecerla en cualquier
-          otro caso sería empujar a un envío facturado por conversación que se
-          podía haber hecho con texto normal y gratis. */}
-      {cerrada && conv.canal === 'whatsapp' && plantillasWa.length > 0 ? (
+      {/* LA SALIDA CUANDO NO HAY SALIDA. Solo fuera de la ventana y solo con
+          plantillas ya emparejadas: ofrecerla en cualquier otro caso sería
+          empujar a un envío facturado que se podía haber hecho con texto normal
+          y gratis. Ver `cabePlantilla` para la diferencia entre canales. */}
+      {cabePlantilla && deEsteCanal.length > 0 ? (
         <div
           className="compositor__aviso"
           style={{ background: 'var(--k-surface-2)', display: 'grid', gap: 8 }}
         >
           <span style={{ fontSize: 13 }}>
-            Fuera de las 24 horas solo se puede escribir con una plantilla aprobada. Los huecos
-            se rellenan solos con los datos de la ficha.
+            {conv.canal === 'whatsapp'
+              ? 'Fuera de las 24 horas solo se puede escribir con una plantilla aprobada. '
+              : 'Fuera de las 24 horas, un aviso de utilidad aprobado por Meta llega sin '
+                + 'necesidad de que conteste una persona. '}
+            Los huecos se rellenan solos con los datos de la ficha.
           </span>
           {errorWa ? <span className="error" role="alert">{errorWa}</span> : null}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -203,10 +235,10 @@ export function Compositor({
               style={{ flex: '1 1 240px' }}
               value={plantillaWa}
               onChange={(e) => { setPlantillaWa(e.target.value); setErrorWa(null) }}
-              aria-label="Plantilla de WhatsApp"
+              aria-label={`Plantilla de ${conv.canal === 'whatsapp' ? 'WhatsApp' : 'Messenger'}`}
             >
               <option value="">Elegir plantilla…</option>
-              {plantillasWa.map((p) => (
+              {deEsteCanal.map((p) => (
                 <option key={p.id} value={p.id}>{p.nombre}</option>
               ))}
             </select>
@@ -221,7 +253,7 @@ export function Compositor({
           </div>
           {plantillaWa ? (
             <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
-              {plantillasWa.find((p) => p.id === plantillaWa)?.cuerpo}
+              {deEsteCanal.find((p) => p.id === plantillaWa)?.cuerpo}
             </span>
           ) : null}
         </div>
