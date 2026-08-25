@@ -61,7 +61,7 @@ alguien lo lea entero.
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
-| Plantillas de WhatsApp | ✅ **Leer, crear y ENVIAR**, contra la WABA | Categoría, idioma, cabecera —texto, imagen, vídeo o PDF—, cuerpo, pie y hasta diez botones. Envío probado el 24-ago: `hello_world` entregada con `wamid` fuera de la ventana de 24 h. La WABA nueva solo tiene `hello_world`: las 25 aprobadas se quedaron en la que se retiró |
+| Plantillas de WhatsApp | ✅ **Leer, crear y ENVIAR**, contra la WABA | Categoría, idioma, cabecera —texto, imagen, vídeo o PDF—, cuerpo, pie y hasta diez botones. Envío probado el 24-ago: `hello_world` entregada con `wamid` fuera de la ventana de 24 h. Editar y categoría de autenticación, el 25-ago. La WABA nueva solo tiene `hello_world`: las 25 aprobadas se quedaron en la que se retiró |
 | Página de Boosty (`1790677317841377`) | ✅ Conectada por el **portafolio**, no por el diálogo | `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado y **primer BISU de la base**. V1–V7 en verde salvo V6 |
 | Facebook Login for Business | ✅ **Estrenado el 24-ago** | Un canje real completo de extremo a extremo: diálogo, código, BISU cifrado, webhooks suscritos y rediagnóstico. Falta hacerlo desde un portafolio que no sea el de Boosty |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
@@ -232,6 +232,49 @@ producción · retención tras la baja de un cliente.
 ---
 
 ## 3. Entradas
+
+### 2026-08-25 — Editar plantillas, autenticación, y que un comentario se note
+
+**Puntos 3 y 4 de plantillas, cerrados.**
+
+*Editar* va **por id y no por nombre**: el nombre identifica a la familia entera de traducciones, y
+editar por ahí cambiaría la versión inglesa al retocar la española. Al guardar, la plantilla vuelve
+a revisión —Meta aprobó otra cosa— y la pantalla lo dice. Nombre e idioma se enseñan bloqueados en
+vez de ocultarse: quien edita tiene que ver sobre qué trabaja.
+
+*Autenticación* **no es una variante de utilidad**. Meta escribe el texto él, traducido a cada
+idioma, y solo deja decidir tres cosas: la advertencia de seguridad, la caducidad —1 a 90 minutos— y
+el botón OTP, de copiar o de autorrellenar. Un cuerpo propio ahí es rechazo seguro, así que el
+formulario ni lo ofrece. Comprobado en producción: al elegir esa categoría **no hay campo de
+cuerpo**.
+
+**Y los comentarios ya se notan.** Tres cosas faltaban, y ninguna era la que parecía:
+
+- **El hilo de un comentario no se refrescaba solo.** El `Refrescador` estaba en la bandeja y en el
+  hilo de mensajes; en ese no.
+- **La píldora del menú contaba solo `tarjetas.no_leidos`, y un comentario no tiene tarjeta.**
+  Llegaba uno nuevo y el menú no se movía. Ahora suman los comentarios en `nuevo` que no son
+  propios ni borrados: la píldora pasó de contar mensajes a **49**, que es lo que de verdad está sin
+  contestar.
+- **Y se recargaba cada treinta segundos.** Ahora escucha la difusión, igual que la bandeja.
+
+**El aviso del sistema** (`avisos-del-sistema.tsx`) notifica lo entrante y el clic abre esa
+conversación. **No lleva el texto del mensaje**: el payload del canal solo trae identificadores
+desde la 0023, y esto no se salta esa regla por un titular más bonito. La 0109 le añade lo que
+faltaba para poder avisar sin filtrar nada — `entrante` y `tarjeta_id`—, y distingue el eco de Meta
+de un mensaje de verdad: notificar el propio envío es la forma más rápida de que alguien apague los
+avisos.
+
+El permiso se pide **al pulsar un botón**, no al cargar: un «¿permites notificaciones?» en el primer
+segundo recibe un «no» que es para siempre.
+
+**Y una sola suscripción al canal.** La primera versión de los avisos abría la suya y, por escribir
+mal el tópico, no recibía nada: difundía `org:{id}` y escuchaba `avisos:{id}`. Ahora el
+`Refrescador` reemite lo que recibe como evento del DOM y quien quiera lo escucha.
+
+**Vídeos: siete de los ocho montados.** Del `Comments.webm` se recortaron **82 segundos** de bandeja
+esperando a que llegara el comentario, y del anterior se separó la parte de Messenger. **Solo falta
+grabar el de plantillas.**
 
 ### 2026-08-24 — Fase A: una autenticación, muchos activos
 
@@ -975,3 +1018,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 - Antes de construir lo que alguien pide, mirar si ya está. Los campos personalizados llevaban desde
   la 0028 y ya salían como variables; lo que faltaba era el emparejamiento, que es un tercio del
   trabajo y no el trabajo entero.
+- Una píldora que cuenta una sola tabla miente en cuanto aparece una segunda cosa que espera
+  respuesta. El comentario no tenía tarjeta, así que no existía para el menú.
+- Dos suscripciones al mismo canal en el mismo cliente es un problema que se evita reemitiendo. Y un
+  tópico mal escrito no da error: simplemente no llega nada, que es peor.
+- Cuando una categoría de un tercero tiene forma propia, el formulario tiene que tener forma propia.
+  Ofrecer un campo que el proveedor ignora —o por el que rechaza— es prometer un control que no hay.
