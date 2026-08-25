@@ -394,7 +394,11 @@ export function PlantillasDeWhatsApp({
     setVinculando(false)
     if (error) { setError(error.message); return }
     setMapeando(null); setMapa([])
-    setAviso(`«${p.name}» ya se puede elegir en el compositor de WhatsApp.`)
+    setAviso(
+      `«${p.name}» ya está lista. Aparece dentro de la conversación, justo encima de la caja `
+      + 'de texto, cuando pasan 24 horas desde el último mensaje del contacto: antes de eso se '
+      + 'responde con texto normal, que es gratis.',
+    )
   }
 
   async function borrar(p: Plantilla) {

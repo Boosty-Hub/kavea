@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import { LogoCanal } from '@/lib/logos-canal'
@@ -39,6 +39,32 @@ type Ventana = { clase: 'abierta' | 'humana' | 'cerrada'; motivo: string | null 
  */
 function porDonde(c: { canal: string; nombre: string | null }) {
   return c.nombre ? `${etiquetaCanal(c.canal)} · ${c.nombre}` : etiquetaCanal(c.canal)
+}
+
+/** Sin tildes y en minúsculas, para que «cita» encuentre «Citación». */
+function llano(t: string): string {
+  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+}
+
+/**
+ * El comando de barra que se está escribiendo, si se está escribiendo alguno.
+ *
+ * La barra cuenta como comando solo al principio del texto o después de un
+ * espacio: en «http://algo/otro» hay tres barras y ninguna es un comando, y
+ * abrir el menú ahí sería pelearse con quien pega un enlace.
+ *
+ * Devuelve dónde empieza —para poder sustituirlo al insertar— y qué se ha
+ * escrito detrás, que es el filtro.
+ */
+function comandoEnCurso(valor: string, caret: number): { inicio: number; token: string } | null {
+  const antes = valor.slice(0, caret)
+  const barra = antes.lastIndexOf('/')
+  if (barra < 0) return null
+  if (barra > 0 && !/\s/.test(antes[barra - 1]!)) return null
+  const token = antes.slice(barra + 1)
+  // Un espacio cierra el comando: ya no se está eligiendo, se está escribiendo.
+  if (/\s/.test(token)) return null
+  return { inicio: barra, token }
 }
 
 export function Compositor({
@@ -85,6 +111,20 @@ export function Compositor({
   // abajo, y un hook detrás de un retorno condicional se salta en algunos
   // renderizados: React cuenta los hooks por orden y el orden dejaba de ser el
   // mismo. Compilaba; lo cazó el typecheck por otro motivo.
+  /**
+   * EL COMANDO RÁPIDO. `/` abre la lista de plantillas internas y filtra al
+   * teclear. Existe porque el desplegable de abajo obliga a soltar el teclado
+   * en mitad de una frase, y quien contesta veinte conversaciones seguidas no
+   * suelta el teclado.
+   *
+   * Solo lista las INTERNAS. Las de Meta no se insertan, se envían enteras y se
+   * facturan: ponerlas a un `/` y un Enter de distancia sería un cargo a un
+   * pulso de teclado.
+   */
+  const [comando, setComando] = useState<{ inicio: number; token: string } | null>(null)
+  const [marcada, setMarcada] = useState(0)
+  const [insertando, setInsertando] = useState(false)
+  const cajaTexto = useRef<HTMLTextAreaElement | null>(null)
   const [plantillaWa, setPlantillaWa] = useState('')
   const [mandandoWa, setMandandoWa] = useState(false)
   const [errorWa, setErrorWa] = useState<string | null>(null)
@@ -124,6 +164,49 @@ export function Compositor({
    * con el nombre del que falta. Preguntarlos en el compositor sería duplicar la
    * ficha en un formulario y dejar que se separen.
    */
+  /** Las internas que encajan con lo escrito tras la barra. */
+  const coincidencias = comando === null
+    ? []
+    : plantillas.filter((pl) => {
+      const t = llano(comando.token)
+      if (!t) return true
+      return llano(pl.nombre).includes(t) || (pl.atajo ? llano(pl.atajo).startsWith(t) : false)
+    }).slice(0, 8)
+
+  /**
+   * Insertar la plantilla donde estaba el comando.
+   *
+   * El texto lo resuelve la BASE con `renderizar_plantilla`, la misma función
+   * que usa el desplegable: resolver las variables aquí sería una segunda
+   * implementación de lo mismo, y dos implementaciones de las variables se
+   * separan.
+   */
+  async function insertarComando(id: string) {
+    if (comando === null || insertando) return
+    const caja = cajaTexto.current
+    const fin = caja?.selectionStart ?? (comando.inicio + comando.token.length + 1)
+    setInsertando(true)
+    const { data, error: err } = await crearClienteNavegador()
+      .rpc('renderizar_plantilla', { p_plantilla: id, p_tarjeta: tarjetaId })
+    setInsertando(false)
+    if (err) { setError(err.message); return }
+    const r = (data as Array<{ texto: string; faltan: string[] }>)?.[0]
+    if (!r) return
+    const nuevo = texto.slice(0, comando.inicio) + r.texto + texto.slice(fin)
+    setTexto(nuevo)
+    setFaltan(r.faltan ?? [])
+    setComando(null); setMarcada(0)
+    const corte = comando.inicio + r.texto.length
+    requestAnimationFrame(() => { caja?.focus(); caja?.setSelectionRange(corte, corte) })
+  }
+
+  /** Recalcula si hay comando en curso, con el cursor donde esté. */
+  function revisarComando(caja: HTMLTextAreaElement) {
+    const c = comandoEnCurso(caja.value, caja.selectionStart ?? caja.value.length)
+    setComando(c)
+    setMarcada(0)
+  }
+
   const convId = conv.id
   async function mandarPlantilla() {
     if (!plantillaWa) return
@@ -296,27 +379,109 @@ export function Compositor({
       {error ? <p className="error" role="alert" style={{ marginBottom: 8 }}>{error}</p> : null}
 
       <form onSubmit={enviar} className="compositor__caja">
-        <textarea
-          className="campo"
-          rows={2}
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
-          disabled={cerrada || enviando}
-          placeholder={
-            cerrada
-              ? 'No se puede responder por este canal'
-              : `Responder por ${porDonde(conv)}`
-          }
-          aria-label="Mensaje"
-          onKeyDown={(e) => {
-            // Enter envía, Mayúsculas+Enter salta línea. Es lo que hace todo
-            // el mundo en un chat y lo que el dedo espera.
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              ;(e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()
+        <div style={{ position: 'relative' }}>
+          {/* EL MENÚ DEL COMANDO, encima de la caja y no debajo: debajo lo tapa
+              el pie del compositor, y el borde inferior de la ventana lo tapa
+              del todo cuando el hilo está a pantalla completa. */}
+          {comando !== null && coincidencias.length > 0 ? (
+            <ul
+              role="listbox"
+              aria-label="Plantillas"
+              style={{
+                position: 'absolute', bottom: 'calc(100% + 6px)', left: 0, right: 0,
+                margin: 0, padding: 4, listStyle: 'none', zIndex: 20,
+                background: 'var(--k-surface)', border: '1px solid var(--k-border)',
+                borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,.16)',
+                maxHeight: 260, overflowY: 'auto',
+              }}
+            >
+              {coincidencias.map((pl, i) => (
+                <li key={pl.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={i === marcada}
+                    // `onMouseDown` y no `onClick`: al hacer clic, el `blur` de
+                    // la caja llega antes que el `click` y cierra el menú, así
+                    // que el clic caía sobre un elemento que ya no existía.
+                    onMouseDown={(ev) => { ev.preventDefault(); void insertarComando(pl.id) }}
+                    onMouseEnter={() => setMarcada(i)}
+                    style={{
+                      display: 'flex', width: '100%', gap: 8, alignItems: 'baseline',
+                      padding: '6px 8px', border: 0, borderRadius: 7, cursor: 'pointer',
+                      font: 'inherit', textAlign: 'left',
+                      background: i === marcada ? 'var(--k-surface-2)' : 'transparent',
+                      color: 'inherit',
+                    }}
+                  >
+                    <span style={{ fontWeight: 500 }}>{pl.nombre}</span>
+                    {pl.atajo ? (
+                      <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>/{pl.atajo}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          <textarea
+            ref={cajaTexto}
+            className="campo"
+            rows={2}
+            value={texto}
+            onChange={(e) => { setTexto(e.target.value); revisarComando(e.currentTarget) }}
+            onClick={(e) => revisarComando(e.currentTarget)}
+            onKeyUp={(e) => {
+              // Las flechas mueven el cursor sin cambiar el texto: el comando
+              // puede empezar o dejar de existir sin que haya `change`.
+              if (e.key.startsWith('Arrow') || e.key === 'Home' || e.key === 'End') {
+                revisarComando(e.currentTarget)
+              }
+            }}
+            onBlur={() => setComando(null)}
+            disabled={cerrada || enviando}
+            placeholder={
+              cerrada
+                ? 'No se puede responder por este canal'
+                : `Responder por ${porDonde(conv)} · escribe / para una plantilla`
             }
-          }}
-        />
+            aria-label="Mensaje"
+            onKeyDown={(e) => {
+              // CON EL MENÚ ABIERTO EL TECLADO ES DEL MENÚ. Si no, Enter enviaría
+              // el mensaje con el «/segui» a medias dentro, que es justo lo que
+              // el menú venía a evitar.
+              const abierto = comando !== null && coincidencias.length > 0
+              if (abierto) {
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  setMarcada((m) => (m + 1) % coincidencias.length)
+                  return
+                }
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  setMarcada((m) => (m - 1 + coincidencias.length) % coincidencias.length)
+                  return
+                }
+                if (e.key === 'Enter' || e.key === 'Tab') {
+                  e.preventDefault()
+                  void insertarComando(coincidencias[marcada]!.id)
+                  return
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setComando(null)
+                  return
+                }
+              }
+              // Enter envía, Mayúsculas+Enter salta línea. Es lo que hace todo
+              // el mundo en un chat y lo que el dedo espera.
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault()
+                ;(e.currentTarget.form as HTMLFormElement | null)?.requestSubmit()
+              }
+            }}
+          />
+        </div>
         <div className="compositor__pie">
           {plantillas.length > 0 ? (
             <select

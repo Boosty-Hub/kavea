@@ -233,6 +233,50 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — «No veo cómo poner las plantillas en la conversación»
+
+Y era verdad: no había por dónde verlo. El bloque de plantilla de Meta solo aparece con la ventana
+cerrada —que es correcto, dentro de las 24 h el texto libre es gratis y una plantilla se factura—,
+así que en una conversación abierta no hay nada que sugiera que existe. Un botón que solo aparece
+cuando hace falta es buen diseño; un botón que **nunca se ha visto** no se sabe que existe.
+
+**Tres cosas, y ninguna cambia la regla de cuándo se puede enviar.**
+
+**El comando `/`.** Se escribe una barra en la caja y se abre la lista de plantillas internas,
+filtrando al teclear; flechas para moverse, Enter o Tab para insertar, Escape para cerrar. El texto
+lo resuelve `renderizar_plantilla` en la base —la misma función que el desplegable— porque resolver
+las variables en el cliente sería una segunda implementación de lo mismo.
+
+Detalles que no se ven pero deciden si funciona:
+
+- La barra cuenta como comando **solo al principio o tras un espacio**. En `http://algo/otro` hay
+  tres barras y ninguna lo es; abrir el menú ahí sería pelearse con quien pega un enlace.
+- Con el menú abierto **el teclado es del menú**. Sin eso, Enter enviaría el mensaje con el
+  `/segui` a medias dentro, que es justo lo que el menú venía a evitar.
+- Se recalcula también en `keyup` de las flechas: mover el cursor puede crear o deshacer un comando
+  sin que haya ningún `change`.
+- El clic va en `onMouseDown`, no en `onClick`: el `blur` de la caja llega antes que el `click` y
+  cerraba el menú, así que el clic caía sobre un elemento que ya no existía.
+- **Solo lista las internas.** Las de Meta no se insertan, se envían enteras y se facturan: ponerlas
+  a un `/` y un Enter de distancia sería un cargo a un pulso de teclado.
+
+**El marcador de la caja lo dice:** «Responder por Messenger · Boosty.digital · escribe / para una
+plantilla». Es el único sitio donde se mira antes de escribir.
+
+**Y el aviso de «lista para usar» dice ahora DÓNDE.** Decía «ya se puede elegir en el compositor»,
+que es cierto y no ayuda. Ahora dice que aparece dentro de la conversación, encima de la caja,
+cuando pasan 24 horas del último mensaje del contacto.
+
+**Verificado con Playwright**, no leído: el menú abre con «Hola, /», ofrece `Seguimiento
+/seguimiento`, y Enter deja en la caja el texto con las variables resueltas —«Hola Gabriel Montiel
+Toro… El presupuesto sigue en 2400 USD y estamos en Interesado»— con `{{tarjeta.titulo}}` sin
+rellenar y el aviso de hueco pendiente debajo, que es lo que debe pasar. En la de WhatsApp con la
+ventana cerrada el bloque sale con `hello_world` y la caja deshabilitada.
+
+Lo de Messenger no se puede ver todavía: su única conversación tiene la ventana abierta (14 h). Sí
+está comprobado que `pedido_devuelto` viaja en la carga de esa página, así que lo único sin probar
+es el booleano que decide pintarlo.
+
 ### 2026-08-25 — Una plantilla de la Página ya se puede mandar, y la fila dice por dónde va
 
 `pages_utility_messaging` pide tres cosas y Kavea cubría dos: crear la plantilla de utilidad de la
@@ -1056,6 +1100,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Un control que solo aparece cuando hace falta es buen diseño; uno que nunca se ha visto no se
+  sabe que existe. El marcador de la caja y el aviso de configuración son donde se cuenta.
+- En un menú sobre un campo de texto, el clic va en `mousedown`: el `blur` del campo llega antes
+  que el `click` y desmonta el elemento que se estaba pulsando.
 - Antes de dibujar un icono, buscar si ya está en el repositorio: dos juegos de logos para lo
   mismo es peor que uno regular, y el segundo siempre sale peor.
 - Una segunda copia de cincuenta líneas se separa en el primer arreglo que se haga solo en una:

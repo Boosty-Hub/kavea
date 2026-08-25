@@ -168,7 +168,10 @@ export function PlantillasDeUtilidad({
     setVinculando(false)
     if (err) { setError(err.message); return }
     setMapeando(null); setMapa([])
-    setAviso(`«${p.name}» ya se puede elegir en el compositor de Messenger.`)
+    setAviso(
+      `«${p.name}» ya está lista. Aparece dentro de la conversación de Messenger, justo encima `
+      + 'de la caja de texto, cuando pasan 24 horas desde el último mensaje del contacto.',
+    )
   }
 
   const cargar = useCallback(async () => {
