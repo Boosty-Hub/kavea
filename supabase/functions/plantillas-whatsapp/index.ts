@@ -24,10 +24,15 @@
  * no llevarlos. Se validan aquí, antes de llamar: una plantilla rechazada deja el
  * nombre ocupado y hay que empezar con otro.
  *
- * LO QUE ESTA VERSIÓN NO HACE: cabeceras de imagen, vídeo o documento. Meta no
- * las acepta por URL — exige subir el fichero por la API de subida reanudable y
- * pasar el `header_handle` que devuelve. Es un camino aparte con su propio
- * formulario, y prometerlo en la interfaz sin tenerlo sería peor que no ofrecerlo.
+ * LAS CABECERAS DE MEDIA NO VAN POR URL, y ese es todo el trabajo extra. Meta no
+ * acepta un enlace: exige subir el fichero por su **API de subida reanudable**
+ * —`POST /{app-id}/uploads` para abrir sesión, luego el binario a la sesión— y
+ * usar el `h` que devuelve como `example.header_handle`. Tres llamadas donde
+ * parecía haber un campo de texto.
+ *
+ * EL HANDLE ES DE UN SOLO USO Y NO SE GUARDA. Sirve para crear la plantilla y ya:
+ * el fichero queda dentro de la plantilla en Meta. Guardarlo para «reutilizarlo»
+ * sería guardar algo que caduca sin avisar.
  */
 
 const V = Deno.env.get('GRAPH_API_VERSION') ?? 'v26.0'
@@ -35,10 +40,72 @@ const V = Deno.env.get('GRAPH_API_VERSION') ?? 'v26.0'
 /** Las categorías que Meta acepta hoy al crear. */
 const CATEGORIAS = ['UTILITY', 'MARKETING', 'AUTHENTICATION']
 
+/**
+ * Los formatos de cabecera de media, con lo que Meta acepta en cada uno.
+ *
+ * Los tamaños son los suyos y se comprueban ANTES de subir: descubrir que un
+ * vídeo pasa de 16 MB después de haberlo mandado entero es tirar la subida y el
+ * tiempo del operador.
+ */
+const MEDIA: Record<string, { mime: RegExp; topeMb: number }> = {
+  IMAGE:    { mime: /^image\/(jpeg|png)$/,                                   topeMb: 5 },
+  VIDEO:    { mime: /^video\/(mp4|3gpp)$/,                                   topeMb: 16 },
+  DOCUMENT: { mime: /^application\/pdf$/,                                    topeMb: 100 },
+}
+
 /** Los botones que esta versión sabe construir. */
 const BOTONES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER']
 
 type Boton = { tipo?: string; texto?: string; url?: string; telefono?: string; ejemplo?: string }
+
+/**
+ * Sube un fichero por la API reanudable y devuelve el `handle`.
+ *
+ * DOS LLAMADAS Y UNA CABECERA RARA. La primera abre sesión y devuelve un id con
+ * el prefijo `upload:`. La segunda manda el binario A ESE ID, y su autorización
+ * NO es `Bearer`: es `OAuth {token}`, que es la única arista de Graph que lo pide
+ * así. Con `Bearer` responde 400 sin explicar por qué.
+ *
+ * Va con el token de APP —`{id}|{secreto}`— y no con el del portafolio: la sesión
+ * de subida pertenece a la aplicación, no a un negocio.
+ */
+async function subirMedia(
+  bytes: Uint8Array, nombre: string, tipo: string,
+): Promise<{ ok: true; handle: string } | { ok: false; error: string }> {
+  const appId = Deno.env.get('META_APP_ID') ?? ''
+  const secreto = Deno.env.get('META_APP_SECRET') ?? ''
+  if (!appId || !secreto) return { ok: false, error: 'faltan las credenciales de la app' }
+  const token = `${appId}|${secreto}`
+
+  const abrir = await fetch(
+    `https://graph.facebook.com/${V}/${encodeURIComponent(appId)}/uploads` +
+    `?file_name=${encodeURIComponent(nombre)}&file_length=${bytes.byteLength}` +
+    `&file_type=${encodeURIComponent(tipo)}&access_token=${encodeURIComponent(token)}`,
+    { method: 'POST', signal: AbortSignal.timeout(20_000) },
+  )
+  const sesion = await abrir.json().catch(() => ({})) as { id?: string; error?: { message?: string } }
+  if (!sesion.id) {
+    return { ok: false, error: sesion.error?.message ?? 'Meta no abrió la sesión de subida.' }
+  }
+
+  const enviar = await fetch(`https://graph.facebook.com/${V}/${sesion.id}`, {
+    method: 'POST',
+    headers: {
+      // `OAuth`, no `Bearer`. Ver la cabecera de esta función.
+      Authorization: `OAuth ${token}`,
+      file_offset: '0',
+      'Content-Type': 'application/octet-stream',
+    },
+    // `ArrayBuffer` y no el `Uint8Array` directamente: el tipado de `fetch` en
+    // Deno no acepta la vista, y `.slice()` devuelve una copia con su propio
+    // búfer, sin arrastrar el resto del original.
+    body: bytes.slice().buffer as ArrayBuffer,
+    signal: AbortSignal.timeout(120_000),
+  })
+  const fin = await enviar.json().catch(() => ({})) as { h?: string; error?: { message?: string } }
+  if (!fin.h) return { ok: false, error: fin.error?.message ?? 'Meta no devolvió el identificador del fichero.' }
+  return { ok: true, handle: fin.h }
+}
 
 function json(cuerpo: unknown, estado = 200) {
   return new Response(JSON.stringify(cuerpo), {
@@ -70,6 +137,8 @@ function variablesDe(texto: string): number {
 function componentes(c: {
   cabecera?: string
   ejemploCabecera?: string
+  mediaFormato?: string
+  mediaHandle?: string
   cuerpo: string
   ejemplos: string[]
   pie?: string
@@ -77,9 +146,17 @@ function componentes(c: {
 }): { ok: true; valor: unknown[] } | { ok: false; error: string } {
   const fuera: unknown[] = []
 
-  // --- CABECERA. Solo texto en esta versión, y con UNA variable como mucho:
-  //     es el límite de Meta y no una simplificación nuestra.
-  if (c.cabecera) {
+  // --- CABECERA DE MEDIA. Manda sobre la de texto: son excluyentes en Meta y
+  //     ofrecer las dos a la vez sería dejar elegir algo que se descarta solo.
+  if (c.mediaFormato && c.mediaHandle) {
+    fuera.push({
+      type: 'HEADER',
+      format: c.mediaFormato,
+      // El fichero va como EJEMPLO, no como contenido: la plantilla queda con
+      // ese medio de muestra y en cada envío se manda el de verdad.
+      example: { header_handle: [c.mediaHandle] },
+    })
+  } else if (c.cabecera) {
     if (c.cabecera.length > 60) {
       return { ok: false, error: 'La cabecera pasa de 60 caracteres.' }
     }
@@ -160,6 +237,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     accion?: string; waba_id?: string
     nombre?: string; idioma?: string; categoria?: string
     cabecera?: string; ejemplo_cabecera?: string
+    media_formato?: string; media_datos?: string; media_nombre?: string; media_tipo?: string
     cuerpo?: string; ejemplos?: string[]; pie?: string
     botones?: Boton[]
     plantilla_id?: string
@@ -203,9 +281,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
         return json({ error: `Categoría no admitida: ${categoria || '(vacía)'}` }, 400)
       }
 
+      /**
+       * LA CABECERA DE MEDIA, si la hay: se sube ANTES de montar nada.
+       *
+       * El fichero llega en base64 dentro del JSON. No es elegante, pero un
+       * multipart tendría que atravesar la ruta de Next y la de Supabase con dos
+       * límites de cuerpo distintos, y el tope real acaba siendo el más pequeño
+       * de los dos igualmente. Se comprueba tamaño y tipo aquí, antes de gastar
+       * la subida.
+       */
+      let mediaHandle: string | undefined
+      const mf = (c.media_formato ?? '').trim().toUpperCase()
+      if (mf) {
+        const regla = MEDIA[mf]
+        if (!regla) return json({ error: `Formato de cabecera no admitido: ${mf}` }, 400)
+        if (!c.media_datos) return json({ error: 'Falta el fichero de la cabecera.' }, 400)
+        if (!regla.mime.test(c.media_tipo ?? '')) {
+          return json({
+            error: `Para una cabecera ${mf}, Meta admite ${regla.mime.source
+              .replace(/[\\^$]/g, '').replace('/(', '/').replace(')', '')} y llegó «${c.media_tipo}».`,
+          }, 400)
+        }
+        let bytes: Uint8Array
+        try {
+          const limpio = String(c.media_datos).replace(/^data:[^;]+;base64,/, '')
+          bytes = Uint8Array.from(atob(limpio), (ch) => ch.charCodeAt(0))
+        } catch {
+          return json({ error: 'El fichero no llegó en un base64 válido.' }, 400)
+        }
+        if (bytes.byteLength > regla.topeMb * 1024 * 1024) {
+          return json({
+            error: `El fichero ocupa ${(bytes.byteLength / 1048576).toFixed(1)} MB y el tope de `
+              + `Meta para ${mf} es ${regla.topeMb} MB.`,
+          }, 400)
+        }
+        const subida = await subirMedia(bytes, c.media_nombre ?? 'cabecera', c.media_tipo ?? '')
+        if (!subida.ok) return json({ error: `No se pudo subir el fichero: ${subida.error}` }, 502)
+        mediaHandle = subida.handle
+      }
+
       const piezas = componentes({
         cabecera: (c.cabecera ?? '').trim() || undefined,
         ejemploCabecera: (c.ejemplo_cabecera ?? '').trim() || undefined,
+        mediaFormato: mf || undefined,
+        mediaHandle,
         cuerpo: (c.cuerpo ?? '').trim(),
         ejemplos: (c.ejemplos ?? []).map((s) => String(s).trim()).filter(Boolean),
         pie: (c.pie ?? '').trim() || undefined,

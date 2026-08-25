@@ -144,6 +144,12 @@ export function PlantillasDeWhatsApp({
   const [ejemplos, setEjemplos] = useState<string[]>([])
   const [pie, setPie] = useState('')
   const [botones, setBotones] = useState<Boton[]>([])
+  /**
+   * La cabecera de media. Excluyente con la de texto: Meta admite una u otra, y
+   * ofrecer las dos a la vez sería dejar elegir algo que se descarta solo.
+   */
+  const [formato, setFormato] = useState<'TEXTO' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'>('TEXTO')
+  const [fichero, setFichero] = useState<{ nombre: string; tipo: string; datos: string; mb: number } | null>(null)
 
   const necesarias = variablesDe(cuerpo)
   const cabeceraVariable = variablesDe(cabecera) === 1
@@ -171,6 +177,32 @@ export function PlantillasDeWhatsApp({
     setNombre(''); setCategoria('UTILITY'); setIdioma('es_ES')
     setCabecera(''); setEjemploCabecera(''); setCuerpo('')
     setEjemplos([]); setPie(''); setBotones([])
+    setFormato('TEXTO'); setFichero(null)
+  }
+
+  /**
+   * El fichero se lee a base64 EN EL NAVEGADOR y viaja dentro del JSON.
+   *
+   * No es elegante, pero un multipart tendría que atravesar la ruta de Next y la
+   * de Supabase con dos límites de cuerpo distintos, y el tope real acabaría
+   * siendo el más pequeño de los dos igualmente. El aviso de tamaño se da aquí,
+   * antes de subir nada: base64 infla un tercio, y descubrir el tope después de
+   * mandar diez megas es tirar el tiempo del operador.
+   */
+  function elegirFichero(f: File | null) {
+    if (!f) { setFichero(null); return }
+    const mb = f.size / 1048576
+    if (mb > 4) {
+      setError(`El fichero ocupa ${mb.toFixed(1)} MB. Por esta vía el tope práctico son 4 MB.`)
+      setFichero(null)
+      return
+    }
+    const lector = new FileReader()
+    lector.onload = () => {
+      setError(null)
+      setFichero({ nombre: f.name, tipo: f.type, datos: String(lector.result ?? ''), mb })
+    }
+    lector.readAsDataURL(f)
   }
 
   async function crear(ev: React.FormEvent) {
@@ -182,7 +214,12 @@ export function PlantillasDeWhatsApp({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accion: 'crear', nombre, categoria, idioma,
-          cabecera, ejemplo_cabecera: ejemploCabecera,
+          cabecera: formato === 'TEXTO' ? cabecera : '',
+          ejemplo_cabecera: formato === 'TEXTO' ? ejemploCabecera : '',
+          media_formato: formato === 'TEXTO' ? '' : formato,
+          media_datos: fichero?.datos ?? '',
+          media_nombre: fichero?.nombre ?? '',
+          media_tipo: fichero?.tipo ?? '',
           cuerpo, ejemplos, pie,
           botones: botones.map((b) => ({
             tipo: b.tipo, texto: b.texto, url: b.url, telefono: b.telefono, ejemplo: b.ejemplo,
@@ -465,20 +502,70 @@ export function PlantillasDeWhatsApp({
             </label>
           </div>
 
-          <label style={{ display: 'grid', gap: 4 }}>
+          <div style={{ display: 'grid', gap: 6 }}>
             <span className="label">Cabecera (opcional)</span>
-            <input
-              className="campo" value={cabecera} onChange={(e) => setCabecera(e.target.value)}
-              placeholder="Su pedido {{1}}" maxLength={60}
-            />
-            <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
-              Hasta 60 caracteres y una variable como mucho. Las cabeceras de imagen, vídeo o
-              documento todavía no se pueden crear desde aquí: Meta exige subir el fichero por su
-              API de subida y ese camino está por hacer.
-            </span>
-          </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {([
+                ['TEXTO', 'Texto'], ['IMAGE', 'Imagen'], ['VIDEO', 'Vídeo'], ['DOCUMENT', 'PDF'],
+              ] as const).map(([v, n]) => (
+                <button
+                  key={v} type="button" className="operar__control"
+                  aria-pressed={formato === v}
+                  style={{
+                    cursor: 'pointer', fontSize: 13,
+                    borderColor: formato === v ? 'var(--k-accent)' : undefined,
+                    color: formato === v ? 'var(--k-accent)' : undefined,
+                  }}
+                  onClick={() => { setFormato(v); setFichero(null) }}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          {cabeceraVariable ? (
+          {formato === 'TEXTO' ? (
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span className="label">Texto de la cabecera</span>
+              <input
+                className="campo" value={cabecera} onChange={(e) => setCabecera(e.target.value)}
+                placeholder="Su pedido {{1}}" maxLength={60}
+              />
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                Hasta 60 caracteres y una variable como mucho, por regla de Meta.
+              </span>
+            </label>
+          ) : (
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span className="label">
+                {formato === 'IMAGE' ? 'Imagen de muestra'
+                  : formato === 'VIDEO' ? 'Vídeo de muestra' : 'PDF de muestra'}
+              </span>
+              <input
+                className="campo"
+                type="file"
+                accept={formato === 'IMAGE' ? 'image/jpeg,image/png'
+                  : formato === 'VIDEO' ? 'video/mp4,video/3gpp' : 'application/pdf'}
+                onChange={(e) => elegirFichero(e.target.files?.[0] ?? null)}
+                required={!fichero}
+              />
+              {fichero ? (
+                <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                  {fichero.nombre} · {fichero.mb.toFixed(1)} MB
+                </span>
+              ) : null}
+              {/* Que es una MUESTRA y no el contenido es lo que más se malentiende
+                  de esto: Meta aprueba la plantilla con este fichero delante, y en
+                  cada envío se manda el de verdad. */}
+              <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                Es la muestra que Meta revisa. En cada envío se manda el fichero de verdad, no este.
+                {formato === 'IMAGE' ? ' JPG o PNG.' : formato === 'VIDEO' ? ' MP4 o 3GP.' : ' PDF.'}
+                {' '}Tope práctico por esta vía: 4 MB.
+              </span>
+            </label>
+          )}
+
+          {formato === 'TEXTO' && cabeceraVariable ? (
             <label style={{ display: 'grid', gap: 4 }}>
               <span className="label">Ejemplo para la variable de la cabecera</span>
               <input
