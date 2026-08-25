@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import { LogoCanal } from '@/lib/logos-canal'
@@ -67,6 +67,51 @@ function comandoEnCurso(valor: string, caret: number): { inicio: number; token: 
   return { inicio: barra, token }
 }
 
+/**
+ * El botón que abre las plantillas.
+ *
+ * Vive encima de la caja, en la línea que ya dice por dónde se responde, y no en
+ * el pie: en el pie era un `<select>` que se comía una fila entera del
+ * compositor —en una pantalla donde el sitio se le debe al hilo— para una lista
+ * que se abre dos veces al día.
+ *
+ * Lleva el número al lado a propósito. Un icono solo no dice si hay algo dentro,
+ * y abrir un menú vacío es el peor resultado posible de pulsar un botón.
+ */
+function BotonPlantillas({
+  cuantas, abierto, onClick,
+}: { cuantas: number; abierto: boolean; onClick: () => void }) {
+  if (cuantas === 0) return null
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-expanded={abierto}
+      aria-haspopup="listbox"
+      title={`Plantillas (${cuantas}) · o escribe / en la caja`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        marginLeft: 8, padding: '2px 7px', border: '1px solid var(--k-border)',
+        borderRadius: 999, cursor: 'pointer', font: 'inherit', fontSize: 12,
+        background: abierto ? 'var(--k-surface-2)' : 'transparent',
+        color: 'var(--k-text-2)', flex: 'none',
+      }}
+    >
+      {/* Un documento con líneas: es lo que es una plantilla, y se distingue de
+          los tres logos de canal que ya están en esta misma línea. */}
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M6.5 3.5h7.4l4.1 4.1V20a.5.5 0 0 1-.5.5H6.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5Z"
+          stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"
+        />
+        <path d="M13.6 3.6v4.2h4.2M9 12h6M9 15.4h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+      Plantillas
+      <span style={{ fontVariantNumeric: 'tabular-nums', opacity: 0.75 }}>{cuantas}</span>
+    </button>
+  )
+}
+
 export function Compositor({
   conversaciones, tarjetaId, plantillas, plantillasWa, plantillasMs,
 }: {
@@ -125,9 +170,32 @@ export function Compositor({
   const [marcada, setMarcada] = useState(0)
   const [insertando, setInsertando] = useState(false)
   const cajaTexto = useRef<HTMLTextAreaElement | null>(null)
-  const [plantillaWa, setPlantillaWa] = useState('')
+  /** El menú abierto con el icono, sin barra escrita. */
+  const [menu, setMenu] = useState(false)
+  const cajaMenu = useRef<HTMLDivElement | null>(null)
   const [mandandoWa, setMandandoWa] = useState(false)
   const [errorWa, setErrorWa] = useState<string | null>(null)
+
+  /**
+   * CERRAR AL PULSAR FUERA, que abierto con el icono no lo hace nadie más.
+   *
+   * El menú del comando se cierra con el `blur` de la caja; el del icono se abre
+   * sin tocar la caja, así que no hay `blur` que llegue y quedaba abierto hasta
+   * elegir algo o pulsar Escape. Y con la ventana cerrada la caja está
+   * deshabilitada: ni foco ni Escape, así que sin esto no había forma de
+   * cerrarlo.
+   *
+   * `mousedown` y no `click`: es el mismo momento en que los botones del menú
+   * actúan, y con `click` el cierre llegaba antes de que se eligiera nada.
+   */
+  useEffect(() => {
+    if (!menu) return
+    function fuera(ev: MouseEvent) {
+      if (!cajaMenu.current?.contains(ev.target as Node)) setMenu(false)
+    }
+    document.addEventListener('mousedown', fuera)
+    return () => document.removeEventListener('mousedown', fuera)
+  }, [menu])
 
   const conv = conversaciones.find((c) => c.id === activa)
   if (!conv) return null
@@ -138,40 +206,48 @@ export function Compositor({
   const cerrada = conv.ventana.clase === 'cerrada'
 
   /**
-   * CUÁNDO SE OFRECE UNA PLANTILLA, y no es lo mismo en los dos canales.
+   * TODAS LAS PLANTILLAS DE ESTA CONVERSACIÓN, EN UNA SOLA LISTA.
    *
-   * WhatsApp: solo con la ventana cerrada. Dentro de las 24 h el texto libre es
-   * gratis y una plantilla se factura por conversación, así que ofrecerla antes
-   * sería empujar a un cargo evitable.
+   * Antes había dos sitios: un desplegable en el pie para las internas y un
+   * bloque aparte para las de Meta que solo aparecía fuera de la ventana. Dos
+   * sitios con reglas distintas para lo mismo, y el de Meta no se había visto
+   * nunca porque no se llega a una conversación cerrada por casualidad.
    *
-   * Messenger: en cuanto la ventana deja de estar abierta —pasadas las 24 h—,
-   * porque ahí ya no hay texto libre gratis. Entre las 24 h y los 7 días existe
-   * la prórroga humana, pero exige que conteste una persona y por un motivo
-   * real; un aviso de utilidad no es eso, y para eso está `messaging_type`
-   * UTILITY, que es justo el permiso que Meta concede con
-   * `pages_utility_messaging`.
+   * Ahora es una lista con dos grupos, y cada elemento dice qué va a hacer:
+   * las internas se INSERTAN en la caja, las de Meta se ENVÍAN enteras. No es
+   * un detalle de forma: una se puede corregir antes de mandarla y la otra no.
+   *
+   * Las de Meta se ofrecen SIEMPRE, no solo fuera de la ventana. Dentro se
+   * pueden mandar igual —Meta las acepta— y esconderlas obligaba a adivinar por
+   * qué no estaban. Lo que sí hay es una confirmación con el coste escrito,
+   * porque dentro de las 24 h el texto normal hace lo mismo y es gratis.
    */
   const deEsteCanal = conv.canal === 'whatsapp' ? plantillasWa
     : conv.canal === 'messenger' ? plantillasMs
       : []
-  const cabePlantilla = conv.canal === 'whatsapp'
-    ? cerrada
-    : conv.canal === 'messenger' && conv.ventana.clase !== 'abierta'
 
   /**
-   * Mandar la plantilla. Los huecos NO se piden aquí: los resuelve
-   * `encolar_plantilla` contra la ficha, y si falta alguno se niega a encolar
-   * con el nombre del que falta. Preguntarlos en el compositor sería duplicar la
-   * ficha en un formulario y dejar que se separen.
+   * Lo que el menú ofrece ahora mismo, ya filtrado.
+   *
+   * `filtro` es lo escrito tras la barra cuando se abrió con `/`, y cadena vacía
+   * cuando se abrió con el icono. Un solo camino para las dos formas de abrirlo:
+   * dos listas distintas según cómo se abre es la clase de diferencia que nadie
+   * recuerda al cambiar una de ellas.
    */
-  /** Las internas que encajan con lo escrito tras la barra. */
-  const coincidencias = comando === null
-    ? []
-    : plantillas.filter((pl) => {
-      const t = llano(comando.token)
-      if (!t) return true
-      return llano(pl.nombre).includes(t) || (pl.atajo ? llano(pl.atajo).startsWith(t) : false)
-    }).slice(0, 8)
+  const filtro = comando?.token ?? ''
+  const encaja = (nombre: string, atajo?: string | null) => {
+    const t = llano(filtro)
+    if (!t) return true
+    return llano(nombre).includes(t) || (atajo ? llano(atajo).startsWith(t) : false)
+  }
+  const coincidencias: Array<{
+    clase: 'interna' | 'meta'; id: string; nombre: string; atajo?: string | null; cuerpo?: string
+  }> = [
+    ...plantillas.filter((pl) => encaja(pl.nombre, pl.atajo))
+      .map((pl) => ({ clase: 'interna' as const, id: pl.id, nombre: pl.nombre, atajo: pl.atajo })),
+    ...deEsteCanal.filter((pl) => encaja(pl.nombre))
+      .map((pl) => ({ clase: 'meta' as const, id: pl.id, nombre: pl.nombre, cuerpo: pl.cuerpo })),
+  ].slice(0, 12)
 
   /**
    * Insertar la plantilla donde estaba el comando.
@@ -182,9 +258,12 @@ export function Compositor({
    * separan.
    */
   async function insertarComando(id: string) {
-    if (comando === null || insertando) return
+    if (insertando) return
     const caja = cajaTexto.current
-    const fin = caja?.selectionStart ?? (comando.inicio + comando.token.length + 1)
+    // Abierto con el icono no hay barra que sustituir: se inserta donde esté el
+    // cursor, que es lo que hace cualquier caja de texto.
+    const inicio = comando?.inicio ?? (caja?.selectionStart ?? texto.length)
+    const fin = caja?.selectionStart ?? inicio
     setInsertando(true)
     const { data, error: err } = await crearClienteNavegador()
       .rpc('renderizar_plantilla', { p_plantilla: id, p_tarjeta: tarjetaId })
@@ -192,11 +271,11 @@ export function Compositor({
     if (err) { setError(err.message); return }
     const r = (data as Array<{ texto: string; faltan: string[] }>)?.[0]
     if (!r) return
-    const nuevo = texto.slice(0, comando.inicio) + r.texto + texto.slice(fin)
+    const nuevo = texto.slice(0, inicio) + r.texto + texto.slice(Math.max(inicio, fin))
     setTexto(nuevo)
     setFaltan(r.faltan ?? [])
-    setComando(null); setMarcada(0)
-    const corte = comando.inicio + r.texto.length
+    setComando(null); setMenu(false); setMarcada(0)
+    const corte = inicio + r.texto.length
     requestAnimationFrame(() => { caja?.focus(); caja?.setSelectionRange(corte, corte) })
   }
 
@@ -208,14 +287,34 @@ export function Compositor({
   }
 
   const convId = conv.id
-  async function mandarPlantilla() {
-    if (!plantillaWa) return
+  /**
+   * Mandar una plantilla de Meta. Se ENVÍA, no se inserta.
+   *
+   * Los huecos no se piden aquí: los resuelve `encolar_plantilla` contra la
+   * ficha, y si falta alguno se niega a encolar diciendo cuál. Preguntarlos en
+   * el compositor sería duplicar la ficha en un formulario y dejar que se
+   * separen.
+   *
+   * DENTRO DE LA VENTANA SE PREGUNTA. Meta acepta el envío igual, pero se
+   * factura como conversación y el texto normal hace lo mismo gratis. No se
+   * esconde la opción —esconderla obligaba a adivinar por qué no estaba— pero
+   * tampoco se manda un cargo con un solo clic.
+   */
+  async function mandarPlantillaMeta(id: string, nombre: string) {
+    if (mandandoWa) return
+    const SALTO = String.fromCharCode(10)
+    if (!cerrada && !confirm(
+      `Enviar «${nombre}» como plantilla.` + SALTO + SALTO
+      + 'La ventana está abierta: puedes responder con texto normal y no cuesta nada. '
+      + 'Una plantilla se factura como conversación.' + SALTO + SALTO
+      + '¿Enviarla igualmente?',
+    )) return
+    setComando(null); setMenu(false)
     setMandandoWa(true); setErrorWa(null)
-    const { error } = await crearClienteNavegador()
-      .rpc('encolar_plantilla', { p_conversacion: convId, p_plantilla: plantillaWa })
+    const { error: err } = await crearClienteNavegador()
+      .rpc('encolar_plantilla', { p_conversacion: convId, p_plantilla: id })
     setMandandoWa(false)
-    if (error) { setErrorWa(error.message); return }
-    setPlantillaWa('')
+    if (err) { setErrorWa(err.message); return }
     router.refresh()
     fetch('/api/despachar', { method: 'POST' }).catch(() => {})
     setTimeout(() => { router.refresh(); alFondo() }, 2500)
@@ -257,9 +356,9 @@ export function Compositor({
   }
 
   return (
-    <footer className="compositor">
+    <footer className="compositor" ref={cajaMenu}>
       {conversaciones.length > 1 ? (
-        <div className="compositor__canales">
+        <div className="compositor__canales" style={{ alignItems: 'center' }}>
           {conversaciones.map((c) => (
             <button
               key={c.id}
@@ -283,6 +382,11 @@ export function Compositor({
               ) : null}
             </button>
           ))}
+          <BotonPlantillas
+            cuantas={plantillas.length + deEsteCanal.length}
+            abierto={menu}
+            onClick={() => { setMenu((v) => !v); setComando(null); setMarcada(0) }}
+          />
         </div>
       ) : (
         // Con un solo canal no hay selector, y el marcador de posición se va en
@@ -300,54 +404,21 @@ export function Compositor({
             <LogoCanal canal={conv.canal} size={14} />
           </span>
           Respondes por {porDonde(conv)}
+          <BotonPlantillas
+            cuantas={plantillas.length + deEsteCanal.length}
+            abierto={menu}
+            onClick={() => { setMenu((v) => !v); setComando(null); setMarcada(0) }}
+          />
         </p>
       )}
 
-      {/* LA SALIDA CUANDO NO HAY SALIDA. Solo fuera de la ventana y solo con
-          plantillas ya emparejadas: ofrecerla en cualquier otro caso sería
-          empujar a un envío facturado que se podía haber hecho con texto normal
-          y gratis. Ver `cabePlantilla` para la diferencia entre canales. */}
-      {cabePlantilla && deEsteCanal.length > 0 ? (
-        <div
-          className="compositor__aviso"
-          style={{ background: 'var(--k-surface-2)', display: 'grid', gap: 8 }}
-        >
-          <span style={{ fontSize: 13 }}>
-            {conv.canal === 'whatsapp'
-              ? 'Fuera de las 24 horas solo se puede escribir con una plantilla aprobada. '
-              : 'Fuera de las 24 horas, un aviso de utilidad aprobado por Meta llega sin '
-                + 'necesidad de que conteste una persona. '}
-            Los huecos se rellenan solos con los datos de la ficha.
-          </span>
-          {errorWa ? <span className="error" role="alert">{errorWa}</span> : null}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <select
-              className="campo"
-              style={{ flex: '1 1 240px' }}
-              value={plantillaWa}
-              onChange={(e) => { setPlantillaWa(e.target.value); setErrorWa(null) }}
-              aria-label={`Plantilla de ${conv.canal === 'whatsapp' ? 'WhatsApp' : 'Messenger'}`}
-            >
-              <option value="">Elegir plantilla…</option>
-              {deEsteCanal.map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn"
-              disabled={!plantillaWa || mandandoWa}
-              onClick={() => void mandarPlantilla()}
-            >
-              {mandandoWa ? 'Enviando' : 'Enviar plantilla'}
-            </button>
-          </div>
-          {plantillaWa ? (
-            <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
-              {deEsteCanal.find((p) => p.id === plantillaWa)?.cuerpo}
-            </span>
-          ) : null}
-        </div>
+      {/* El bloque grande que vivía aquí —desplegable de plantillas de Meta más
+          botón de enviar, cuatro filas de alto— se fue al menú único. Ocupaba
+          sitio permanente para algo que se usa una vez cada varios días, y
+          además solo aparecía fuera de la ventana, que es cuando nadie lo había
+          visto todavía. */}
+      {errorWa ? (
+        <p className="error" role="alert" style={{ margin: 0 }}>{errorWa}</p>
       ) : null}
 
       {conv.ventana.motivo ? (
@@ -380,10 +451,16 @@ export function Compositor({
 
       <form onSubmit={enviar} className="compositor__caja">
         <div style={{ position: 'relative' }}>
-          {/* EL MENÚ DEL COMANDO, encima de la caja y no debajo: debajo lo tapa
-              el pie del compositor, y el borde inferior de la ventana lo tapa
-              del todo cuando el hilo está a pantalla completa. */}
-          {comando !== null && coincidencias.length > 0 ? (
+          {/* EL MENÚ, uno para las dos formas de abrirlo: la barra en la caja y
+              el botón de arriba. Encima de la caja y no debajo, porque debajo lo
+              tapa el pie del compositor y, a pantalla completa, el borde de la
+              ventana.
+
+              CADA ELEMENTO DICE QUÉ VA A HACER. Las internas se insertan en la
+              caja y se pueden corregir antes de mandar; las de Meta salen
+              enteras y ya no se tocan. Mezclarlas sin decirlo sería la peor
+              manera de ahorrar dos palabras. */}
+          {(comando !== null || menu) && coincidencias.length > 0 ? (
             <ul
               role="listbox"
               aria-label="Plantillas"
@@ -392,35 +469,79 @@ export function Compositor({
                 margin: 0, padding: 4, listStyle: 'none', zIndex: 20,
                 background: 'var(--k-surface)', border: '1px solid var(--k-border)',
                 borderRadius: 10, boxShadow: '0 10px 30px rgba(0,0,0,.16)',
-                maxHeight: 260, overflowY: 'auto',
+                maxHeight: 300, overflowY: 'auto',
               }}
             >
-              {coincidencias.map((pl, i) => (
-                <li key={pl.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={i === marcada}
-                    // `onMouseDown` y no `onClick`: al hacer clic, el `blur` de
-                    // la caja llega antes que el `click` y cierra el menú, así
-                    // que el clic caía sobre un elemento que ya no existía.
-                    onMouseDown={(ev) => { ev.preventDefault(); void insertarComando(pl.id) }}
-                    onMouseEnter={() => setMarcada(i)}
-                    style={{
-                      display: 'flex', width: '100%', gap: 8, alignItems: 'baseline',
-                      padding: '6px 8px', border: 0, borderRadius: 7, cursor: 'pointer',
-                      font: 'inherit', textAlign: 'left',
-                      background: i === marcada ? 'var(--k-surface-2)' : 'transparent',
-                      color: 'inherit',
-                    }}
-                  >
-                    <span style={{ fontWeight: 500 }}>{pl.nombre}</span>
-                    {pl.atajo ? (
-                      <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>/{pl.atajo}</span>
+              {coincidencias.map((pl, i) => {
+                // La cabecera de grupo se pinta al cambiar de clase, no con dos
+                // listas: con dos listas el índice del teclado se parte en dos y
+                // las flechas dejan de recorrer el menú entero.
+                const primeraMeta = pl.clase === 'meta' && coincidencias[i - 1]?.clase !== 'meta'
+                const primeraInterna = pl.clase === 'interna' && i === 0
+                  && coincidencias.some((x) => x.clase === 'meta')
+                return (
+                  <li key={`${pl.clase}-${pl.id}`}>
+                    {primeraInterna || primeraMeta ? (
+                      <p
+                        style={{
+                          margin: primeraMeta ? '8px 8px 4px' : '2px 8px 4px',
+                          fontSize: 11, letterSpacing: '0.05em', textTransform: 'uppercase',
+                          color: 'var(--k-text-2)',
+                        }}
+                      >
+                        {primeraMeta
+                          ? `Se envían enteras · ${etiquetaCanal(conv.canal)}`
+                          : 'Se insertan en la caja'}
+                      </p>
                     ) : null}
-                  </button>
-                </li>
-              ))}
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={i === marcada}
+                      // `onMouseDown` y no `onClick`: al hacer clic, el `blur` de
+                      // la caja llega antes que el `click` y cerraba el menú, así
+                      // que el clic caía sobre un elemento que ya no existía.
+                      onMouseDown={(ev) => {
+                        ev.preventDefault()
+                        if (pl.clase === 'interna') void insertarComando(pl.id)
+                        else void mandarPlantillaMeta(pl.id, pl.nombre)
+                      }}
+                      onMouseEnter={() => setMarcada(i)}
+                      style={{
+                        display: 'flex', width: '100%', gap: 8, alignItems: 'baseline',
+                        padding: '6px 8px', border: 0, borderRadius: 7, cursor: 'pointer',
+                        font: 'inherit', textAlign: 'left',
+                        background: i === marcada ? 'var(--k-surface-2)' : 'transparent',
+                        color: 'inherit',
+                      }}
+                    >
+                      {pl.clase === 'meta' ? (
+                        <span
+                          style={{ color: colorCanal(conv.canal), display: 'inline-flex', flex: 'none' }}
+                        >
+                          <LogoCanal canal={conv.canal} size={13} />
+                        </span>
+                      ) : null}
+                      <span style={{ fontWeight: 500, flex: 'none' }}>{pl.nombre}</span>
+                      {pl.atajo ? (
+                        <span style={{ fontSize: 12, color: 'var(--k-text-2)', flex: 'none' }}>
+                          /{pl.atajo}
+                        </span>
+                      ) : null}
+                      {pl.cuerpo ? (
+                        <span
+                          style={{
+                            fontSize: 12, color: 'var(--k-text-2)', overflow: 'hidden',
+                            textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {pl.cuerpo}
+                        </span>
+                      ) : null}
+                    </button>
+                  </li>
+                )
+              })}
             </ul>
           ) : null}
 
@@ -430,7 +551,7 @@ export function Compositor({
             rows={2}
             value={texto}
             onChange={(e) => { setTexto(e.target.value); revisarComando(e.currentTarget) }}
-            onClick={(e) => revisarComando(e.currentTarget)}
+            onClick={(e) => { setMenu(false); revisarComando(e.currentTarget) }}
             onKeyUp={(e) => {
               // Las flechas mueven el cursor sin cambiar el texto: el comando
               // puede empezar o dejar de existir sin que haya `change`.
@@ -438,11 +559,18 @@ export function Compositor({
                 revisarComando(e.currentTarget)
               }
             }}
+            // El menú abierto con el icono NO se cierra al perder el foco: se
+            // abre sin tocar la caja, así que cerrarlo por `blur` lo cerraría en
+            // el mismo momento de abrirlo.
             onBlur={() => setComando(null)}
             disabled={cerrada || enviando}
             placeholder={
+              // Con la ventana cerrada la caja no sirve, pero el botón de arriba
+              // sí: decirlo aquí es lo único que se lee antes de rendirse.
               cerrada
-                ? 'No se puede responder por este canal'
+                ? (deEsteCanal.length > 0
+                  ? 'No se puede escribir libre por este canal · usa Plantillas, arriba'
+                  : 'No se puede responder por este canal')
                 : `Responder por ${porDonde(conv)} · escribe / para una plantilla`
             }
             aria-label="Mensaje"
@@ -450,7 +578,7 @@ export function Compositor({
               // CON EL MENÚ ABIERTO EL TECLADO ES DEL MENÚ. Si no, Enter enviaría
               // el mensaje con el «/segui» a medias dentro, que es justo lo que
               // el menú venía a evitar.
-              const abierto = comando !== null && coincidencias.length > 0
+              const abierto = (comando !== null || menu) && coincidencias.length > 0
               if (abierto) {
                 if (e.key === 'ArrowDown') {
                   e.preventDefault()
@@ -464,12 +592,14 @@ export function Compositor({
                 }
                 if (e.key === 'Enter' || e.key === 'Tab') {
                   e.preventDefault()
-                  void insertarComando(coincidencias[marcada]!.id)
+                  const el = coincidencias[marcada]!
+                  if (el.clase === 'interna') void insertarComando(el.id)
+                  else void mandarPlantillaMeta(el.id, el.nombre)
                   return
                 }
                 if (e.key === 'Escape') {
                   e.preventDefault()
-                  setComando(null)
+                  setComando(null); setMenu(false)
                   return
                 }
               }
@@ -483,36 +613,9 @@ export function Compositor({
           />
         </div>
         <div className="compositor__pie">
-          {plantillas.length > 0 ? (
-            <select
-              className="operar__control"
-              value=""
-              disabled={cerrada || enviando}
-              aria-label="Insertar una plantilla"
-              onChange={async (e) => {
-                const id = e.target.value
-                if (!id) return
-                e.target.value = ''
-                // Se resuelve en la base, con la misma función que usará
-                // cualquier automatización futura. Resolver aquí sería una
-                // segunda implementación de las variables.
-                const { data, error } = await crearClienteNavegador()
-                  .rpc('renderizar_plantilla', { p_plantilla: id, p_tarjeta: tarjetaId })
-                if (error) { setError(error.message); return }
-                const r = (data as Array<{ texto: string; faltan: string[] }>)?.[0]
-                if (!r) return
-                setTexto((t) => (t ? `${t}\n${r.texto}` : r.texto))
-                setFaltan(r.faltan ?? [])
-              }}
-            >
-              <option value="">Plantilla…</option>
-              {plantillas.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}{p.atajo ? ` · /${p.atajo}` : ''}
-                </option>
-              ))}
-            </select>
-          ) : null}
+          {/* El desplegable de plantillas se fue de aquí al icono de arriba: una
+              fila entera del compositor para una lista que se abre dos veces al
+              día, en la pantalla donde el sitio se le debe al hilo. */}
 
           <span
             style={{

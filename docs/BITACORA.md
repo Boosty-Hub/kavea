@@ -233,6 +233,53 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Un solo menú de plantillas, y la regla que sobraba
+
+«Esta conversación se supone que es de Messenger y no salen las plantillas de Messenger». Era una
+conversación de Messenger con la ventana **abierta**, 9 h, y mi regla decía que las de Meta solo se
+ofrecen fuera de la ventana. La regla protegía de un cargo evitable —dentro de las 24 h el texto
+normal hace lo mismo y es gratis— pero **escondía la función en vez de explicarla**, y el operador
+se quedaba mirando una pantalla que no dice por qué no está lo que busca.
+
+Se cambia por lo que debió ser desde el principio: **se ofrecen siempre, y dentro de la ventana se
+pregunta con el coste escrito.** Esconder una opción obliga a adivinar; preguntar informa. El cargo
+sigue sin poder salir de un solo clic.
+
+**Y el manejo entero era el problema, no solo la regla.** Había DOS sitios para lo mismo: un
+`<select>` en el pie del compositor para las internas y un bloque de cuatro filas para las de Meta
+que solo aparecía fuera de la ventana. Dos sitios, dos reglas, y el de Meta nadie lo había visto
+porque a una conversación cerrada no se llega por casualidad.
+
+Ahora es **un menú**, con dos grupos y una cabecera que dice qué hace cada uno: «se insertan en la
+caja» y «se envían enteras · Messenger». No es un matiz de redacción: una se puede corregir antes de
+mandarla y la otra sale tal cual.
+
+Se abre de dos maneras y las dos dan la misma lista: escribiendo `/` en la caja, o con un botón
+—icono y número— en la línea que ya dice por dónde se responde, encima del campo. El `<select>` del
+pie desapareció: **una fila entera del compositor** para una lista que se abre dos veces al día, en
+la pantalla donde el sitio se le debe al hilo.
+
+Detalles que no se ven y sin los cuales no funciona:
+
+- La cabecera de grupo se pinta al cambiar de clase dentro de UNA lista, no con dos listas: con dos,
+  el índice del teclado se parte en dos y las flechas dejan de recorrer el menú entero.
+- Cerrar al pulsar fuera hizo falta al añadir el botón. El menú del comando se cierra con el `blur`
+  de la caja; el del botón se abre sin tocarla, así que no hay `blur` que llegue. Y con la ventana
+  cerrada la caja está **deshabilitada**: ni foco ni Escape, así que sin esto no había forma de
+  cerrarlo.
+- El oyente escucha `mousedown`, que es el mismo momento en que actúan los botones del menú. Con
+  `click` el cierre llegaba antes de que se eligiera nada.
+- La referencia del «dentro» va en el compositor entero: el botón y el menú son hermanos, y con la
+  referencia en uno solo, pulsar el otro contaba como fuera.
+
+Y el marcador de la caja hace de guía en los dos estados: «escribe / para una plantilla» cuando se
+puede escribir, «usa Plantillas, arriba» cuando la ventana está cerrada y la caja no sirve.
+
+**Comprobado con Playwright** en las dos situaciones: en la de Messenger abierta el botón dice
+«Plantillas 2», el menú trae los dos grupos, y pulsar `pedido_devuelto` abre la confirmación con el
+coste. En la de WhatsApp cerrada la caja sale deshabilitada, el botón sigue vivo, el menú ofrece
+`hello_world`, y pulsar fuera lo cierra.
+
 ### 2026-08-25 — «No veo cómo poner las plantillas en la conversación»
 
 Y era verdad: no había por dónde verlo. El bloque de plantilla de Meta solo aparece con la ventana
@@ -1100,6 +1147,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Esconder una opción para evitar un error obliga a adivinar por qué no está. Preguntar con el
+  coste escrito informa y protege igual.
+- Dos sitios para la misma acción con reglas distintas no es redundancia: es que una de las dos
+  nunca se encuentra.
 - Un control que solo aparece cuando hace falta es buen diseño; uno que nunca se ha visto no se
   sabe que existe. El marcador de la caja y el aviso de configuración son donde se cuenta.
 - En un menú sobre un campo de texto, el clic va en `mousedown`: el `blur` del campo llega antes
