@@ -109,6 +109,12 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'contacto.fusionado':
       return `unió a ${d.absorbido ?? 'otro contacto'} con esta persona · ${d.motivo ?? ''}`
     case 'contacto.separado': return 'deshizo la unión de contactos'
+    // Se dice de qué a qué, y «sin nombre» cuando no había: «puso el nombre
+    // Ana» esconde que antes decía otra cosa.
+    case 'contacto.renombrado':
+      return d.despues
+        ? `puso el nombre de la persona: ${d.antes ? `${d.antes} → ` : ''}${d.despues}`
+        : `quitó el nombre de la persona${d.antes ? ` (era ${d.antes})` : ''}`
     // El detalle trae [antes, después] por cada campo tocado. Se dice de qué a
     // qué: «cambió algo» no sirve para auditar nada.
     case 'contacto.editado': {

@@ -217,6 +217,7 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
             organizacionId={org.id}
             tarjetaId={id}
             contactoId={contactoId}
+            contactoNombre={tarjeta.contacts?.nombre ?? null}
             canales={canales}
             otras={otras}
             camposTarjeta={campoT}

@@ -233,6 +233,42 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — «Faltan datos: tarjeta.valor, contacto.nombre» señalaba a algo que no se podía tocar
+
+Dos fallos en una sola frase, y el segundo era el grave.
+
+**No había forma de poner el nombre de una persona.** La ficha edita los campos que la organización
+define en Ajustes → Campos, pero `contacts.nombre` no es uno de ellos: es una columna que escribe
+Meta cuando Meta la da, y Messenger no siempre la da. Cuando no la daba, la persona se quedaba
+«Contacto sin nombre» **para siempre**, y cualquier plantilla que saludara por el nombre se negaba a
+salir apuntando a un dato que no existía ninguna pantalla para escribir. Meses así, y nadie lo notó
+hasta que una plantilla lo pidió.
+
+La 0113 añade `renombrar_contacto` —guarda de miembro, no de administrador: poner el nombre de quien
+escribe es trabajo de quien atiende— y la ficha estrena un bloque «La persona» con el campo Nombre,
+encima de los canales. Guarda al salir del foco o con Enter, y la base no escribe si no cambió,
+porque cada guardado deja una línea en el hilo. Vacío BORRA en vez de guardar cadena vacía: un
+nombre en blanco haría que la ficha dijera que hay nombre y la plantilla siguiera sin poder
+rellenarlo.
+
+**Y el mensaje daba la clave interna.** «tarjeta.valor» no está escrito en ninguna parte de la
+interfaz; lo que se lee en la ficha es «Valor (USD)». El operador tenía que adivinar la
+correspondencia. Ahora el error se traduce con `variables_disponibles` —la misma lista que alimenta
+el selector de campos al crear una plantilla, así que la traducción no hay que inventarla— y añade
+**dónde** se rellena cada uno:
+
+    Para mandar esta plantilla falta rellenar: Valor del asunto (en la ficha, bloque Embudo);
+    Nombre de la persona (en la ficha, arriba, junto a los canales)
+
+Saber que falta «Valor del asunto» sin saber en qué bloque vive es la mitad de la respuesta.
+
+**Comprobado en pantalla:** el campo aparece vacío, el error nombra la etiqueta y el sitio, y
+escribir el nombre lo guarda. El valor de prueba se revirtió: no se dejan datos inventados en
+producción.
+
+Lo que sigue **sin comprobar** es el envío real por Messenger de punta a punta. Requiere mandar un
+mensaje de verdad a un contacto de verdad, y eso no se hace por probar sin pedirlo.
+
 ### 2026-08-25 — Un solo menú de plantillas, y la regla que sobraba
 
 «Esta conversación se supone que es de Messenger y no salen las plantillas de Messenger». Era una
@@ -1147,6 +1183,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Un error que señala a un dato que ninguna pantalla puede escribir es peor que no validar: manda
+  al usuario a buscar una puerta que no existe.
+- Un mensaje de error nombra las cosas como las nombra la interfaz. La clave interna obliga a
+  traducir a mano lo que el programa ya sabe traducir.
 - Esconder una opción para evitar un error obliga a adivinar por qué no está. Preguntar con el
   coste escrito informa y protege igual.
 - Dos sitios para la misma acción con reglas distintas no es redundancia: es que una de las dos

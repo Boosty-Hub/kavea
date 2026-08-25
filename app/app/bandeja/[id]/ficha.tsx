@@ -32,12 +32,20 @@ const PESTANAS = [
  * conversación salga todo lo que hace el usuario.
  */
 export function Ficha({
-  organizacionId, tarjetaId, contactoId, canales, otras, camposTarjeta, camposContacto,
+  organizacionId, tarjetaId, contactoId, contactoNombre, canales, otras,
+  camposTarjeta, camposContacto,
   etapas, etapaActual, valor, moneda, archivos, documentos, resumen, conversaciones,
 }: {
   organizacionId: string
   tarjetaId: string
   contactoId: string | null
+  /**
+   * El nombre de la persona, que hasta hoy no se podía escribir en ninguna
+   * pantalla. Venía de Meta cuando Meta lo daba y, cuando no, la persona se
+   * quedaba «Contacto sin nombre» para siempre —y cualquier plantilla que lo
+   * pidiera se negaba a salir señalando algo que no se podía tocar.
+   */
+  contactoNombre: string | null
   /** Por dónde se puede mandar un archivo. Cada canal tiene SU ventana. */
   conversaciones: Array<{ id: string; canal: string; ventana: { clase: string; motivo: string | null } }>
   canales: CanalDePersona[]
@@ -179,6 +187,15 @@ export function Ficha({
           etapaActual={etapaActual}
           valor={valor}
           moneda={moneda}
+          ocupado={ocupado}
+          llamar={llamar}
+        />
+      ) : null}
+
+      {contactoId ? (
+        <NombreDePersona
+          contactoId={contactoId}
+          nombre={contactoNombre}
           ocupado={ocupado}
           llamar={llamar}
         />
@@ -343,6 +360,60 @@ function Embudo({
           }}
         />
         <span className="ficha__ayuda">Lo que suma este asunto en la columna del tablero.</span>
+      </div>
+    </section>
+  )
+}
+
+/**
+ * El nombre de la persona.
+ *
+ * Guarda al salir del foco, igual que los campos personalizados: una ficha con
+ * un botón por campo es una ficha que nadie rellena. Y la base no escribe si el
+ * valor no cambió, porque cada guardado deja una línea en el hilo.
+ *
+ * VA APARTE DE `Campos` a propósito. Los otros son campos que la organización
+ * define en Ajustes → Campos y viven en `campo_valores`; este es una columna de
+ * `contacts` que Meta también escribe. Meterlo en la misma lista haría creer que
+ * se puede archivar o renombrar como los demás.
+ */
+function NombreDePersona({
+  contactoId, nombre, ocupado, llamar,
+}: {
+  contactoId: string
+  nombre: string | null
+  ocupado: boolean
+  llamar: (fn: string, args: Record<string, unknown>) => Promise<boolean>
+}) {
+  const inicial = nombre ?? ''
+  const [texto, setTexto] = useState(inicial)
+
+  return (
+    <section className="ficha__bloque">
+      <p className="ficha__titulo">La persona</p>
+      <div className="ficha__campo">
+        <label className="ficha__etiqueta" htmlFor="nombre-persona">Nombre</label>
+        <input
+          id="nombre-persona"
+          className="campo"
+          value={texto}
+          disabled={ocupado}
+          maxLength={120}
+          placeholder="Sin nombre todavía"
+          onChange={(e) => setTexto(e.target.value)}
+          onBlur={() => {
+            if (texto.trim() === inicial.trim()) return
+            void llamar('renombrar_contacto', { p_contacto: contactoId, p_nombre: texto })
+          }}
+          onKeyDown={(e) => {
+            // Enter guarda sin tener que salir del campo, que es lo que el dedo
+            // espera en un campo de una sola línea.
+            if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() }
+          }}
+        />
+        <span className="ficha__ayuda">
+          Lo usan las plantillas que saludan por el nombre. Meta no siempre lo entrega.
+        </span>
       </div>
     </section>
   )
