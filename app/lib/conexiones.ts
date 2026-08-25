@@ -67,6 +67,11 @@ export type Conexion = {
   token_invalido_desde: string | null
   /** `connected` | `degraded` | `disconnected`. */
   estado: string
+  /**
+   * Retirada de la lista a mano (0104). No es un estado de Meta ni borra nada:
+   * el historial del canal sigue entero detrás.
+   */
+  archivada_en: string | null
   comprobaciones: Verificacion[]
   canales: CanalConectado[]
 }

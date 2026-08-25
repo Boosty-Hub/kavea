@@ -265,6 +265,10 @@ export function Sidebar() {
         href={e.href}
         aria-current={activo ? 'page' : undefined}
         title={colapsado ? `${e.etiqueta}${pildora ? ` · ${pildora} sin leer` : ''}` : undefined}
+        /* El color, el fondo y el peso viven en `.nav__enlace` (globals.css) y no
+           aquí: un estilo en línea no admite `:hover`, y este menú era la única
+           superficie de la aplicación que no respondía al ratón. */
+        className={`nav__enlace${activo ? ' nav__enlace--activo' : ''}`}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -274,9 +278,6 @@ export function Sidebar() {
           textDecoration: 'none',
           whiteSpace: 'nowrap',
           overflow: 'hidden',
-          color: activo ? 'var(--k-text)' : 'var(--k-text-2)',
-          fontWeight: activo ? 500 : 400,
-          background: activo ? 'var(--k-activo, rgba(0,0,0,.05))' : 'transparent',
         }}
       >
         <span aria-hidden="true" style={{ width: 16, textAlign: 'center', flexShrink: 0, position: 'relative' }}>

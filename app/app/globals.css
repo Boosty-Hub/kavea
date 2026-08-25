@@ -1060,3 +1060,29 @@ a.adjunto__abrir { display: block; line-height: 0; border-radius: var(--r-contro
   }
   .ficha--colapsada { max-height: 44px; }
 }
+
+/* El menú lateral.
+ *
+ * Los enlaces se pintaban con estilos EN LÍNEA, y `:hover` no se puede escribir
+ * así: no hay pseudoclase que valga dentro de un atributo `style`. Por eso el
+ * menú era la única superficie de la aplicación sin respuesta al ratón, mientras
+ * la fila de la bandeja, el chip de canal y la tarjeta vieja sí la tenían.
+ *
+ * El color y el fondo salen del atributo en línea a esta clase para que el hover
+ * no tenga que pelearse con `!important` contra ellos. Lo dinámico —qué enlace
+ * está activo— viaja como modificador, que es lo que una clase sí puede expresar.
+ */
+.nav__enlace {
+  color: var(--k-text-2);
+  background: transparent;
+  transition: background-color .12s ease, color .12s ease;
+}
+.nav__enlace:hover { background: var(--k-surface-2); color: var(--k-text); }
+.nav__enlace:focus-visible { outline: 2px solid var(--k-accent); outline-offset: -2px; }
+
+.nav__enlace--activo {
+  color: var(--k-text);
+  font-weight: 500;
+  background: var(--k-surface-2);
+  box-shadow: inset 3px 0 0 var(--k-accent);
+}

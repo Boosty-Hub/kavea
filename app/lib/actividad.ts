@@ -170,6 +170,12 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     // porque es la diferencia entre esto y desconectar uno.
     // El camino de vuelta (0103). Se nombra el canal, que es lo que la persona
     // reconoce; el número de rutas es detalle de máquina y no entra.
+    // Retirar de la lista (0104). Se dice «de la lista» y no «borró», porque no
+    // borra: el historial del canal sigue detrás.
+    case 'conexion.archivada':
+      return d.nombre ? `retiró ${d.nombre} de la lista de canales` : 'retiró un canal de la lista'
+    case 'conexion.desarchivada':
+      return d.nombre ? `devolvió ${d.nombre} a la lista de canales` : 'devolvió un canal a la lista'
     case 'conexion.reconectada':
       return d.nombre ? `volvió a conectar ${d.nombre}` : 'volvió a conectar un canal'
     case 'meta.desautorizada':

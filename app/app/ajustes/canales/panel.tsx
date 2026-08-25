@@ -74,6 +74,15 @@ export function Canales({
   const [comprobando, setComprobando] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /**
+   * Las retiradas no se pintan, pero se pueden mirar.
+   *
+   * Esconderlas sin dejar volver a verlas convertiría «retirar de la lista» en
+   * un borrado que no se puede deshacer, que es justo lo que esta función NO
+   * hace: el historial del canal sigue entero detrás.
+   */
+  const [verArchivadas, setVerArchivadas] = useState(false)
+  const [retirando, setRetirando] = useState<string | null>(null)
   /** Qué canal tiene el detalle abierto. `null` = solo las tarjetas. */
   const [abierto, setAbierto] = useState<string | null>(null)
 
@@ -124,6 +133,15 @@ export function Canales({
    * práctica, imposible de confirmar. Una fricción tiene que costar una
    * decisión, no una transcripción.
    */
+  async function retirar(conexion: string, archivar: boolean) {
+    setRetirando(conexion); setError(null)
+    const { error } = await crearClienteNavegador()
+      .rpc('archivar_conexion', { p_conexion: conexion, p_archivar: archivar })
+    setRetirando(null)
+    if (error) { setError(error.message); return }
+    router.refresh()
+  }
+
   async function desconectar(c: Conexion) {
     const nombre = nombreDe(c)
     const escrito = window.prompt(
@@ -193,8 +211,12 @@ Escribe ${PALABRA} para confirmar.`,
         {grupos.map(({ canal, conexiones: cs }) => {
           // Las desconectadas se cuentan aparte: no están rotas —lo están a
           // propósito— y decir «todo en orden» incluyéndolas sería falso.
-          const fuera = cs.filter((c) => c.estado === 'disconnected')
-          const vivas = cs.filter((c) => c.estado !== 'disconnected')
+          // Lo retirado no cuenta para nada de lo que la tarjeta resume: ni
+          // como desconectado ni como pendiente. Está fuera de la lista, que es
+          // lo que se pidió.
+          const visibles = cs.filter((c) => !c.archivada_en)
+          const fuera = visibles.filter((c) => c.estado === 'disconnected')
+          const vivas = visibles.filter((c) => c.estado !== 'disconnected')
           const rotas = vivas.filter((c) => c.bloqueada).length
           const avisos = vivas.filter((c) => !c.bloqueada && c.en_rojo > 0).length
           const pendientes = vivas.filter((c) => viejo(c) || !c.ultima_pasada).length
@@ -230,7 +252,7 @@ Escribe ${PALABRA} para confirmar.`,
                   </span>
                   <span style={{ fontWeight: 500 }}>{etiquetaCanal(canal)}</span>
                   <span style={{ marginLeft: 'auto', fontSize: 13, color: 'var(--k-text-2)' }}>
-                    {cs.length}
+                    {visibles.length}
                   </span>
                 </span>
                 <span style={{ fontSize: 13, color: resumen.c }}>
@@ -267,10 +289,31 @@ Escribe ${PALABRA} para confirmar.`,
                 <LogoCanal canal={abierto} size={20} />
               </span>
               <h2 style={{ fontSize: 16, margin: 0 }}>{etiquetaCanal(abierto)}</h2>
+              {/* El camino de vuelta a lo retirado. Sin esto, «retirar de la
+                  lista» sería un borrado que no se puede deshacer, y no lo es:
+                  el historial del canal sigue entero detrás. Solo sale si hay
+                  algo retirado que enseñar. */}
+              {abiertas.some((c) => c.archivada_en) ? (
+                <button
+                  type="button"
+                  className="operar__control"
+                  style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 13 }}
+                  aria-pressed={verArchivadas}
+                  onClick={() => setVerArchivadas((v) => !v)}
+                >
+                  {verArchivadas
+                    ? 'Ocultar las retiradas'
+                    : `Ver ${abiertas.filter((c) => c.archivada_en).length} retirada${
+                        abiertas.filter((c) => c.archivada_en).length > 1 ? 's' : ''}`}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="operar__control"
-                style={{ marginLeft: 'auto', cursor: 'pointer', fontSize: 13 }}
+                style={{
+                  marginLeft: abiertas.some((c) => c.archivada_en) ? 0 : 'auto',
+                  cursor: 'pointer', fontSize: 13,
+                }}
                 onClick={() => setAbierto(null)}
               >
                 Cerrar
@@ -280,7 +323,7 @@ Escribe ${PALABRA} para confirmar.`,
             <div className="modal__cuerpo">
               {error ? <p className="error" role="alert">{error}</p> : null}
               <div style={{ display: 'grid', gap: 28 }}>
-                {abiertas.map((c) => (
+                {abiertas.filter((c) => verArchivadas || !c.archivada_en).map((c) => (
                   <section key={c.meta_connection_id}>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
                       <h2 style={{ fontSize: 16, margin: 0 }}>{nombreDe(c)}</h2>
@@ -323,7 +366,27 @@ Escribe ${PALABRA} para confirmar.`,
                           >
                             Volver a conectar
                           </a>
-                        ) : (
+                        ) : null}
+                        {/* RETIRAR DE LA LISTA. Solo sobre lo desconectado: esconder
+                            algo vivo convertiría esta pantalla en lo contrario de lo
+                            que es. Y dice «retirar», no «eliminar», porque no borra:
+                            un `delete` de la conexión arrastraría en cascada sus
+                            canales, sus conversaciones y sus mensajes. */}
+                        {c.estado === 'disconnected' ? (
+                          <button
+                            type="button"
+                            className="operar__control"
+                            style={{ cursor: 'pointer', fontSize: 13 }}
+                            disabled={retirando === c.meta_connection_id}
+                            onClick={() => void retirar(c.meta_connection_id, !c.archivada_en)}
+                            title={c.archivada_en
+                              ? 'Vuelve a salir en la lista'
+                              : 'Deja de salir aquí. No se borra el historial.'}
+                          >
+                            {c.archivada_en ? 'Devolver a la lista' : 'Retirar de la lista'}
+                          </button>
+                        ) : null}
+                        {c.estado !== 'disconnected' ? (
                           <>
                             <button
                               type="button"
@@ -344,7 +407,7 @@ Escribe ${PALABRA} para confirmar.`,
                               {desconectando === c.meta_connection_id ? 'Desconectando' : 'Desconectar'}
                             </button>
                           </>
-                        )}
+                        ) : null}
                       </span>
                     </div>
 

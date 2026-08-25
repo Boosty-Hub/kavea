@@ -223,6 +223,36 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — Retirar de la lista, que no es eliminar, y el menú por fin responde
+
+**Se pidió «eliminar los números desconectados para que no salgan más».** Lo primero fue mirar qué
+se llevaría un `delete`, y la respuesta estaba en las claves ajenas:
+
+    meta_connections → channels → conversations → messages     (todas `on delete cascade`)
+
+Borrar la conexión de un número retirado se lleva por delante **cada conversación y cada mensaje que
+pasó por él**. Para un número que se retiró eso es justo lo que no se puede perder: es el histórico
+del cliente. Un botón que dice «eliminar» y hace exactamente eso es el peor botón posible — cumple
+lo que promete y nadie esperaba tanto.
+
+Así que la 0104 **archiva**: desaparece de la lista, que es lo que se pidió, y no se pierde nada. Se
+puede deshacer, y solo funciona sobre lo desconectado —esconder algo vivo convertiría la pantalla de
+canales en lo contrario de lo que es—. El botón dice **«Retirar de la lista»** y no «eliminar»,
+porque la palabra tiene que decir lo que hace. Y en la cabecera del modal sale «Ver N retiradas»
+cuando hay algo que enseñar: sin ese camino de vuelta, retirar sería un borrado disfrazado.
+
+La columna se añadió a la tabla **y a la vista**. `estado_de_conexion` es de donde sale la lista, y
+añadirla solo a la tabla habría dejado el archivado invisible para la única pantalla que lo necesita,
+sin error en ninguna parte.
+
+**Y el menú lateral no tenía hover.** No por descuido de estilo: los enlaces se pintaban con
+`style={{...}}` en línea, y **`:hover` no se puede escribir en un atributo `style`**. Era la única
+superficie de la aplicación sin respuesta al ratón mientras la fila de la bandeja, el chip de canal y
+la tarjeta vieja sí la tenían. El color, el fondo y el peso salen a `.nav__enlace` en `globals.css`
+—con `--k-surface-2`, el mismo tono que usa el resto y que ya es consciente del tema oscuro— y lo
+único dinámico, cuál está activo, viaja como modificador. De paso el activo gana su barra lateral
+`inset 3px`, igual que la fila de la bandeja.
+
 ### 2026-08-24 (cierre) — El portafolio que es dueño de la app no se puede elegir en el diálogo
 
 Gabriel intentó reconectar Boosty.digital por el diálogo de Facebook Login for Business y no
@@ -1653,3 +1683,10 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   owns the app» explicaba en siete palabras algo que no está en ninguna guía que hubiéramos leído.
 - Que algo estuviera conectado antes no prueba que se pueda conectar por el camino que se está
   intentando ahora. Boosty.digital llevaba meses conectada — por la otra puerta.
+- Antes de construir un botón de borrar, leer las claves ajenas. «Eliminar esta fila» y «eliminar
+  esta fila y tres tablas encadenadas detrás» se escriben igual en el `delete` y se leen igual en la
+  pantalla.
+- La palabra del botón es parte del contrato. «Retirar de la lista» y «Eliminar» prometen cosas
+  distintas, y quien pulsa solo tiene la palabra para saber cuál va a pasar.
+- Un estilo en línea no admite pseudoclases. Si una superficie no responde al ratón y las demás sí,
+  el motivo probable no es que a alguien se le olvidara: es que ahí no se podía escribir.
