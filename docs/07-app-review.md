@@ -300,6 +300,42 @@ El último párrafo está puesto a propósito: el abuso de tags es causa documen
 de restricción de la mensajería de una Página, y al revisor le importa leer que el
 límite está en el código.
 
+### `instagram_manage_comments`
+
+**Meta:** *«allows your app to create, delete and hide comments on behalf of the
+Instagram account linked to a Page.»*
+
+**No tenía sección aquí hasta el 25-ago**, y por eso su texto declarado vivía
+solo dentro del formulario de Meta. Se descubrió al releerlo para el segundo
+envío: decía «a Comments screen, **separate from the message inbox**» —falso
+desde el 21-ago, cuando Comentarios pasó a ser pestaña dentro de Bandeja— y no
+mencionaba editar ni borrar, que es literalmente lo que la nota de rechazo pedía.
+Un texto que solo vive en un formulario de un tercero no se puede releer contra
+el producto.
+
+**Kavea responde:**
+
+```
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; Kavea is their technology provider and is verified as such by Meta.
+
+We use instagram_manage_comments to read the public comments people leave on our user's Instagram posts, to publish the business's replies, and to moderate them: hide, unhide, edit and delete.
+
+What the screen recording shows: comments live in the same inbox as the messages, in their own tab, because the same team answers both. The operator refreshes the list directly from Meta, opens a comment and publishes a reply on behalf of the business account. The recording then shows the complete moderation loop the reviewer asked for: a comment published from our app, that same comment edited, and then deleted. Finally the Instagram app is opened on that post to confirm the final state.
+
+How editing works, because the API does not allow it: Instagram's Graph API can create and delete a comment, but it cannot change the text of one. So editing in Kavea publishes the new text and deletes the previous comment, in that order, and the interface states this in plain language before the operator confirms. We do it in that order on purpose: if the second step fails there are two comments visible, which the operator can see and fix, instead of none.
+
+Why comments are kept apart from direct messages, which the reviewer will see immediately: a direct message is private between two people and a comment is public. Answering a comment with something the customer said in private would expose it to everyone reading the post. So they do not share a table, they do not share a screen, and the reply box states in plain language that the answer will be public. This is a deliberate design decision, not a limitation.
+
+Why the business needs it: a comment left unanswered on a post is visible to every future customer who reads it. Today these businesses either miss them or scroll the Instagram app looking for what is still unanswered.
+```
+
+**Vídeo:** `instagram_manage_comments`. El bucle completo desde la aplicación y
+luego la publicación en Instagram para confirmar el estado final.
+
+**El párrafo de la edición no se puede quitar.** La nota pide «edit that comment»
+y la API de Instagram no sabe hacerlo: si no se explica que editar es publicar y
+borrar, el revisor concluye que la edición no se enseñó.
+
 ### `pages_utility_messaging`
 
 **Meta:** *«allows an app to access a Page's utility messaging templates. The

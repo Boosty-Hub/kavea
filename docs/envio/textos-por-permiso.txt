@@ -3,10 +3,15 @@ LOS OCHO TEXTOS DECLARADOS, uno por permiso
 
 Compara cada uno con lo que ya hay en su caja del formulario. La caja tiene
 barra de desplazamiento: puede que el texto completo ya este puesto y solo se
-vea el primer parrafo. Solo se pega si falta.
+vea el primer parrafo. Solo se pega si falta o si dice algo que ya no es cierto.
 
-El de pages_utility_messaging va CAMBIADO: el que se declaro no mencionaba el
-envio, y ahora Kavea envia. Es justo el punto por el que lo rechazaron.
+CAMBIADOS a proposito respecto a lo que habia en el formulario:
+  - pages_utility_messaging: el declarado no mencionaba el ENVIO, y el rechazo
+    pedia verlo. Ahora dice «manage and send» y describe el envio y el cliente
+    nativo.
+  - instagram_manage_comments: decia «a Comments screen, separate from the
+    message inbox» —falso desde el 21-ago— y no mencionaba editar ni borrar,
+    que es lo que la nota pedia.
 
 --- Human Agent -------------------------------------------------
 
@@ -37,7 +42,7 @@ We do not change any other Page setting with this permission. We do not modify t
 
 
 --- pages_utility_messaging -------------------------------------
-  (VERSION NUEVA: incluye el envio. Sustituye la que haya.)
+  (VERSION NUEVA: incluye el envio)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
@@ -50,11 +55,25 @@ One deliberate design decision the reviewer will notice: we do not store these t
 Why the business needs it: today these businesses have no way to reach a customer once the conversation window has closed for anything routine, such as telling them an order shipped. Utility templates are the compliant way to do that, and managing and sending them from the same place where the team answers messages is the point of the product.
 
 
---- instagram_manage_comments ---
-  (NO ESTA EN LA BITACORA: revisar)
+--- instagram_manage_comments -----------------------------------
+  (VERSION NUEVA: pestaña, y el bucle de editar y borrar)
 
---- pages_messaging ---
-  (NO ESTA EN LA BITACORA: revisar)
+Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; Kavea is their technology provider and is verified as such by Meta.
+
+We use instagram_manage_comments to read the public comments people leave on our user's Instagram posts, to publish the business's replies, and to moderate them: hide, unhide, edit and delete.
+
+What the screen recording shows: comments live in the same inbox as the messages, in their own tab, because the same team answers both. The operator refreshes the list directly from Meta, opens a comment and publishes a reply on behalf of the business account. The recording then shows the complete moderation loop the reviewer asked for: a comment published from our app, that same comment edited, and then deleted. Finally the Instagram app is opened on that post to confirm the final state.
+
+How editing works, because the API does not allow it: Instagram's Graph API can create and delete a comment, but it cannot change the text of one. So editing in Kavea publishes the new text and deletes the previous comment, in that order, and the interface states this in plain language before the operator confirms. We do it in that order on purpose: if the second step fails there are two comments visible, which the operator can see and fix, instead of none.
+
+Why comments are kept apart from direct messages, which the reviewer will see immediately: a direct message is private between two people and a comment is public. Answering a comment with something the customer said in private would expose it to everyone reading the post. So they do not share a table, they do not share a screen, and the reply box states in plain language that the answer will be public. This is a deliberate design decision, not a limitation.
+
+Why the business needs it: a comment left unanswered on a post is visible to every future customer who reads it. Today these businesses either miss them or scroll the Instagram app looking for what is still unanswered.
+
+
+--- pages_messaging ---------------------------------------------
+  (SIN TEXTO DECLARADO EN LA BITACORA: leer el del formulario y,
+   si dice algo que ya no es cierto, avisar antes de tocarlo)
 
 --- instagram_manage_messages -----------------------------------
 
