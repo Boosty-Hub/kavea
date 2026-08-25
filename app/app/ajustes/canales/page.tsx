@@ -23,9 +23,12 @@ export default async function PaginaCanales({
   if (!org) notFound()
 
   const [conexiones, embudos] = await Promise.all([conexionesDe(org.id), embudosDe(org.id)])
-  // Cuántas se apagarían al soltar la cuenta. El número va en la confirmación:
-  // nadie debería descubrir después cuántos canales se llevó por delante.
-  const vivas = conexiones.filter((c) => c.estado !== 'disconnected').length
+  // Cuántas se apagarían al soltar la cuenta, y cuántas NO. Solo cae lo que
+  // produjo la autorización de Facebook —las que tienen `page_id`—; WhatsApp
+  // entra por el portafolio y se queda. Los dos números van en la confirmación:
+  // la primera versión contaba todas y el botón se llevó un WhatsApp vivo.
+  const vivas = conexiones.filter((c) => c.estado !== 'disconnected' && c.page_id).length
+  const intactas = conexiones.filter((c) => c.estado !== 'disconnected' && !c.page_id).length
   const { conexion, motivo } = await searchParams
 
   // Quien no puede conectar no ve el botón. No es solo estética: la ruta
@@ -104,7 +107,7 @@ export default async function PaginaCanales({
                   Antes solo se podía soltar un canal: la autorización de la que
                   cuelgan todos no tenía botón, y quedarse vinculado sin querer
                   no es una opción que el producto deba ofrecer. */}
-              <SoltarCuenta conexionesVivas={vivas} />
+              <SoltarCuenta conexionesVivas={vivas} intactas={intactas} />
             </>
           ) : (
             <>

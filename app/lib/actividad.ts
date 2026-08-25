@@ -171,6 +171,8 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
     case 'meta.desautorizada':
       return typeof d.conexiones === 'number' && d.conexiones > 0
         ? `desconectó la cuenta de Facebook y con ella ${d.conexiones} ${d.conexiones === 1 ? 'conexión' : 'conexiones'}`
+          + (typeof d.intactas === 'number' && d.intactas > 0
+             ? `; ${d.intactas} de WhatsApp siguieron en pie` : '')
         : 'desconectó la cuenta de Facebook'
     case 'comentario.oculto':
       return 'ocultó un comentario'

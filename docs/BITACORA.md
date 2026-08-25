@@ -223,6 +223,38 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — El botón se llevó un WhatsApp que no era suyo
+
+La 0101 se desplegó y Gabriel la usó esa misma noche. La actividad lo cuenta entero: **01:52:41**
+`conexion.desconectada` de Boosty.digital a mano, **02:13:48** `meta.desautorizada` con
+`conexiones: 2` —el botón nuevo—, **02:17:37** una autorización nueva. El corte completo y la
+reconexión desde cero quedan probados en producción sin que los ejecutara yo.
+
+**Y con eso salió el fallo.** Esas dos conexiones eran la Página y el número de WhatsApp
+`+1 321-393-1397`. La Página tenía que caer; el número no. **WhatsApp no cuelga de la autorización
+de Facebook**: entra por el portafolio, con token de system user, por una superficie de staff.
+`desautorizar_meta` desconectaba todo lo que hubiera en `meta_connections` sin mirar de dónde venía.
+
+Un botón que apaga más de lo que su texto promete es peor que no tenerlo, y el precio se pagó
+entero: el número quedó sin rutas, y volver a levantarlo **no es un clic** —«Elegir qué conectar»
+solo activa Páginas e Instagram del BISU—, hay que rehacerlo desde el panel interno.
+
+Arreglado en la 0102: cae lo que la autorización produjo, o sea las conexiones con `page_id`. La
+confirmación dice ahora **las dos cifras** —cuántas caen y cuántas no— y la actividad también.
+Cuando WhatsApp entre por Embedded Signup colgará de la misma autorización y habrá que volver aquí:
+la regla no es «WhatsApp nunca», es «lo que vino de este permiso».
+
+**El vídeo del login, revisado con ffmpeg.** 5 min 20 s, VP9 1920×1080 sin audio. Cubre de sobra:
+incógnito → login de Kavea → «Conectar con Facebook» → login de Facebook con 2FA → «Trust this
+device» → **«Select the business assets to share with kavea»** con portafolio, Página e Instagram →
+código de confirmación → «Gabriel Montiel Toro has been connected to kavea» → vuelta a Kavea, «Qué
+conectar» → **Activar**. Y después, un mensaje de Instagram entrando y la respuesta saliendo.
+
+Partido en las dos tomas que el montador espera: `login.mp4` (0→178 s) e `instagram.mp4`
+(262→fin). Entre medias había **45 segundos de bandeja vacía** que no aportan nada. Comprobado en la
+base que la respuesta «ok» salió de Kavea —`enviado`, 02:20:10, con id de Instagram—; el «cool» que
+también se ve lo escribió él en Instagram. Con eso, **cinco de los ocho vídeos quedan montados**.
+
 ### 2026-08-24 (cierre) — La puerta de salida, y Boosty.digital quedó desconectada
 
 **Ya se puede soltar la cuenta de Facebook entera** (0101 + `meta-soltar` + el botón en Canales).
@@ -1530,3 +1562,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   daba por viva llevaba horas desconectada.
 - HTML inválido no lo caza el compilador ni el typecheck: lo caza el navegador, y como un error de
   hidratación que no rompe nada a la vista. Sin abrir la consola, se despliega.
+- Un botón se juzga por lo que apaga, no por lo que dice. «Desconectar la cuenta de Facebook»
+  sonaba inequívoco y borraba también lo que había entrado por otra puerta.
+- Cuando dos cosas llegaron por caminos distintos, el que las apaga tiene que preguntar por el
+  camino, no por la tabla en la que acabaron.
+- Una confirmación destructiva tiene que decir también lo que NO se lleva. El silencio sobre lo que
+  sobrevive se lee como que no sobrevive nada, o peor: no se lee, y se descubre después.
