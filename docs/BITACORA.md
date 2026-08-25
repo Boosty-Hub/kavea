@@ -223,6 +223,38 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — La puerta de salida, y Boosty.digital quedó desconectada
+
+**Ya se puede soltar la cuenta de Facebook entera** (0101 + `meta-soltar` + el botón en Canales).
+Antes se podía desconectar un canal pero no la autorización de la que cuelgan todos: la fila seguía
+con su BISU cifrado, la pantalla seguía diciendo «ya autorizaste», y Kavea seguía apareciendo en los
+ajustes de Facebook del cliente como una app con acceso. Un producto que deja entrar tiene que dejar
+salir por la misma puerta.
+
+**Soltar son tres cosas y el orden no es negociable.** Lo local —desconectar todas las conexiones,
+borrar credenciales y enrutado, apagar canales— ocurre sí o sí, porque el cliente pidió irse. Luego,
+en el borde: primero las bajas de webhooks, que necesitan un token de Página y los tokens de Página
+se piden CON el BISU; y después `DELETE /me/permissions`, que lo mata. Al revés, Meta se queda
+mandando eventos a una ruta que ya no existe. Por eso la fila se marca `revocada_en` en vez de
+borrarse: para la aplicación deja de existir en el mismo instante y el borde todavía puede leerla.
+
+La confirmación lleva escrito **cuántas conexiones se apagan** y dice que las conversaciones no se
+borran — la misma distinción que hace el callback de desautorización de Meta: retirar el acceso es
+«dejad de escribir en mi nombre», no «olvidad lo que pasó».
+
+**Un `div` dentro de un `p`.** El bloque de la autorización era un párrafo y el botón nuevo es un
+`div`: HTML inválido, el navegador cierra el párrafo antes de tiempo y salta el error de hidratación
+**418** de React. Compilaba, el typecheck pasaba y la pantalla se veía bien. Lo dijo la consola en la
+primera pasada con Playwright, que es exactamente para lo que esa pasada existe.
+
+**Y al comprobar el número de la confirmación salió otra cosa.** La tarjeta decía «2 conexiones
+activas» y las de canal sugerían tres; mirando la base, **`Boosty.digital` está `disconnected` desde
+las 01:52:41**, con su actividad `conexion.desconectada` —a mano, desde la pantalla de canales; no
+fue el botón nuevo, que registra `meta.desautorizada`—. Las rutas lo confirman: solo quedan las de
+`gabrielmontieltoro` y el número de WhatsApp. Mientras siga así, **ni los DM ni los comentarios de
+`@boosty.digital` entran**, y `/contenido` ya no la lista. La autorización sigue viva, así que
+volver a conectarla es un clic en `Elegir qué conectar → Activar`, sin pasar por Meta.
+
 ### 2026-08-24 (cierre) — El montador, y el login se graba una vez
 
 `ffmpeg` instalado (9.0.1 por scoop) y `scripts/montar-screencasts.mjs` escrito. Pega las tomas en
@@ -1493,3 +1525,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   veces. Lo que cambia entre los ocho es el resto.
 - Pegar vídeos de dos orígenes sin normalizar produce un fichero que abre en el reproductor de quien
   lo montó. El único reproductor que importa es el que no se puede probar.
+- Un número en una confirmación destructiva hay que comprobarlo contra la base, no contra lo que se
+  ve en pantalla. Aquí el número era correcto y lo que estaba mal era el mundo: una conexión que se
+  daba por viva llevaba horas desconectada.
+- HTML inválido no lo caza el compilador ni el typecheck: lo caza el navegador, y como un error de
+  hidratación que no rompe nada a la vista. Sin abrir la consola, se despliega.
