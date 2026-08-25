@@ -512,13 +512,15 @@ Instagram, eliminar el mensaje allí, y ver a Kavea poniendo «Mensaje eliminado
 ```
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
-We use pages_read_engagement together with pages_show_list to read what a Page IS, not what happens on it: its name, its identifier, and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: a person who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
+We use pages_read_engagement for two things. First, together with pages_show_list, to read what a Page is — its name, category, picture and follower count — and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: someone who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
 
-The screen recording shows the portfolio view, where each Page is listed with its name and connection state.
+Second, to show the Page's own content next to its conversations. A business answering a comment or a message often needs to see the post it refers to. Kavea has a Content screen for that: the operator picks a connected Page and Kavea retrieves its posts, photos and events live from the Graph API and renders them with the Page identity in the header.
 
-We do not read posts, comments, reactions, insights or any engagement metric with this permission, and Kavea has no screen that would show them.
+What the recording shows, in the order you asked for: (1) the Page is selected from the list of connected assets; (2) its posts, photos and events are retrieved live from Meta; and (3) the results are rendered in our UI with the Page name, category, follower count and Page ID visible in the header.
 
-Without it we cannot show a person a recognisable name for the Pages they manage, only numeric identifiers, and they cannot tell which one to connect.
+The content is read live each time the screen is opened. We do not copy the Page's posts, photos or events into our database, so what the operator sees is what the Page has at that moment. We do not use this permission for advertising.
+
+Without this permission Kavea can only show numeric identifiers for the Pages a person manages, and cannot show a business its own posts next to the conversations they generate.
 ```
 
 **Vídeo:** `pages_read_engagement`. Portafolio.
@@ -556,11 +558,13 @@ cada uno.
 ```
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account, which they connect to Kavea through the Facebook Page it is linked to.
 
-We use instagram_basic to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
+We use instagram_basic for two things. First, to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
 
-The screen recording shows the inbox of a connected account, where the Instagram conversations of that specific account are the ones that appear.
+Second, to show the account itself to the business. Kavea has a Content screen where the operator picks a connected Instagram professional account and Kavea retrieves its profile live from the Graph API — name, username, biography, website, follower count, following count and media count, with its profile picture — and the account's media list underneath, each item with its caption, type, date and permalink. Everything on that screen is labelled with the account it belongs to.
 
-With this permission we read the account id and username. We do not read media, followers, insights or any content of the account.
+What the recording shows, in the order you asked for: (1) the selected Instagram professional account with its handle and its numeric ID visible; (2) its profile fields retrieved live from Meta; and (3) the account's media list displayed in our UI, labelled for that account.
+
+The profile and the media list are read live each time the screen is opened. We do not copy them into our database, so what the operator sees is what the account has at that moment. We do not use this permission for advertising.
 
 Without instagram_basic there is no way to know which Instagram account belongs to the Page being connected, so no Instagram feature of the product can work.
 ```
@@ -568,6 +572,35 @@ Without instagram_basic there is no way to know which Instagram account belongs 
 **Vídeo:** `instagram_basic`. Bandeja.
 
 ---
+
+### Los dos textos que NEGABAN lo que el producto hace
+
+`pages_read_engagement` decía *«We do not read posts, comments, reactions,
+insights or any engagement metric with this permission, and Kavea has no screen
+that would show them»*. `instagram_basic` decía *«We do not read media,
+followers, insights or any content of the account»*.
+
+**Las dos frases eran ciertas cuando se escribieron** —entonces Kavea solo
+resolvía identificadores— y dejaron de serlo el día que se construyó la pantalla
+de Contenido, que lee publicaciones, fotos y eventos de la Página, y el perfil y
+los medios de la cuenta de Instagram. Nadie volvió a los textos.
+
+Los otros seis permisos se rechazaron porque el vídeo no enseñaba bastante. Estos
+dos se rechazaron **con el texto negando lo que el vídeo enseña**, que es peor: un
+vídeo que hace más de lo declarado no parece una función, parece una función que
+se cuela.
+
+Los campos que se leen de verdad, comprobados en `meta-contenido` el 25-ago:
+
+| Superficie | Campos |
+|---|---|
+| Página | `id,name,username,about,category,link,fan_count,followers_count,picture{url}` |
+| Publicaciones | `id,message,created_time,permalink_url,full_picture` + fotos y eventos |
+| Cuenta de Instagram | `id,username,name,biography,website,followers_count,follows_count,media_count,profile_picture_url` |
+| Medios | `id,caption,media_type,media_url,thumbnail_url,permalink,timestamp,like_count,comments_count` |
+
+Y no se guardan: el panel de contenido no escribe en ninguna tabla. La tabla
+`media` es de adjuntos de mensajes, que es otra cosa y se declara aparte.
 
 ## 3.bis Data handling
 

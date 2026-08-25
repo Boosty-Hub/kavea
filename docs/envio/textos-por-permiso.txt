@@ -7,14 +7,19 @@ CAMBIADOS respecto a lo que habia en el formulario de Meta:
   - pages_utility_messaging: incluye el envio y el cliente nativo
   - instagram_manage_comments: pestaña del buzon, y el bucle de editar y borrar
   - pages_messaging: parrafo nuevo: los tres puntos de la nota
-  - instagram_manage_messages: tres parrafos nuevos: los tres puntos, la clasificacion, y los mensajes eliminados
+  - instagram_manage_messages: los tres puntos, la clasificacion, y los mensajes eliminados
+  - pages_read_engagement: REESCRITO: negaba leer publicaciones, y el producto las lee
+  - instagram_basic: REESCRITO: negaba leer perfil y medios, y el producto los lee
+
+DOS DE ELLOS NEGABAN lo que el producto hace. Eran ciertos cuando se
+escribieron; dejaron de serlo al construir la pantalla de Contenido. Un video
+que hace mas de lo declarado no parece una funcion: parece que se cuela.
 
 CAMPOS QUE SOLO TIENEN ALGUNAS TARJETAS:
   - pages_messaging: «Select a Page» (Boosty.digital) e instrucciones paso a
     paso. Los dos obligatorios.
-  - instagram_manage_messages: recuadro amarillo. El caso que aplica es el de
-    procesar datos por cuenta de TERCEROS, y su guia pide clasificar la app y
-    declarar el procesamiento de mensajes eliminados. Ambos van en el texto.
+  - instagram_manage_messages: recuadro amarillo; aplica el caso de procesar
+    datos por cuenta de TERCEROS.
 
 --- Human Agent -------------------------------------------------
 
@@ -45,7 +50,7 @@ We do not change any other Page setting with this permission. We do not modify t
 
 
 --- pages_utility_messaging -------------------------------------
-  (CAMBIADO: incluye el envio y el cliente nativo)
+  (incluye el envio y el cliente nativo)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
@@ -59,7 +64,7 @@ Why the business needs it: today these businesses have no way to reach a custome
 
 
 --- instagram_manage_comments -----------------------------------
-  (CAMBIADO: pestaña del buzon, y el bucle de editar y borrar)
+  (pestaña del buzon, y el bucle de editar y borrar)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; Kavea is their technology provider and is verified as such by Meta.
 
@@ -75,7 +80,7 @@ Why the business needs it: a comment left unanswered on a post is visible to eve
 
 
 --- pages_messaging ---------------------------------------------
-  (CAMBIADO: parrafo nuevo: los tres puntos de la nota)
+  (parrafo nuevo: los tres puntos de la nota)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
@@ -91,7 +96,7 @@ What the recording shows, in the order you asked for: (1) the connected asset is
 
 
 --- instagram_manage_messages -----------------------------------
-  (CAMBIADO: tres parrafos nuevos: los tres puntos, la clasificacion, y los mensajes eliminados)
+  (los tres puntos, la clasificacion, y los mensajes eliminados)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; they connect it to Kavea, and Kavea is their technology provider, verified as such by Meta.
 
@@ -111,29 +116,33 @@ Unsent messages: when a customer unsends a message, Meta sends the deletion even
 
 
 --- pages_read_engagement ---------------------------------------
-
+  (REESCRITO: negaba leer publicaciones, y el producto las lee)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
-We use pages_read_engagement together with pages_show_list to read what a Page IS, not what happens on it: its name, its identifier, and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: a person who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
+We use pages_read_engagement for two things. First, together with pages_show_list, to read what a Page is — its name, category, picture and follower count — and which tasks the person connecting it can perform on it. Reading the tasks is how we refuse a connection early: someone who cannot perform the MESSAGE task on a Page cannot have that Page's conversations delivered to Kavea, and telling them at connection time is better than letting them finish the setup and discover it when the first customer writes and nothing arrives.
 
-The screen recording shows the portfolio view, where each Page is listed with its name and connection state.
+Second, to show the Page's own content next to its conversations. A business answering a comment or a message often needs to see the post it refers to. Kavea has a Content screen for that: the operator picks a connected Page and Kavea retrieves its posts, photos and events live from the Graph API and renders them with the Page identity in the header.
 
-We do not read posts, comments, reactions, insights or any engagement metric with this permission, and Kavea has no screen that would show them.
+What the recording shows, in the order you asked for: (1) the Page is selected from the list of connected assets; (2) its posts, photos and events are retrieved live from Meta; and (3) the results are rendered in our UI with the Page name, category, follower count and Page ID visible in the header.
 
-Without it we cannot show a person a recognisable name for the Pages they manage, only numeric identifiers, and they cannot tell which one to connect.
+The content is read live each time the screen is opened. We do not copy the Page's posts, photos or events into our database, so what the operator sees is what the Page has at that moment. We do not use this permission for advertising.
+
+Without this permission Kavea can only show numeric identifiers for the Pages a person manages, and cannot show a business its own posts next to the conversations they generate.
 
 
 --- instagram_basic ---------------------------------------------
-
+  (REESCRITO: negaba leer perfil y medios, y el producto los lee)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account, which they connect to Kavea through the Facebook Page it is linked to.
 
-We use instagram_basic to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
+We use instagram_basic for two things. First, to read which Instagram professional account is linked to the connected Page, and its id and username. That identifier is what every other part of the integration is keyed on: it is the account whose messages and comments arrive at the inbox, and the one Kavea sends replies from. Without resolving it, an incoming message cannot be attributed to the right business.
 
-The screen recording shows the inbox of a connected account, where the Instagram conversations of that specific account are the ones that appear.
+Second, to show the account itself to the business. Kavea has a Content screen where the operator picks a connected Instagram professional account and Kavea retrieves its profile live from the Graph API — name, username, biography, website, follower count, following count and media count, with its profile picture — and the account's media list underneath, each item with its caption, type, date and permalink. Everything on that screen is labelled with the account it belongs to.
 
-With this permission we read the account id and username. We do not read media, followers, insights or any content of the account.
+What the recording shows, in the order you asked for: (1) the selected Instagram professional account with its handle and its numeric ID visible; (2) its profile fields retrieved live from Meta; and (3) the account's media list displayed in our UI, labelled for that account.
+
+The profile and the media list are read live each time the screen is opened. We do not copy them into our database, so what the operator sees is what the account has at that moment. We do not use this permission for advertising.
 
 Without instagram_basic there is no way to know which Instagram account belongs to the Page being connected, so no Instagram feature of the product can work.
 
