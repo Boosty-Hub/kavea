@@ -8,15 +8,20 @@ de git de este mismo archivo.
 **Regla:** solo entra lo comprobado, con la evidencia al lado. Lo planificado vive en
 `docs/fases/`, lo pendiente en la sección 2.
 
-**Y se compacta.** El 24-ago este archivo llegó a **veintinueve entradas de un solo día** y 1.802
-líneas: eso no es un registro comprimido, es un diario. Se fundieron en seis por tema y el archivo
-bajó a la mitad. Cuando un día vuelva a dejar más de tres o cuatro entradas, toca fundirlas: lo que
-se pierde al resumir está en el historial de git de este mismo archivo, y lo que se gana es que
+**Y se compacta.** Ha pasado dos veces: el 24-ago el archivo llegó a **veintinueve entradas de un
+solo día** y 1.802 líneas, y el 25-ago a **dieciséis** y 1.705. Eso no es un registro comprimido,
+es un diario. Las dos veces se fundieron por tema —seis y cuatro— y las dos veces el archivo bajó
+un tercio. Cuando un día vuelva a dejar más de tres o cuatro entradas, toca fundirlas: lo que se
+pierde al resumir está en el historial de git de este mismo archivo, y lo que se gana es que
 alguien lo lea entero.
+
+**Que vuelva a pasar era previsible y no se evitó.** La regla estaba escrita aquí arriba desde el
+24-ago y se incumplió al día siguiente, entrada a entrada, porque cada una parecía justificada por
+sí sola. La regla no se aplica al escribir: se aplica al cerrar el día.
 
 ---
 
-## 1. Estado actual — al 24-ago-2026
+## 1. Estado actual — al 25-ago-2026
 
 | Pieza | Estado | Evidencia |
 |---|---|---|
@@ -24,10 +29,10 @@ alguien lo lea entero.
 | Páginas legales | ✅ Publicadas | Rastreables por Meta |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ **108** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
+| Esquema de base de datos | ✅ **115** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 25-ago. RLS activa y forzada en **38** tablas |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
 | Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 el 23-ago. C1 cazó `private.revision_permisos` sin RLS el 24-ago (0100) |
-| Ingesta y normalización | ✅ Producción | **12** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
+| Ingesta y normalización | ✅ Producción | **12** crones vivos (contados el 25-ago), mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
@@ -35,14 +40,14 @@ alguien lo lea entero.
 | WhatsApp — `+1 829-954-3803` | ✅ Retirado el 23-ago | Conexión `disconnected`, canal apagado, webhooks dados de baja en Meta |
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
-| Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
+| Plantillas de utilidad de Messenger | ✅ **Leer, crear y ENVIAR** | 9 en la Página, 7 aprobadas. Envío probado el 25-ago: `pedido_devuelto` entregada con `messaging_type: UTILITY` y `mid` de Meta, y el contacto contestó. No se espejan en Postgres |
 | Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar —modo desarrollo y permiso rechazado, no falta de suscripción—, así que la lectura por API corre **cada tres minutos** y difunde a la pantalla (0108) |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
 | Callback de borrado de datos | ✅ Guardado | Recarga del panel a las 20:59 del 23-ago: el campo persiste. No hay forma de verificarlo por API (`data_deletion_url` no es campo de Graph), a diferencia de `deauth_callback_url`, que sí |
 | Contenido de Página e Instagram | ✅ `/contenido`, desde el 24-ago | Lista → detalle con la identidad delante. Verificado contra producción: `@boosty.digital` 1625 seguidores / 327 publicaciones con 12 medios, y `Boosty.digital` 172 seguidores con 10 posts y 10 fotos |
 | Token de una conexión | ✅ Se resuelve por su dueño | La credencial cifrada de la conexión primero, y solo si Meta la rechaza por permiso se deriva del portafolio, avisando. El ciclo de moderación salió `via: conexion`, así que un cliente de autoservicio también podrá moderar |
 | Envío fuera de la ventana | ✅ Solo por plantilla, y solo WhatsApp | `ventana_de` cierra WhatsApp a las 24 h (0106): allí no existe HUMAN_AGENT. Messenger e Instagram conservan su prórroga de 7 días |
-| Guarda de tipos en las funciones de borde | ✅ `deno check` en CI desde el 24-ago | `supabase functions deploy` no comprueba tipos. Las 23 funciones compilan |
+| Guarda de tipos en las funciones de borde | ✅ `deno check` en CI desde el 24-ago | `supabase functions deploy` no comprueba tipos. Las **24** funciones compilan |
 | Vigilancia de trabajos periódicos | ✅ Latidos + aviso por correo | `private.latidos` (0108). Una función que deja de EJECUTARSE no puede avisar: solo se detecta echándola de menos |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
@@ -56,7 +61,11 @@ alguien lo lea entero.
 | Privilegios de `anon` y `authenticated` | ✅ Auditados el 23-ago | RLS activo y forzado en las 33 tablas; TRUNCATE retirado en la 0085 |
 | **Tech Provider** | ✅ Verificado el 4-ago | `Submitted → Reviewed → Verified` en 12 h |
 | WABA de un tercero en el portafolio | ✅ Ya existe una, sin descubrir hasta el 23-ago | `755757354157392` «Platinium Insurance group corp», `ownership_type: CLIENT_OWNED`, negocio propio `24123447600679995` verificado y APPROVED. **`subscribed_apps` vacío**: nadie recibe sus webhooks |
-| App Review | ⛔ **Enviado y contestado el 7-ago: 5 aprobados, 8 rechazados** | Los 8, por «Screencast Not Aligned». Ver `docs/07` §1. **B1 cerrada el 24-ago**: las tres pantallas que los vídeos tenían que enseñar ya existen y se recorren con datos reales |
+| App Review | 🟡 **Segundo envío entregado el 25-ago, en revisión** | 13 permisos: los 8 rechazados más los 5 aprobados que Meta mete a renovar. «Review in progress, most submissions are reviewed within 20 days». Ocho vídeos nuevos, seis de los ocho textos corregidos, y `fblogin-web-1` de **No** a **Yes**. Ver `docs/07` |
+| Vista previa antes de mandar una plantilla | ✅ Desde el 25-ago | Enseña el texto con los valores puestos y pide los que falten, y los guarda donde el dato vive (0114). Un hueco vacío se marca `[falta]` en la frase |
+| Campos personalizados | ✅ Se crean **desde la ficha** | Cada bloque tiene su «+ Nuevo campo». Y cada campo es variable de plantilla al momento |
+| Nombre de una persona | ✅ Editable desde el 25-ago | No lo era en ninguna pantalla: venía de Meta cuando Meta lo daba (0113) |
+| Marcas de canal | ✅ En los cinco sitios donde había un punto | Un solo fichero, `lib/logos-canal.tsx`, el mismo que Canales y Contenido |
 | WhatsApp para terceros | ✅ Aprobado por Meta | `whatsapp_business_messaging` y `whatsapp_business_management` |
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
@@ -78,18 +87,16 @@ Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firma
 ## 2. Pendiente, por bloqueo
 
 ### Con fecha encima
-- **Rehacer el App Review de los 8 permisos rechazados.** Antes de grabar nada, declarar en el
-  envío que Kavea es server-to-server con token de system user: es el quinto punto de la propia
-  lista de Meta y explica por qué los vídeos no pueden enseñar el login de Meta ni la pantalla de
-  consentimiento —los dos primeros requisitos que se incumplieron en los ocho—. Con el botón
-  **Request again**; no hay que rehacer el formulario.
-- **Las tres pantallas que los vídeos tenían que enseñar: HECHAS el 24-ago.** Ciclo de
-  moderación de un comentario (publicar, editar, ocultar, borrar) · contenido de la Página con su
-  identidad delante · perfil de Instagram con sus campos y su lista de medios. Las tres se
-  recorren con datos reales y sin datos de mentira. Queda **grabar**, que no lo puede hacer un
-  runner.
-- **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago. Si el nuevo envío sale
-  después, hay que repetirlas antes.
+- **La respuesta del segundo envío del App Review.** Entregado el 25-ago con trece permisos
+  dentro; Meta dice hasta veinte días. Nadie tiene que acordarse: `kavea-vigilar-revision` corre
+  a diario a las 06:05 —ejecutada con éxito el 25-ago— y manda correo cuando el estado cambia. La
+  del 7-ago estuvo dieciséis días sin leerse porque no existía.
+- **Las llamadas de prueba caducan el 5-sep-2026.** Se hicieron el 6-ago y el envío salió antes,
+  así que valen para esta ronda. Si hay una tercera después de esa fecha, hay que repetirlas.
+- **Dos cosas que este envío incumple a sabiendas**, por si la respuesta viene por ahí:
+  la interfaz está **en español** y el punto 4 de las ocho notas pide inglés (declarado en las
+  instrucciones del revisor); y el vídeo de `instagram_manage_messages` **no graba un unsend**,
+  que su guía pide y el texto declara —treinta segundos de toma si lo reclaman—.
 
 ### El subdominio del inquilino, que es lo que queda cojo
 - **El DNS de un alias nuevo no es inmediato y no es predecible.** `cuenta` y `conectar`
@@ -123,7 +130,8 @@ tiempo para el reenvío de Instagram y Messenger.
 Sin confirmar, y hay que confirmarlo antes de planificar encima: si el revisor de Meta, con su
 propia cuenta y sin rol en la app, puede completar el diálogo de una configuración que pide
 permisos aún no aprobados. Para GRABAR el vídeo basta una cuenta con rol; para que él lo pruebe,
-no se sabe.
+no se sabe. Lo que sí está probado —25-ago, contra producción— es que entra en Kavea:
+`revisor@kavea.ai` aterriza en la bandeja con rol `agente`.
 
 ### Bloqueado por Meta
 - **Tech Provider onboarding no se puede leer: la página revienta en el servidor de Meta.** No
@@ -133,9 +141,8 @@ no se sabe.
   Es un fallo de Meta, así que reintentar tiene sentido: otro navegador, sesión limpia, otro día.
   Todo lo demás de esa consola es ruido — el CSP del propio Facebook bloqueando sus propios
   píxeles de telemetría.
-- Nadie vigila la bandeja de resultados del App Review (**B4** del plan). La respuesta del 7-ago
-  estuvo dieciséis días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación
-  en el cron de diagnóstico. Mientras no lo haya, se mira a mano.
+- ~~Nadie vigila la bandeja de resultados del App Review~~ **cerrado el 24-ago**:
+  `kavea-vigilar-revision` compara el estado de los permisos cada día y avisa por correo.
 - Incertidumbres de Meta sin resolver: TTL de las URLs `lookaside.fbsbx.com` · límite real del
   Send API de Instagram (100 o 300/s) · suelo de `4800×impresiones` para cuentas nuevas ·
   disponibilidad regional (VE/RD/MX) de Human Agent, private replies y Conversation Routing ·
@@ -185,8 +192,8 @@ de WhatsApp.
   usuario esté en varias organizaciones).
 - **Rehacer las plantillas de WhatsApp aprobadas.** La WABA nueva `2459716937850832` solo tiene
   `hello_world`; las 25 se quedaron en la que se retiró. Ya se pueden crear desde Kavea.
-- **Editar una plantilla ya aprobada** y **el formulario propio de la categoría Autenticación**, que
-  tiene componentes que el genérico no monta —botón de copiar código, caducidad—.
+- ~~Editar una plantilla aprobada~~ y ~~el formulario de la categoría Autenticación~~: **hechos
+  el 25-ago**.
 - **Los `AbortSignal.timeout` de las rutas de API piden más de lo que Netlify concede.**
   `/api/contenido` declara 45 s y `sincronizar` 60 s; el techo de Netlify Pro son 26 s, con 10 s por
   defecto. Medido el 24-ago: 1,8 s, 2,0 s y 5,7 s, así que hoy hay margen — pero `sincronizar`
@@ -233,657 +240,158 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
-### 2026-08-25 — Repasar las instrucciones del revisor antes de enviarlas
-
-Con los ocho vídeos hechos, lo último que se toca es el texto que lee el revisor. Y tres cosas que
-llevaban semanas escritas ya no eran verdad:
-
-- **«Open Comentarios in the left menu».** Comentarios dejó de ser entrada de primer nivel el
-  21-ago: es una pestaña dentro de Bandeja. Un revisor siguiendo esa línea busca en el menú, no lo
-  encuentra, y ese es exactamente el camino a un rechazo por «no pudimos verificar».
-- **«A new one can be created from there»**, sobre las plantillas de utilidad. El revisor tiene rol
-  `agente`, y crear plantillas exige `configurar` —owner o admin—. Le estábamos pidiendo hacer algo
-  que la propia aplicación le va a negar. Lo que **sí** puede es enviarlas, que es lo que el permiso
-  pide: `encolar_plantilla` solo exige ser miembro. Así que ahora las instrucciones explican el
-  envío paso a paso y avisan del rol, ofreciendo subirlo si lo necesita.
-- **No decían cómo enviar una plantilla**, que es el punto que hundió `pages_utility_messaging`. Ya
-  lo dicen: el botón «Plantillas» encima de la caja, el grupo «Se envían enteras», el diálogo con el
-  texto resuelto, y «Enviar la plantilla».
-
-**Y una que no se puede comprobar desde aquí:** la contraseña de `revisor@kavea.ai` no está en el
-repositorio a propósito, así que no se puede probar que el acceso funcione. Lo que sí se comprobó es
-que el usuario existe, está confirmado, y su último acceso fue el 6-ago. Que la clave del formulario
-siga siendo válida tiene que verificarlo Gabriel entrando una vez antes de enviar: si el revisor no
-entra, los ocho vídeos no valen nada.
-
-### 2026-08-25 — El vídeo que faltaba, y los ocho ya cubren lo que Meta pide
-
-Llegó `Utility Messanging.webm`, 81 s, y trae lo que faltaba: se elige la plantilla en el
-compositor, sale el diálogo de vista previa con el texto ya relleno —«Hola Gabriel, hemos recibido
-su devolucion numero 2,000…»— y los datos con su etiqueta; se envía; aparece en el hilo; y **se abre
-Messenger en facebook.com y se ve el mensaje recibido**, con la respuesta del contacto volviendo a
-Kavea.
-
-Antes de esto hubo dos vídeos que no eran: uno era el de las 11:38 —el de crear la plantilla, que ya
-estaba montado— pasado dos veces. Lo que zanjó la duda no fue la fecha del fichero sino **el reloj
-de la barra de tareas dentro del propio vídeo**, que iba de 11:36 a 11:38: un vídeo de esa hora no
-puede contener una pantalla que se desplegó a las 13:40. Con un barrido de un fotograma cada dos
-segundos se vio además que los 91 s eran Ajustes de principio a fin.
-
-`plantilla.mp4` pasa a ser tres tramos con su rótulo: crear en Messenger, mandarla y verla llegar, y
-WhatsApp como contexto. 218 s de metraje humano; el montaje con el login delante, **397 s**.
-
-De aire muerto en la toma nueva se fueron solo 5,6 s de 81: venía apretada, que es lo que pasa
-cuando se graba sabiendo lo que se va a hacer.
-
-**Y con esto `pages_utility_messaging` cubre los tres puntos de su nota**, que llevaba dos:
-*creation or selection*, *how the template is populated with placeholders*, y *sending the message
-to a test recipient and showing the delivered template message in the native client*. Se corrigió la
-ficha del permiso en `07-app-review.md`, que decía en un párrafo lo que ya no es cierto —«lo que este
-vídeo NO enseña»—. Un documento que se queda con la limitación escrita después de resolverla manda a
-pedir menos de lo que se tiene.
-
-### 2026-08-25 — Los campos personalizados se crean donde se echan de menos
-
-«Tampoco veo la opción custom en la ficha donde se podían crear los campos personalizados». Era
-verdad: se pedían el 24-ago y lo que se construyó fue `Ajustes → Campos`, una pantalla aparte. La
-ficha los PINTABA y los rellenaba, pero para crear uno mandaba fuera: «Sin campos definidos. Se
-crean en Ajustes → Campos».
-
-El momento en que uno descubre que le falta un campo es **mirando una ficha**, no navegando por
-Ajustes: «esto necesitaría una fecha de entrega» se piensa con el cliente delante. Mandar a otra
-pantalla, con su formulario y su vuelta, es donde se pierde la idea.
-
-Ahora cada bloque —«Datos de este asunto» y «Datos de la persona»— tiene su **+ Nuevo campo**: una
-etiqueta, un tipo, y ya está en la ficha. El ámbito lo decide el bloque en el que se pulsa, así que
-no hay que elegirlo. Los tipos son los que se pidieron: texto corto, texto largo, número, importe,
-fecha, sí/no.
-
-Detalles que deciden si sirve:
-
-- **La clave técnica no se pide.** Es un dato para la base —acaba dentro de una plantilla como
-  `{{campo_fecha_de_entrega}}`— y pedirla obligaría a explicar qué es. Se saca de la etiqueta: sin
-  tildes, minúsculas, lo que no sea letra o número a guion bajo. Y se enseña la marca resultante,
-  porque **cada campo es una variable de plantilla** y eso no se adivina.
-- **Los tipos con opciones no se hacen aquí.** `seleccion` y `multiseleccion` exigen una lista de
-  opciones —lo obliga una restricción de la tabla— y pedirla en un hueco de 260 píxeles saldría mal.
-  Se dice dónde se hacen.
-- **El botón solo sale a quien puede.** `definir_campo` exige rol de administración y lo comprueba
-  igual; esto evita ofrecer un botón que va a decir que no. Rellenar un campo es de quien atiende;
-  definirlo cambia la ficha de toda la organización.
-
-### Y el registro decía «por WhatsApp» sobre un envío de Messenger
-
-Al mirar el hilo salió: «envió la plantilla pedido_devuelto **por WhatsApp**» en una conversación de
-Messenger. El canal viajaba en el detalle desde la 0112 y la traducción tenía «por WhatsApp» escrito
-a mano, de cuando las plantillas eran solo de WhatsApp. En un registro que sirve para auditar, decir
-el canal equivocado es peor que no decirlo.
-
-### Y lo que faltaba por comprobar, comprobado
-
-**El envío de plantilla por Messenger salió de verdad**, y no lo hice yo: Gabriel lo mandó desde el
-diálogo nuevo. `messaging_type` UTILITY, estado `enviado`, `mid` devuelto por Meta, y el contacto
-contestó «Gracias» en el hilo. El punto (3) de la nota de `pages_utility_messaging` —«sending the
-message to a test recipient»— ya se puede grabar de punta a punta.
-
-### Una nota sobre las pruebas que escriben
-
-El servidor de desarrollo apunta a **la misma base que producción**: no hay entorno donde escribir
-sin consecuencias. Crear el campo de prueba «Fecha de entrega» creó un campo real, y se archivó
-después. La regla real no es «probar contra desarrollo» sino: **una prueba que escribe deja rastro
-en los datos del cliente, y se limpia en el mismo turno.**
-
-### 2026-08-25 — Una plantilla se ve antes de mandarla, y sus huecos se rellenan ahí
-
-Una plantilla de Meta sale ENTERA: no se corrige después y se factura. El único aviso era un
-`confirm()` del navegador con el nombre técnico dentro —«Enviar pedido_devuelto»— sin una palabra de
-lo que la persona iba a recibir. **Confirmar sin ver es firmar sin leer.**
-
-Ahora elegirla abre un diálogo con tres cosas: **cómo va a llegar** —el texto con los valores ya
-puestos, en la misma burbuja que usa el hilo, para poder compararlo sin traducir de la cabeza—, **los
-datos que lleva** con su etiqueta y su valor, y **una caja por cada hueco que falte**.
-
-Lo que se escribe en esas cajas se guarda **donde el dato vive de verdad**: el nombre en la persona,
-el importe en la ficha, un campo personalizado en su valor. `rellenar_variable` conoce esa
-correspondencia y el diálogo no tiene por qué —ni debe— saber que uno es una columna de `contacts` y
-el otro una fila de `campo_valores` con su tipo y su ámbito. Y reutiliza `renombrar_contacto`,
-`fijar_valor` y `guardar_campo` en vez de escribir las tablas a mano: son las que registran la
-actividad, y una segunda vía de escritura sin actividad es un cambio que no aparece en el hilo.
-
-Decisiones que se ven poco y cambian el resultado:
-
-- **Se guarda ANTES de mandar.** Al revés, el mensaje saldría con un dato que aquí no consta, y no
-  hay forma de retirarlo.
-- **La vista previa usa `parametros_de_plantilla`**, la misma función que llama el envío. Un segundo
-  cálculo «para la vista previa» es una previsualización que puede discrepar de lo que se manda, que
-  es peor que no tenerla.
-- **Un hueco vacío se marca `[falta]` en el texto** en vez de desaparecer: un mensaje con un agujero
-  invisible se lee como si estuviera completo.
-- **No todo se pide aquí.** La etapa del embudo es una lista cerrada y el nombre de quien escribe
-  sale de la sesión: pedirlos en una caja de texto produciría datos inventados. Esos se marcan con
-  dónde se tocan y el envío sigue bloqueado.
-- El texto se sustituye sobre la marcha al teclear en vez de volver a pedir la vista previa: una ida
-  y vuelta por pulsación haría parpadear la frase mientras se escribe.
-
-### Y un mismo importe se escribía de dos maneras
-
-Al mirar la vista previa salió: `tarjeta.valor` vale 2000 y las plantillas de Meta lo escribían
-**«2,000.00»** mientras las internas escribían **«2000»**. Dos formateadores para una columna, y el
-cliente recibía uno u otro según por dónde saliera el mensaje. La 0115 los une en
-`private.importe`: separador de miles siempre y decimales solo cuando los hay —«2,000» y
-«2,400.50»—. Un «.00» pegado detrás en un aviso de pedido se lee como un precio de catálogo.
-
-Las dos funciones se reaplicaron **generándolas desde `pg_get_functiondef`** en vez de
-transcribirlas: así se copia un cuerpo de ochenta líneas sin cambiarle una coma sin querer.
-
-### Y una cosa que hice mal
-
-Una de las comprobaciones con Playwright corrió **contra producción** y rellenó el campo del nombre
-con cadena vacía. El `onBlur` guarda al salir del foco, así que **borró el nombre que Gabriel acababa
-de escribir**, siete segundos después de que lo escribiera. Se restauró leyendo el valor anterior de
-la propia actividad —`{"antes": "Gabriel"}`— que es exactamente para lo que se registra.
-
-La regla que faltaba: **una comprobación que escribe se hace contra el servidor de desarrollo.**
-Contra producción solo se lee.
-
-### 2026-08-25 — «Faltan datos: tarjeta.valor, contacto.nombre» señalaba a algo que no se podía tocar
-
-Dos fallos en una sola frase, y el segundo era el grave.
-
-**No había forma de poner el nombre de una persona.** La ficha edita los campos que la organización
-define en Ajustes → Campos, pero `contacts.nombre` no es uno de ellos: es una columna que escribe
-Meta cuando Meta la da, y Messenger no siempre la da. Cuando no la daba, la persona se quedaba
-«Contacto sin nombre» **para siempre**, y cualquier plantilla que saludara por el nombre se negaba a
-salir apuntando a un dato que no existía ninguna pantalla para escribir. Meses así, y nadie lo notó
-hasta que una plantilla lo pidió.
-
-La 0113 añade `renombrar_contacto` —guarda de miembro, no de administrador: poner el nombre de quien
-escribe es trabajo de quien atiende— y la ficha estrena un bloque «La persona» con el campo Nombre,
-encima de los canales. Guarda al salir del foco o con Enter, y la base no escribe si no cambió,
-porque cada guardado deja una línea en el hilo. Vacío BORRA en vez de guardar cadena vacía: un
-nombre en blanco haría que la ficha dijera que hay nombre y la plantilla siguiera sin poder
-rellenarlo.
-
-**Y el mensaje daba la clave interna.** «tarjeta.valor» no está escrito en ninguna parte de la
-interfaz; lo que se lee en la ficha es «Valor (USD)». El operador tenía que adivinar la
-correspondencia. Ahora el error se traduce con `variables_disponibles` —la misma lista que alimenta
-el selector de campos al crear una plantilla, así que la traducción no hay que inventarla— y añade
-**dónde** se rellena cada uno:
-
-    Para mandar esta plantilla falta rellenar: Valor del asunto (en la ficha, bloque Embudo);
-    Nombre de la persona (en la ficha, arriba, junto a los canales)
-
-Saber que falta «Valor del asunto» sin saber en qué bloque vive es la mitad de la respuesta.
-
-**Comprobado en pantalla:** el campo aparece vacío, el error nombra la etiqueta y el sitio, y
-escribir el nombre lo guarda. El valor de prueba se revirtió: no se dejan datos inventados en
-producción.
-
-Lo que sigue **sin comprobar** es el envío real por Messenger de punta a punta. Requiere mandar un
-mensaje de verdad a un contacto de verdad, y eso no se hace por probar sin pedirlo.
-
-### 2026-08-25 — Un solo menú de plantillas, y la regla que sobraba
-
-«Esta conversación se supone que es de Messenger y no salen las plantillas de Messenger». Era una
-conversación de Messenger con la ventana **abierta**, 9 h, y mi regla decía que las de Meta solo se
-ofrecen fuera de la ventana. La regla protegía de un cargo evitable —dentro de las 24 h el texto
-normal hace lo mismo y es gratis— pero **escondía la función en vez de explicarla**, y el operador
-se quedaba mirando una pantalla que no dice por qué no está lo que busca.
-
-Se cambia por lo que debió ser desde el principio: **se ofrecen siempre, y dentro de la ventana se
-pregunta con el coste escrito.** Esconder una opción obliga a adivinar; preguntar informa. El cargo
-sigue sin poder salir de un solo clic.
-
-**Y el manejo entero era el problema, no solo la regla.** Había DOS sitios para lo mismo: un
-`<select>` en el pie del compositor para las internas y un bloque de cuatro filas para las de Meta
-que solo aparecía fuera de la ventana. Dos sitios, dos reglas, y el de Meta nadie lo había visto
-porque a una conversación cerrada no se llega por casualidad.
-
-Ahora es **un menú**, con dos grupos y una cabecera que dice qué hace cada uno: «se insertan en la
-caja» y «se envían enteras · Messenger». No es un matiz de redacción: una se puede corregir antes de
-mandarla y la otra sale tal cual.
-
-Se abre de dos maneras y las dos dan la misma lista: escribiendo `/` en la caja, o con un botón
-—icono y número— en la línea que ya dice por dónde se responde, encima del campo. El `<select>` del
-pie desapareció: **una fila entera del compositor** para una lista que se abre dos veces al día, en
-la pantalla donde el sitio se le debe al hilo.
-
-Detalles que no se ven y sin los cuales no funciona:
-
-- La cabecera de grupo se pinta al cambiar de clase dentro de UNA lista, no con dos listas: con dos,
-  el índice del teclado se parte en dos y las flechas dejan de recorrer el menú entero.
-- Cerrar al pulsar fuera hizo falta al añadir el botón. El menú del comando se cierra con el `blur`
-  de la caja; el del botón se abre sin tocarla, así que no hay `blur` que llegue. Y con la ventana
-  cerrada la caja está **deshabilitada**: ni foco ni Escape, así que sin esto no había forma de
-  cerrarlo.
-- El oyente escucha `mousedown`, que es el mismo momento en que actúan los botones del menú. Con
-  `click` el cierre llegaba antes de que se eligiera nada.
-- La referencia del «dentro» va en el compositor entero: el botón y el menú son hermanos, y con la
-  referencia en uno solo, pulsar el otro contaba como fuera.
-
-Y el marcador de la caja hace de guía en los dos estados: «escribe / para una plantilla» cuando se
-puede escribir, «usa Plantillas, arriba» cuando la ventana está cerrada y la caja no sirve.
-
-**Comprobado con Playwright** en las dos situaciones: en la de Messenger abierta el botón dice
-«Plantillas 2», el menú trae los dos grupos, y pulsar `pedido_devuelto` abre la confirmación con el
-coste. En la de WhatsApp cerrada la caja sale deshabilitada, el botón sigue vivo, el menú ofrece
-`hello_world`, y pulsar fuera lo cierra.
-
-### 2026-08-25 — «No veo cómo poner las plantillas en la conversación»
-
-Y era verdad: no había por dónde verlo. El bloque de plantilla de Meta solo aparece con la ventana
-cerrada —que es correcto, dentro de las 24 h el texto libre es gratis y una plantilla se factura—,
-así que en una conversación abierta no hay nada que sugiera que existe. Un botón que solo aparece
-cuando hace falta es buen diseño; un botón que **nunca se ha visto** no se sabe que existe.
-
-**Tres cosas, y ninguna cambia la regla de cuándo se puede enviar.**
-
-**El comando `/`.** Se escribe una barra en la caja y se abre la lista de plantillas internas,
-filtrando al teclear; flechas para moverse, Enter o Tab para insertar, Escape para cerrar. El texto
-lo resuelve `renderizar_plantilla` en la base —la misma función que el desplegable— porque resolver
-las variables en el cliente sería una segunda implementación de lo mismo.
-
-Detalles que no se ven pero deciden si funciona:
-
-- La barra cuenta como comando **solo al principio o tras un espacio**. En `http://algo/otro` hay
-  tres barras y ninguna lo es; abrir el menú ahí sería pelearse con quien pega un enlace.
-- Con el menú abierto **el teclado es del menú**. Sin eso, Enter enviaría el mensaje con el
-  `/segui` a medias dentro, que es justo lo que el menú venía a evitar.
-- Se recalcula también en `keyup` de las flechas: mover el cursor puede crear o deshacer un comando
-  sin que haya ningún `change`.
-- El clic va en `onMouseDown`, no en `onClick`: el `blur` de la caja llega antes que el `click` y
-  cerraba el menú, así que el clic caía sobre un elemento que ya no existía.
-- **Solo lista las internas.** Las de Meta no se insertan, se envían enteras y se facturan: ponerlas
-  a un `/` y un Enter de distancia sería un cargo a un pulso de teclado.
-
-**El marcador de la caja lo dice:** «Responder por Messenger · Boosty.digital · escribe / para una
-plantilla». Es el único sitio donde se mira antes de escribir.
-
-**Y el aviso de «lista para usar» dice ahora DÓNDE.** Decía «ya se puede elegir en el compositor»,
-que es cierto y no ayuda. Ahora dice que aparece dentro de la conversación, encima de la caja,
-cuando pasan 24 horas del último mensaje del contacto.
-
-**Verificado con Playwright**, no leído: el menú abre con «Hola, /», ofrece `Seguimiento
-/seguimiento`, y Enter deja en la caja el texto con las variables resueltas —«Hola Gabriel Montiel
-Toro… El presupuesto sigue en 2400 USD y estamos en Interesado»— con `{{tarjeta.titulo}}` sin
-rellenar y el aviso de hueco pendiente debajo, que es lo que debe pasar. En la de WhatsApp con la
-ventana cerrada el bloque sale con `hello_world` y la caja deshabilitada.
-
-Lo de Messenger no se puede ver todavía: su única conversación tiene la ventana abierta (14 h). Sí
-está comprobado que `pedido_devuelto` viaja en la carga de esa página, así que lo único sin probar
-es el booleano que decide pintarlo.
-
-### 2026-08-25 — Una plantilla de la Página ya se puede mandar, y la fila dice por dónde va
-
-`pages_utility_messaging` pide tres cosas y Kavea cubría dos: crear la plantilla de utilidad de la
-Página y rellenar sus variables. Faltaba la tercera —mandarla y verla llegar— porque el carril de
-plantilla vivía entero dentro de la rama de WhatsApp del despachador.
-
-**Se sondeó la vía antes de escribir una línea.** `POST /{page-id}/messages` con `messaging_type`
-en UTILITY y `message.template`, con un destinatario inválido a propósito: Meta se queja del
-DESTINATARIO y no de la forma. Es cómo se comprueba que una forma se acepta sin mandarle nada a
-nadie, y se repitió al final con el payload exacto que monta el código, parámetros con nombre
-incluidos.
-
-**Lo que se construyó, en la 0112:** vincular pasó a `private.vincular_plantilla_meta` con dos
-envoltorios públicos —eran dos copias de cincuenta líneas a punto de nacer, y la segunda copia se
-separa en el primer arreglo que se haga solo en una—; `plantillas_messenger_usables`;
-`parametros_de_plantilla` y `texto_de_plantilla` aceptando los dos canales; y `encolar_plantilla`
-generalizado. Lo único que cambia por canal son tres cosas: de qué columna sale la partición
-—número o Página—, de qué identidad sale el destinatario, y si lleva `messaging_type`. En WhatsApp
-no se manda; en Messenger es UTILITY.
-
-Hubo que **relajar tres restricciones** de `plantillas`: `tipo_check` no admitía `messenger`, y
-`estado_coherente` decía «solo las de WhatsApp pueden no estar en borrador», que era cierto cuando
-WhatsApp era el único canal con aprobación de Meta.
-
-En el despachador, la plantilla se monta ahora en **una sola función** para los dos canales. Eran
-la misma forma por dentro y lo que cambia es dónde se cuelga: en WhatsApp en la raíz, en Messenger
-dentro de `message`.
-
-**Cuándo se ofrece, que no es igual en los dos.** WhatsApp: solo con la ventana cerrada, porque
-dentro de las 24 h el texto libre es gratis y una plantilla se factura. Messenger: en cuanto la
-ventana deja de estar abierta, porque ahí ya no hay texto libre gratis —entre las 24 h y los 7 días
-existe la prórroga humana, pero exige que conteste una persona por un motivo real, y un aviso de
-utilidad no es eso—.
-
-**Lo que NO está verificado y hay que decirlo:** no se ha entregado un mensaje real. La única
-conversación de Messenger tiene la ventana abierta (13 h), y mandar una plantilla no solicitada a
-un contacto de verdad para probar no es algo que se haga sin pedirlo. Verificado: que la Página y
-el PSID se resuelven, que la plantilla se vincula y aparece en `plantillas_messenger_usables`, y
-que Meta acepta el payload. Lo que falta es pulsar el botón con la ventana cerrada.
-
-### Y los logos de canal en la lista
-
-La fila llevaba un punto de color más la etiqueta en texto. El color solo distingue si ya sabes qué
-color es cada canal, y la etiqueta hay que leerla: en una lista de veinte filas nadie lee veinte
-etiquetas.
-
-Se dibujaron primero unos iconos genéricos —auricular, rayo, cámara— razonando que redibujar de
-memoria una marca registrada sale mal. **Era la respuesta equivocada a la pregunta correcta:** las
-marcas de verdad YA ESTABAN en el repositorio, en `ajustes/canales/logos.tsx`, usadas por Canales y
-por Contenido desde hacía semanas. Dibujar unas segundas fue crear dos juegos de logos para los
-mismos tres canales, y el nuevo peor. Lo dijo Gabriel en una frase: «así como está en canales».
-
-El fichero se movió a `lib/logos-canal.tsx` —ya lo importaban tres pantallas por ruta relativa
-subiendo dos carpetas, y con la bandeja son cuatro— y ahora las marcas salen en los cinco sitios
-donde antes había un punto de color: la lista ancha, la lista estrecha, la píldora del hilo, el
-selector de canal del compositor y los canales de la ficha. Heredan `currentColor`, así que basta
-teñir el envoltorio con el token del canal.
-
-**Donde más se nota es en la lista estrecha**, la que queda al abrir un hilo: ahí el canal se
-pintaba como un punto pelado SIN etiqueta, que solo dice algo si te sabes los tres colores de
-memoria. El logo ocupa lo mismo y se reconoce sin leer. La etiqueta sigue en el `title`.
-
-Los puntos que se quedan son los de ESTADO —nueva, esperando, cerrada—, que no tienen marca que
-poner y sí llevan su etiqueta al lado.
-
-### 2026-08-25 — Los acentos llevaban días codificados dos veces y nadie lo había mirado
-
-Buscando por qué no salían las plantillas en una conversación, la propia pantalla enseñaba otra
-cosa: **«Pasaron 24 horas desde su Ãºltimo mensaje»**. En el compositor, en producción.
-
-Los bytes guardados eran `ÃÂº` donde debía haber `Ãº`: cada byte del acento
-se había codificado como UTF-8 otra vez. La causa está en una línea del script de migraciones:
-
-    $sql = Get-Content $f.FullName -Raw        # sin -Encoding UTF8
-
-Sin `-Encoding UTF8`, `Get-Content` usa el juego de caracteres del sistema cuando el script corre
-con `powershell` (5.1) en vez de `pwsh` — **y en esta máquina no hay `pwsh`**. El fichero ya avisaba
-de este riesgo en un comentario, pero el comentario cubría la conversión del *cuerpo* de la petición,
-no la *lectura* del fichero. Se arregló la mitad del problema y se documentó como si fuera entero.
-
-**Alcance, medido y no estimado:** trece funciones —`ventana_de`, `encolar_plantilla`,
-`moderar_comentario`, `desautorizar_meta`, `reconectar_conexion`, `archivar_conexion`,
-`avisar_bandeja`, `anotar_moderacion`, `anotar_respuesta`, `anotar_revision`,
-`organizaciones_con_autorizacion`, `parametros_de_plantilla`, `vincular_plantilla_whatsapp`— y
-**una sola fila de datos** en todo el esquema: `outbound_messages.error_mensaje`. Se barrieron
-todas las columnas de texto y jsonb de `public` para saberlo.
-
-**No se reparó con `convert_from(convert_to(x,'LATIN1'),'UTF8')`,** que es el arreglo de manual.
-Se intentó y falló: `character with byte sequence 0xe2 0x80 0x9c has no equivalent in LATIN1`. La
-corrupción era **parcial** —había comillas tipográficas sanas en las mismas funciones— y una
-conversión global habría roto lo que estaba bien. Se reaplicó cada función desde su última
-migración, que en el repositorio está correcta. El extractor de rangos costó tres intentos: se
-comía el cuerpo de las que no tienen `grant` propio, y cortaba a la mitad un `grant` de dos líneas
-—lo que producía «syntax error at or near create» en la función *siguiente*, señalando al sitio
-equivocado.
-
-### La misma pantalla enseñaba un segundo fallo: «Sin contenido»
-
-Una plantilla enviada aparecía en el hilo como una burbuja vacía. La actividad de al lado sí decía
-«envió la plantilla hello_world», así que el dato existía: `linea_tiempo` pintaba
-`o.cuerpo->>'texto'`, y una plantilla no guarda texto —guarda el nombre y los valores, porque la
-frase la monta Meta—.
-
-La 0111 lo recompone al leer con `private.texto_de_plantilla`, **no al encolar**: guardar la frase
-ya montada crearía una segunda versión que envejece, porque la plantilla se puede editar en Meta y
-lo que el cliente recibe cambia. Y la burbuja dice ahora de qué plantilla salió, que el operador
-necesita saber: cada envío fuera de las 24 horas se factura y no todas dicen lo mismo.
-
-### Y la respuesta a la pregunta de partida
-
-Las plantillas no salían porque **no tenían por qué salir**. Son tres familias y el compositor las
-trata distinto:
-
-| | Dónde vive | Cuándo se ofrece |
-|---|---|---|
-| **Internas** | En Kavea, sin aprobación | Siempre; se insertan como texto en la caja |
-| **WhatsApp** | En la WABA, las aprueba Meta | Solo con la ventana **cerrada**, y solo si se pulsó «Dejar lista para usar» |
-| **Messenger** | En la Página, las aprueba Meta | **Nunca**: no hay carril de envío |
-
-La conversación donde se buscaba era de Messenger y con la ventana abierta —11 h—, así que fallaban
-dos de las tres condiciones. Y el desplegable que sí aparecía era el de respuestas rápidas
-internas, que es otra cosa.
-
-Lo de «solo con la ventana cerrada» es deliberado y está escrito en el propio compositor: ofrecer
-una plantilla dentro de la ventana empuja a un envío facturado por conversación que se podía haber
-hecho con texto normal y gratis.
-
-### 2026-08-25 — Los ocho montajes, y el punto flojo que queda a la vista
-
-`plantilla.mp4` era la última toma que faltaba, y llegó en dos piezas: las plantillas de la Página
-en Messenger —lo que el permiso pide— y las de WhatsApp, grabadas antes.
-
-Se unieron en ese orden, Messenger primero, porque el permiso que se revisa es de Página y lo
-primero que ve el revisor debe ser aquello por lo que está mirando. Entre las dos mitades va un
-**rótulo de dos segundos y medio**: sin él la superficie cambia de Messenger a WhatsApp Manager sin
-que nada lo explique, y una pregunta sin contestar en un vídeo de App Review se contesta sola y
-mal.
-
-De aire muerto se fueron **126 s de 257** entre las dos tomas. La de Messenger se recortó con un
-margen mayor —tres segundos por parada en vez de 1,6— porque sus paradas son justo las pantallas
-que hay que leer: la lista con los estados y la plantilla recién creada. Recortar por recortar
-habría tirado la prueba.
-
-Con eso los **ocho montajes están hechos**. `pages_utility_messaging` sale de 318 s.
-
-**Y el punto flojo, dicho en voz alta:** su nota pide tres cosas y el vídeo cubre dos. Falta
-*«sending the message to a test recipient and showing the delivered template message in the native
-client»*, porque el carril de plantilla de `despachar` está entero dentro de
-`if (canal === 'whatsapp')`. La vía para Messenger existe y se sondeó
-—`POST /{page-id}/messages` con `messaging_type: 'UTILITY'`— pero no está construida. Se manda
-sabiendo esto, no por no haberlo mirado.
-
-Tres cosas más que salieron de las grabaciones, sin buscarlas:
-
-- El aviso nuevo del borde **quedó grabado funcionando**: se inserta la variable al final, salta
-  «El cuerpo no puede TERMINAR en una variable», se sigue la frase y Meta la aprueba. Es mejor
-  material que una pantalla sin errores: se ve el producto guiando.
-- Las plantillas de la Página **admiten huecos con nombre**, no solo `{{1}}`. Confirmado con dos
-  altas aprobadas.
-- Los rótulos con `drawtext` no pueden llevar la letra de unidad en la ruta de la fuente: los dos
-  puntos separan opciones del filtro. Se copia la fuente al lado y se nombra en relativo.
-
-### 2026-08-25 — «Message Template Creation Failed» era Meta fallando, no Kavea
-
-Al grabar la toma de Messenger, el alta de `numero_pedido` murió con **«Message Template Creation
-Failed: An error occurred while creating message template»**. Ese texto ya venía de
-`error_user_title` y `error_user_msg` —el arreglo de esta mañana funcionaba—; lo que pasa es que
-esta vez Meta tampoco explicaba nada.
-
-**Reproducido por capas, de fuera hacia dentro, y ninguna falla:**
-
-| Capa | Resultado con el mismo nombre y el mismo cuerpo |
+### 2026-08-25 — El segundo envío del App Review, entregado
+
+Trece permisos dentro: los ocho rechazados y los cinco aprobados que Meta mete a renovar sin
+preguntar. «Review in progress, most submissions are reviewed within 20 days».
+
+**Los ocho vídeos, todos empezando por el diálogo de Meta**, que es lo que no existía en agosto.
+`plantilla.mp4` se rehizo tres veces hasta quedar completo: crear la plantilla en Messenger,
+mandarla y verla llegar, y WhatsApp como contexto, con un rótulo de dos segundos y medio entre
+tramos —sin él la superficie cambia de canal y nada lo explica—. De aire muerto se fueron 126 s de
+257 en las dos primeras tomas y solo 5,6 de 81 en la del envío: se graba mejor sabiendo lo que se
+va a hacer. `login.mp4` va además aparte en la documentación de apoyo, para que el diálogo de Meta
+no haya que buscarlo dentro de seis minutos de vídeo.
+
+**Y lo que de verdad decidía este envío no eran los vídeos: eran los textos.** Seis de los ocho se
+tocaron, y **cuatro decían cosas falsas**:
+
+| Permiso | Qué decía |
 |---|---|
-| `POST /{page-id}/message_templates` a pelo, con nombres | APPROVED |
-| Igual pero numerada | APPROVED |
-| La Edge Function, llamada directa | APPROVED |
-| La pantalla entera con Playwright, sesión real | APPROVED |
+| `pages_read_engagement` | «We do not read posts… and Kavea has no screen that would show them» |
+| `instagram_basic` | «We do not read media, followers… or any content of the account» |
+| `instagram_manage_comments` | «a Comments screen, separate from the message inbox», y sin mencionar editar ni borrar |
+| `pages_utility_messaging` | Solo gestionar plantillas, nunca enviarlas |
 
-Y el build que tenía delante era el nuevo: el aviso sale **dos veces** en su captura, arriba y
-junto al botón, y lo segundo es código de esa misma mañana. Netlify lo publicó a las 13:15 UTC y la
-captura es de las 15:09.
+Las cuatro fueron **ciertas cuando se escribieron**. Las dos primeras dejaron de serlo el día que se
+construyó la pantalla de Contenido; la tercera, el 21-ago, cuando Comentarios pasó a ser pestaña;
+la cuarta, ese mismo día, al construirse el envío. Nadie volvió a los textos.
 
-Así que el fallo fue de Meta y pasajero. Lo que se puede hacer es no dejar al operador adivinando:
-`motivoDeMeta` ahora lee **`is_transient`** y añade «Meta lo marca como fallo pasajero: vuelve a
-intentarlo con el mismo nombre». Sin esa línea, un error que no explica nada deja dos preguntas
-abiertas —¿reintento? ¿cambio el nombre?— y ninguna se puede contestar desde la pantalla.
+Y en las instrucciones del revisor, la peor de todas: **«Please do not test a Facebook Login flow:
+there is none to test»** — pidiéndole no probar exactamente aquello por cuya ausencia rechazó los
+ocho. Con `fblogin-web-1` en **No**. Las dos cosas cambiadas.
 
-**Y de paso, dos cosas que no sabíamos y ahora sí, medidas:**
+**Dos textos no estaban en este archivo**, solo dentro del formulario de Meta: los de
+`instagram_manage_comments` y `pages_messaging`. Por eso nadie los había releído nunca contra el
+producto. Ya están los ocho aquí, y la copia plana en `docs/envio/`.
 
-- **Un alta que falla NO ocupa el nombre.** Solo lo ocupa una plantilla que Meta llegó a crear y
-  luego rechazó. Se comprobó borrando las de prueba: las que erraron no existían.
-- **En una Página, un nombre borrado se reutiliza al momento** — recreado un minuto después, y
-  aprobado. No hay bloqueo de cuatro semanas como en WhatsApp.
+**Cosas del formulario que se pasan por alto**, anotadas porque volverán: `Allowed usage` tiene dos
+sub-apartados y `Renewal` se queda vacío sin avisar · `pages_messaging` esconde un desplegable
+`Select a Page` obligatorio · `instagram_manage_messages` lleva un recuadro amarillo cuya guía
+—la del caso «on behalf of other businesses», que es el de Kavea— pide clasificar la app y declarar
+el procesamiento de mensajes eliminados · las credenciales del revisor son `revisor@kavea.ai` con
+rol **agente**, que puede enviar plantillas pero no crearlas, y eso las instrucciones lo decían al
+revés.
 
-**Lo que este episodio deja pendiente y es más grande:** `pages_utility_messaging` es un permiso de
-Página, y su nota pide tres cosas. Kavea cubre dos —crear la plantilla y rellenar sus variables— y
-no la tercera: **enviarla y verla llegar en Messenger.** El carril de plantilla de `despachar` vive
-entero dentro de `if (canal === 'whatsapp')`. Se verificó que la vía existe:
-`POST /{page-id}/messages` con `messaging_type: 'UTILITY'` y `message.template`, sondeado con un
-destinatario inválido a propósito —Meta se queja del destinatario, no de la forma—.
+### 2026-08-25 — Las plantillas, de punta a punta y por los dos canales
 
-### 2026-08-25 — «Invalid parameter» lo explicaba Meta, y Kavea lo tiraba a la basura
+Empezó con «Invalid parameter» y acabó con un mensaje de plantilla entregado en Messenger.
 
-Al crear `numero_presupuesto` con el cuerpo
+**Meta explicaba sus rechazos y Kavea tiraba la explicación.** `error.message` es casi siempre
+«Invalid parameter»; lo que dice algo está en `error_user_title` y `error_user_msg`, **en
+castellano**, y se descartaban en las seis llamadas que muestran un error. `motivoDeMeta` los lee
+por orden de utilidad. Así salieron a la luz tres reglas que no estaban en ninguna guía leída: una
+variable no puede abrir ni cerrar el cuerpo (subcódigo 2388299), hay un límite de proporción entre
+variables y palabras (2388293), y un nombre ocupado da un error claro mientras un alta que
+simplemente falla **no ocupa el nombre**. Las dos primeras se avisan ahora mientras se escribe:
+llegar hasta Meta para descubrirlas gasta el nombre de la plantilla.
 
-    Hola {{contacto_nombre}}, tu monto presupuestado es {{campo_presupuesto_estimado}}
+**`is_transient` contesta la única pregunta que el operador se hace ante un error opaco.** Un alta
+murió con «Message Template Creation Failed: An error occurred while creating message template»
+—título y mensaje de Meta, los dos vacíos de contenido— y la misma plantilla entró aprobada un rato
+después. Reproducido por capas: Graph a pelo, la Edge Function y la pantalla entera con Playwright,
+las cuatro APPROVED. Era pasajero y Meta lo decía en un campo que no se leía.
 
-la pantalla decía **`Invalid parameter`** y nada más. Reproducido contra la WABA con curl, la
-respuesta completa era:
+**Los huecos con nombre.** El cuerpo lleva ahora `{{contacto_nombre}}` en vez de `{{1}}`, con un
+selector que inserta el campo donde está el cursor. Con nombres **el texto ES el mapeo**: no hay
+dos sitios que puedan discrepar al reordenar variables. Comprobado que la Página también los
+admite, no solo la WABA.
 
-    message:           Invalid parameter
-    code:              100
-    error_subcode:     2388299
-    error_user_title:  No se permite incluir parámetros al principio ni al final
-    error_user_msg:    Las variables no pueden estar al principio ni al final de la plantilla.
+**Y el envío por Messenger, que era el permiso que faltaba.** La vía se sondeó antes de escribir
+nada —`POST /{page-id}/messages` con `messaging_type` en UTILITY, con un destinatario inválido a
+propósito: Meta se queja del destinatario y no de la forma— y se construyó en la 0112. Vincular
+pasó a `private.vincular_plantilla_meta` con dos envoltorios, que eran dos copias de cincuenta
+líneas a punto de nacer. Y en el despachador la plantilla se monta en **una** función para los dos
+canales: misma forma por dentro, distinto sitio donde se cuelga. Entregado de verdad el 25-ago con
+su `mid`, y el contacto contestó «Gracias».
 
-Meta lo explicaba, en castellano, en el mismo cuerpo de la respuesta. Kavea leía `error.message`
-—que en las plantillas es casi siempre «Invalid parameter»— y descartaba `error_user_title` y
-`error_user_msg`, que son los únicos campos con contenido. Cuatro llamadas en
-`plantillas-whatsapp` y dos en `plantillas-utilidad` hacían lo mismo: crear, editar, borrar y
-listar.
+**El manejo entero se rehízo dos veces por la misma razón.** Primero las de Meta se ofrecían solo
+fuera de la ventana: protegía de un cargo evitable pero **escondía la función en vez de
+explicarla**. Ahora se ofrecen siempre y dentro de la ventana se pregunta con el coste escrito.
+Y había **dos sitios** para lo mismo —un desplegable en el pie para las internas y un bloque de
+cuatro filas para las de Meta que solo aparecía cuando nadie lo había visto—; ahora es un menú con
+dos grupos, «se insertan en la caja» y «se envían enteras», que se abre escribiendo `/` o con un
+botón encima del campo.
 
-**Dos arreglos, uno por cada mitad del problema.**
+**Y una plantilla ya no sale a ciegas.** El diálogo de vista previa (0114) enseña el texto con los
+valores puestos, marca los huecos vacíos, y pide los que falten ahí mismo: `rellenar_variable` los
+escribe **donde el dato vive** —el nombre en la persona, el importe en la ficha, un campo
+personalizado en su valor— reutilizando las funciones que registran actividad. Se guarda **antes**
+de mandar: al revés, el mensaje saldría con un dato que aquí no consta y no hay forma de retirarlo.
+Y la vista previa sale de `parametros_de_plantilla`, la misma función que el envío, porque un
+segundo cálculo «para la vista previa» puede discrepar de lo que se manda.
 
-`motivoDeMeta()` en las dos funciones prefiere `error_user_msg`, lo encabeza con
-`error_user_title` cuando añade algo, y solo cae a `message` si no hay ninguno de los dos.
-Comprobado en la pantalla con un rechazo que Kavea no puede prever —demasiadas variables para lo
-corto que es el cuerpo, subcódigo `2388293`—: el aviso ahora dice *«La proporción entre parámetros
-y palabras es superior al límite: esta plantilla tiene demasiadas variables en relación con su
-longitud»*.
+### 2026-08-25 — Lo que solo se ve mirando la pantalla
 
-`bordeDe()` en las dos pantallas avisa **mientras se escribe** de que el cuerpo empieza o acaba en
-variable, y las dos funciones lo rechazan antes de llamar a Meta. La regla no está en ninguna guía
-que hubiéramos leído y su error es un «Invalid parameter» pelado; llegar hasta Meta para
-descubrirla cuesta el nombre de la plantilla, que **queda ocupado aunque el alta falle**.
+Seis fallos que ni el compilador ni los guardianes de CI podían encontrar, y ninguno se buscaba.
 
-Y una tercera cosa que salió al mirarlo: el aviso vivía solo arriba de la lista, a más de mil
-píxeles del botón. Se pulsaba «Crear y enviar a Meta» al fondo del formulario, Meta contestaba, y
-no se veía nada. Ahora el motivo se repite junto al botón que lo provocó.
+**Los acentos llevaban días codificados dos veces.** La pantalla decía «Pasaron 24 horas desde su
+Ãºltimo mensaje». Los bytes guardados llevaban cada byte del acento codificado otra vez:
+`Get-Content -Raw` **sin `-Encoding UTF8`** usa el juego del sistema cuando el script corre con
+`powershell` en vez de `pwsh`, y en esta máquina no hay `pwsh`. **Trece funciones** y una sola fila
+de datos en todo el esquema, medido barriendo todas las columnas de texto y jsonb. No se reparó con
+LATIN1 a UTF8 a ciegas —falló: había comillas tipográficas sanas en las mismas funciones— sino
+reaplicando cada función desde su migración.
 
-**Lo que sí funciona**, verificado: `pedido_en_camino` con
-`Hola {{contacto_nombre}}, su pedido va en camino` está APPROVED. La variable en medio, texto a
-los dos lados. Las tres pruebas de rechazo no dejaron rastro en la WABA: sigue con dos plantillas.
+**Una plantilla enviada salía como «Sin contenido».** La vista pintaba el texto del cuerpo, que en
+una plantilla es nulo porque la cola guarda el nombre y los valores. La 0111 lo recompone **al
+leer**, no al encolar: guardar la frase montada crearía una copia que envejece cuando la plantilla
+se edite en Meta.
 
-### 2026-08-25 — «Application does not have permission» era una Página desconectada
+**El mismo importe se escribía de dos maneras.** 2000 salía «2,000.00» por las plantillas de Meta y
+«2000» por las internas: dos formateadores para una columna, y el cliente recibía uno u otro según
+por dónde saliera el mensaje. `private.importe` los une. Las dos funciones se reaplicaron
+**generándolas desde `pg_get_functiondef`**, que es como se copia un cuerpo de ochenta líneas sin
+cambiarle una coma sin querer.
 
-`(#10) Application does not have permission for this action` en la pestaña de Messenger, con la
-lista vacía debajo. Dos síntomas que no señalan a la causa: el primero suena a permiso de la app y
-el segundo a que no hay nada creado.
+**El nombre de una persona no se podía escribir en ninguna pantalla.** Venía de Meta cuando Meta lo
+daba, y cuando no —Messenger no siempre— la persona se quedaba «Contacto sin nombre» **para
+siempre**, y cualquier plantilla que saludara por el nombre se negaba a salir señalando un dato sin
+puerta. Y el error daba la clave interna: «tarjeta.valor» no está escrito en ninguna parte de la
+interfaz. Ahora se traduce con `variables_disponibles` —la misma lista del selector de campos— y
+dice **dónde** se rellena cada uno.
 
-**La causa era la elección de la Página.** `/api/plantillas-utilidad` la resolvía así:
+**Los campos personalizados se pidieron el 24-ago y se construyó una pantalla aparte.** El momento
+en que uno descubre que le falta un campo es mirando una ficha, con el cliente delante. Ahora cada
+bloque tiene su «+ Nuevo campo», el ámbito lo decide el bloque, y se enseña la marca que resulta
+porque cada campo es variable de plantilla y eso no se adivina.
 
-    .not('page_id', 'is', null).limit(1)
+**Y las marcas de canal.** Se dibujaron unos iconos genéricos razonando que redibujar una marca
+registrada de memoria sale mal. Era la respuesta equivocada a la pregunta correcta: **las marcas ya
+estaban en el repositorio**, usadas por Canales y Contenido desde semanas. El fichero se movió a
+`lib/logos-canal.tsx` y ahora salen en los cinco sitios donde había un punto de color. Donde más se
+nota es en la lista estrecha, la que queda al abrir un hilo: ahí el canal era un punto pelado **sin
+etiqueta**.
 
-sin filtro de estado y sin `order`: la primera fila que devolviera Postgres. Hoy devolvía
-**«Centromarca Mercedes», desconectada** —de tres filas con `page_id`, dos lo estaban— y con su
-token derivado no hay permiso sobre esa Página ni plantillas que listar.
+### 2026-08-25 — Lo que hice mal
 
-**Es la tercera vez que aparece el mismo patrón.** La 0089 lo tuvo en `registrar_conexion`,
-`sincronizar-comentarios` y `responder-comentario` lo tuvieron el 24-ago con
-`meta_asset_routes?limit=1`, y esta ruta lo tenía desde que se escribió. «La primera fila de la
-tabla» acierta mientras haya una fila; en cuanto hay tres, contesta con la de otro y **no da error**.
+**Borré un nombre que Gabriel acababa de escribir.** Una comprobación con Playwright corrió contra
+**producción** y dejó el campo del nombre vacío; el `onBlur` guarda al salir del foco, así que lo
+borró siete segundos después de que él lo escribiera. Se restauró leyendo el valor anterior de la
+propia actividad, que es exactamente para lo que se registra.
 
-Arreglado: filtra por conectada y ordena. La de WhatsApp gana el `order` por lo mismo, para el día
-que haya dos WABA.
+Y el servidor de desarrollo **comparte base con producción**: no hay entorno donde escribir sin
+consecuencias. Crear un campo de prueba creó un campo real, que hubo que archivar. La regla no es
+«probar contra desarrollo», es: **una prueba que escribe deja rastro en los datos del cliente y se
+limpia en el mismo turno.**
 
-**Y ahora la pantalla dice de qué Página lee** —«De utilidad, en Messenger · Boosty.digital»—. Eso
-es lo que faltaba para que el fallo fuera visible: con varias conectadas se enseñaba una lista sin
-decir de quién era, y cuando la elección salió mal no había forma de notarlo desde la interfaz.
+**Dibujé un segundo juego de logos** para los mismos tres canales sin mirar si ya existían. El nuevo
+era peor.
 
-Comprobado tras desplegar: sin `(#10)`, ocho plantillas listadas, los dos motivos de rechazo a la
-vista, doce botones de campo en el formulario y cero errores de consola.
-
-### 2026-08-25 — Los huecos con nombre: el campo real dentro del mensaje
-
-**Lo que se pidió:** poner los campos del sistema en el cuerpo de la plantilla, tipo
-`{{presupuesto}}`, en vez de un `{{1}}` que no dice nada. **Y resulta que Meta ya lo permite:**
-`parameter_format: 'NAMED'` con `example.body_text_named_params`.
-
-Comprobado contra **las dos** superficies antes de escribir código. Messenger aprobó una en
-segundos. WhatsApp la rechazó la primera vez, pero no por el formato: *«La proporción entre
-parámetros y palabras es superior al límite»* — otra regla suya, sobre cuántas variables caben en un
-texto corto. Con el texto más largo, aceptada.
-
-**Lo que eso cambia no es cosmético.** Con huecos numerados hacía falta un mapeo aparte —qué campo va
-en cada posición— y ese mapeo **puede discrepar del texto**: reordena las variables en el cuerpo y el
-mapeo sigue apuntando a las posiciones viejas, sin dar error, mandando el presupuesto donde iba el
-nombre. **Con nombres el texto es el mapeo.** No hay dos sitios que puedan contradecirse.
-
-El nombre en Meta se deriva de la clave con el punto convertido en guion bajo
-—`campo.presupuesto_estimado` ↔ `campo_presupuesto_estimado`— y la vuelta es fiable porque el ámbito
-es una lista cerrada: `contacto`, `tarjeta`, `campo`, `agente`, `org` (0110).
-
-**Y los ejemplos dejan de pedirse.** Meta exige uno por hueco, y cada variable ya trae el suyo en
-`variables_disponibles`. Pedirlos a mano cuando ya se conocen era trabajo inventado; ahora solo
-aparecen para los huecos numerados, que son los que no se sabe qué contienen.
-
-**Las dos formas no se mezclan.** Meta admite `{{1}}` o `{{nombre}}`, no ambas en el mismo cuerpo, y
-el error que da para eso no se entiende. Se para antes, en castellano.
-
-Probado desde la pantalla: pulsar «Nombre de la persona» y «Presupuesto estimado» escribió
-`{{contacto_nombre}}` y `{{campo_presupuesto_estimado}}` **en la posición del cursor**, no al final;
-no pidió ningún ejemplo; y Meta la guardó con `parameter_format: NAMED` y sus dos
-`body_text_named_params`. Borrada después.
-
-Lo posicional sigue funcionando: hay plantillas aprobadas con `{{1}}` que no se van a rehacer.
-
-### 2026-08-25 — Dos fallos que solo se veían usándolo
-
-**El propietario no podía crear plantillas.** La pantalla le decía «No puedes crear, editar ni
-borrar plantillas en este espacio». La causa: llamé a `puede` con `{ p_org, p_accion }` y la función
-es **`puede(org uuid, accion text)`**. Los otros seis sitios del código que la llaman usan los
-nombres buenos; el mío era el único con el prefijo `p_`. Un nombre de parámetro equivocado en un RPC
-**no da error de compilación ni de tipos**: la llamada falla, el valor vuelve nulo, y la guarda lo
-lee como «no puede». Un permiso denegado que parece una decisión.
-
-**Y la pestaña Internas seguía enseñando un bloque «De WhatsApp»** con las dos filas locales —el
-registro a mano de la 0042—, con su selector de estado y su botón de añadir. Desde el 24-ago esas
-filas ya no son un catálogo: son el **emparejamiento** de cada hueco con un dato de la ficha.
-Enseñarlas ahí como plantillas editables duplicaba la pestaña de al lado y dejaba dos sitios para
-cambiar lo mismo con resultados distintos. La sección se llama ahora «Respuestas rápidas» y solo
-lista internas; las ramas de WhatsApp del editor, que el typecheck marcó como inalcanzables, fuera.
-
-**Los dos se me escaparon por no usarlo.** Había comprobado que el formulario de autenticación
-aparece y que la píldora cuenta, pero **nunca creé una plantilla de verdad** — que es lo único que
-recorre la ruta de API y su guarda. Ahora sí: `prueba_kavea_395818` creada desde la pantalla, `200`,
-`status: PENDING`, con su cuerpo y sus dos ejemplos, y borrada después para no dejar basura en la
-WABA del cliente.
-
-### 2026-08-25 — Editar plantillas, autenticación, y que un comentario se note
-
-**Puntos 3 y 4 de plantillas, cerrados.**
-
-*Editar* va **por id y no por nombre**: el nombre identifica a la familia entera de traducciones, y
-editar por ahí cambiaría la versión inglesa al retocar la española. Al guardar, la plantilla vuelve
-a revisión —Meta aprobó otra cosa— y la pantalla lo dice. Nombre e idioma se enseñan bloqueados en
-vez de ocultarse: quien edita tiene que ver sobre qué trabaja.
-
-*Autenticación* **no es una variante de utilidad**. Meta escribe el texto él, traducido a cada
-idioma, y solo deja decidir tres cosas: la advertencia de seguridad, la caducidad —1 a 90 minutos— y
-el botón OTP, de copiar o de autorrellenar. Un cuerpo propio ahí es rechazo seguro, así que el
-formulario ni lo ofrece. Comprobado en producción: al elegir esa categoría **no hay campo de
-cuerpo**.
-
-**Y los comentarios ya se notan.** Tres cosas faltaban, y ninguna era la que parecía:
-
-- **El hilo de un comentario no se refrescaba solo.** El `Refrescador` estaba en la bandeja y en el
-  hilo de mensajes; en ese no.
-- **La píldora del menú contaba solo `tarjetas.no_leidos`, y un comentario no tiene tarjeta.**
-  Llegaba uno nuevo y el menú no se movía. Ahora suman los comentarios en `nuevo` que no son
-  propios ni borrados: la píldora pasó de contar mensajes a **49**, que es lo que de verdad está sin
-  contestar.
-- **Y se recargaba cada treinta segundos.** Ahora escucha la difusión, igual que la bandeja.
-
-**El aviso del sistema** (`avisos-del-sistema.tsx`) notifica lo entrante y el clic abre esa
-conversación. **No lleva el texto del mensaje**: el payload del canal solo trae identificadores
-desde la 0023, y esto no se salta esa regla por un titular más bonito. La 0109 le añade lo que
-faltaba para poder avisar sin filtrar nada — `entrante` y `tarjeta_id`—, y distingue el eco de Meta
-de un mensaje de verdad: notificar el propio envío es la forma más rápida de que alguien apague los
-avisos.
-
-El permiso se pide **al pulsar un botón**, no al cargar: un «¿permites notificaciones?» en el primer
-segundo recibe un «no» que es para siempre.
-
-**Y una sola suscripción al canal.** La primera versión de los avisos abría la suya y, por escribir
-mal el tópico, no recibía nada: difundía `org:{id}` y escuchaba `avisos:{id}`. Ahora el
-`Refrescador` reemite lo que recibe como evento del DOM y quien quiera lo escucha.
-
-**Vídeos: siete de los ocho montados.** Del `Comments.webm` se recortaron **82 segundos** de bandeja
-esperando a que llegara el comentario, y del anterior se separó la parte de Messenger. **Solo falta
-grabar el de plantillas.**
+**Y me equivoqué dos veces sobre un vídeo.** Llegó dos veces el mismo fichero diciendo que era la
+grabación del envío. Lo que zanjó la duda no fue la fecha del fichero sino **el reloj de la barra de
+tareas dentro de la propia imagen**, que iba de 11:36 a 11:38: un vídeo de esa hora no puede
+contener una pantalla que se desplegó a las 13:40.
 
 ### 2026-08-24 — Fase A: una autenticación, muchos activos
 
@@ -1336,6 +844,15 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Un texto declarado ante un tercero envejece en silencio: sigue siendo cierto el día que se
+  escribe y falso el día que el producto crece. Se relee contra el producto, no contra el recuerdo.
+- Un texto que solo vive en el formulario de un tercero no se puede releer: hay que traerlo al
+  repositorio para poder compararlo con nada.
+- Prometer MENOS de lo que el producto hace no es prudencia: un vídeo que hace más de lo declarado
+  no parece una función, parece que se cuela.
+- Contestar una lista de requisitos con sus mismas palabras es lo que permite a quien revisa marcar
+  sus casillas sin interpretar. Describir bien y no nombrar la lista es cómo se pierde un permiso
+  teniéndolo todo hecho.
 - Las instrucciones para un tercero se releen contra el producto de hoy, no contra el recuerdo:
   cada cambio de navegación las deja mintiendo en silencio.
 - Antes de pedirle a alguien que haga algo en el producto, comprobar que su ROL se lo permite.
@@ -1345,10 +862,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   pierde en el viaje.
 - Un texto de interfaz con el canal escrito a mano se queda mintiendo el día que hay un segundo
   canal. El canal se lee del dato.
-- El servidor de desarrollo comparte base con producción: una prueba que escribe deja rastro real y
-  se limpia en el mismo turno.
-- Una comprobación que ESCRIBE se hace contra desarrollo. Contra producción solo se lee: el
-  usuario está trabajando ahí al mismo tiempo.
+- No hay entorno donde escribir sin consecuencias: el servidor de desarrollo comparte base con
+  producción. Una prueba que escribe deja rastro en los datos del cliente —que además está
+  trabajando ahí al mismo tiempo— y se limpia en el mismo turno. Contra producción, solo leer.
 - Una previsualización tiene que salir de la misma función que el envío. Un segundo cálculo «para
   la vista previa» es peor que no tenerla.
 - El mismo dato formateado por dos caminos distintos llega distinto al cliente. El formateador va
