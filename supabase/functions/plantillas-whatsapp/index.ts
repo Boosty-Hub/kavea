@@ -164,8 +164,23 @@ function motivoDeMeta(e: Record<string, unknown> | undefined): string {
   const msg = typeof e.error_user_msg === 'string' ? e.error_user_msg.trim() : ''
   const titulo = typeof e.error_user_title === 'string' ? e.error_user_title.trim() : ''
   const generico = typeof e.message === 'string' ? e.message.trim() : ''
-  if (msg) return titulo && !msg.startsWith(titulo) ? `${titulo}: ${msg}` : msg
-  return titulo || generico || 'Meta rechazó la petición sin decir por qué.'
+  const base = msg
+    ? (titulo && !msg.startsWith(titulo) ? `${titulo}: ${msg}` : msg)
+    : (titulo || generico || 'Meta rechazó la petición sin decir por qué.')
+
+  /**
+   * SI META DICE QUE FUE PASAJERO, SE DICE.
+   *
+   * El 25-ago un alta falló con «Message Template Creation Failed: An error
+   * occurred while creating message template» —el título y el mensaje de Meta,
+   * los dos vacíos de contenido— y la misma plantilla, con el mismo nombre y el
+   * mismo cuerpo, entró aprobada un rato después. Sin esta línea el operador se
+   * queda mirando un error que no explica nada y no sabe si reintentar o cambiar
+   * el nombre. `is_transient` lo dice y no costaba nada leerlo.
+   */
+  return e.is_transient === true
+    ? `${base} · Meta lo marca como fallo pasajero: vuelve a intentarlo con el mismo nombre.`
+    : base
 }
 
 /**

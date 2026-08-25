@@ -233,6 +233,45 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — «Message Template Creation Failed» era Meta fallando, no Kavea
+
+Al grabar la toma de Messenger, el alta de `numero_pedido` murió con **«Message Template Creation
+Failed: An error occurred while creating message template»**. Ese texto ya venía de
+`error_user_title` y `error_user_msg` —el arreglo de esta mañana funcionaba—; lo que pasa es que
+esta vez Meta tampoco explicaba nada.
+
+**Reproducido por capas, de fuera hacia dentro, y ninguna falla:**
+
+| Capa | Resultado con el mismo nombre y el mismo cuerpo |
+|---|---|
+| `POST /{page-id}/message_templates` a pelo, con nombres | APPROVED |
+| Igual pero numerada | APPROVED |
+| La Edge Function, llamada directa | APPROVED |
+| La pantalla entera con Playwright, sesión real | APPROVED |
+
+Y el build que tenía delante era el nuevo: el aviso sale **dos veces** en su captura, arriba y
+junto al botón, y lo segundo es código de esa misma mañana. Netlify lo publicó a las 13:15 UTC y la
+captura es de las 15:09.
+
+Así que el fallo fue de Meta y pasajero. Lo que se puede hacer es no dejar al operador adivinando:
+`motivoDeMeta` ahora lee **`is_transient`** y añade «Meta lo marca como fallo pasajero: vuelve a
+intentarlo con el mismo nombre». Sin esa línea, un error que no explica nada deja dos preguntas
+abiertas —¿reintento? ¿cambio el nombre?— y ninguna se puede contestar desde la pantalla.
+
+**Y de paso, dos cosas que no sabíamos y ahora sí, medidas:**
+
+- **Un alta que falla NO ocupa el nombre.** Solo lo ocupa una plantilla que Meta llegó a crear y
+  luego rechazó. Se comprobó borrando las de prueba: las que erraron no existían.
+- **En una Página, un nombre borrado se reutiliza al momento** — recreado un minuto después, y
+  aprobado. No hay bloqueo de cuatro semanas como en WhatsApp.
+
+**Lo que este episodio deja pendiente y es más grande:** `pages_utility_messaging` es un permiso de
+Página, y su nota pide tres cosas. Kavea cubre dos —crear la plantilla y rellenar sus variables— y
+no la tercera: **enviarla y verla llegar en Messenger.** El carril de plantilla de `despachar` vive
+entero dentro de `if (canal === 'whatsapp')`. Se verificó que la vía existe:
+`POST /{page-id}/messages` con `messaging_type: 'UTILITY'` y `message.template`, sondeado con un
+destinatario inválido a propósito —Meta se queja del destinatario, no de la forma—.
+
 ### 2026-08-25 — «Invalid parameter» lo explicaba Meta, y Kavea lo tiraba a la basura
 
 Al crear `numero_presupuesto` con el cuerpo
@@ -855,6 +894,9 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Antes de culpar al código, reproducir por capas: la de fuera puede fallar por algo que ya no
+  falla, y un error de un tercero puede ser pasajero sin decirlo en el texto.
+- `is_transient` contesta la única pregunta que el operador se hace ante un error opaco.
 - Un error de un tercero se lee entero antes de mostrarlo: el campo que se enseña por costumbre
   (`message`) puede ser el único sin información, y el motivo estar al lado sin que nadie lo mire.
 - Un aviso lejos del control que lo provocó es un aviso que no existe.
