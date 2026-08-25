@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { conexionesDe } from '@/lib/conexiones'
-import { LogoCanal } from '../ajustes/canales/logos'
+import { LogoCanal } from '@/lib/logos-canal'
 
 export const dynamic = 'force-dynamic'
 

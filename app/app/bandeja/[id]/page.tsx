@@ -20,6 +20,7 @@ import {
 import { todasLasEtapas } from '@/lib/embudo'
 import { archivosDe, documentosDe, resumenDe } from '@/lib/comercial'
 import { plantillasUsables, plantillasMessenger, plantillasWhatsApp } from '@/lib/plantillas'
+import { LogoCanal } from '@/lib/logos-canal'
 import {
   ESTADOS, etiquetaCanal, colorCanal, calcularVentana, COLOR_VENTANA, haceCuanto, type Estado,
 } from '@/lib/ventana'
@@ -138,13 +139,20 @@ export default async function Hilo({ params }: { params: Promise<{ id: string }>
                     <span className="pildora__punto" style={{ background: ec.punto }} aria-hidden="true" />
                     {ec.etiqueta}
                   </span>
+                  {/* AQUÍ LA MARCA GANA MÁS QUE EN NINGÚN SITIO. En esta
+                      columna, que es la estrecha, el canal se pintaba como un
+                      punto pelado sin etiqueta: un punto de color y nada más,
+                      que solo dice algo si te sabes los tres colores. El logo
+                      ocupa lo mismo y se reconoce sin leer. La etiqueta sigue
+                      en el `title` para quien pase el ratón. */}
                   {(c.conversations ?? []).map((cv) => (
                     <span
                       key={cv.id}
-                      className="pildora__punto"
-                      style={{ background: colorCanal(cv.canal) }}
+                      style={{ color: colorCanal(cv.canal), display: 'inline-flex', flex: 'none' }}
                       title={cv.channels?.nombre ?? etiquetaCanal(cv.canal)}
-                    />
+                    >
+                      <LogoCanal canal={cv.canal} size={14} />
+                    </span>
                   ))}
                   {c.no_leidos > 0 ? <span className="sinleer">{c.no_leidos}</span> : null}
                 </div>
@@ -275,7 +283,9 @@ function Ventana({ c }: { c: ConversacionDeTarjeta }) {
       className="canal-chip"
       title={nombre ? `${nombre} — ${v.detalle}` : v.detalle}
     >
-      <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+      <span style={{ color: colorCanal(c.canal), display: 'inline-flex', flex: 'none' }}>
+        <LogoCanal canal={c.canal} size={14} />
+      </span>
       {etiquetaCanal(c.canal)}
       <span style={{ color: cv.fg }}>
         {v.clase === 'abierta' ? v.etiqueta : v.etiqueta.toLowerCase()}

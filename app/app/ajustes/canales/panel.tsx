@@ -6,7 +6,7 @@ import type { CanalConectado, Conexion, EmbudoBreve, Verificacion } from '@/lib/
 import { fechaHora } from '@/lib/fechas'
 import { colorCanal, etiquetaCanal } from '@/lib/ventana'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
-import { LogoCanal } from './logos'
+import { LogoCanal } from '@/lib/logos-canal'
 
 /**
  * El panel de canales.

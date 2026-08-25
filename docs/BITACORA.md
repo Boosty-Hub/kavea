@@ -279,10 +279,24 @@ La fila llevaba un punto de color más la etiqueta en texto. El color solo disti
 color es cada canal, y la etiqueta hay que leerla: en una lista de veinte filas nadie lee veinte
 etiquetas.
 
-Ahora cada píldora lleva su icono en el color del canal —auricular en verde, rayo en azul, cámara
-en morado—. **No son las marcas oficiales a propósito:** redibujar de memoria el trazo exacto de
-una marca registrada sale mal, y mal dibujada es peor que no ponerla. Y el texto se queda: el color
-y la forma nunca comunican solos, que es la misma regla que ya seguían las píldoras de estado.
+Se dibujaron primero unos iconos genéricos —auricular, rayo, cámara— razonando que redibujar de
+memoria una marca registrada sale mal. **Era la respuesta equivocada a la pregunta correcta:** las
+marcas de verdad YA ESTABAN en el repositorio, en `ajustes/canales/logos.tsx`, usadas por Canales y
+por Contenido desde hacía semanas. Dibujar unas segundas fue crear dos juegos de logos para los
+mismos tres canales, y el nuevo peor. Lo dijo Gabriel en una frase: «así como está en canales».
+
+El fichero se movió a `lib/logos-canal.tsx` —ya lo importaban tres pantallas por ruta relativa
+subiendo dos carpetas, y con la bandeja son cuatro— y ahora las marcas salen en los cinco sitios
+donde antes había un punto de color: la lista ancha, la lista estrecha, la píldora del hilo, el
+selector de canal del compositor y los canales de la ficha. Heredan `currentColor`, así que basta
+teñir el envoltorio con el token del canal.
+
+**Donde más se nota es en la lista estrecha**, la que queda al abrir un hilo: ahí el canal se
+pintaba como un punto pelado SIN etiqueta, que solo dice algo si te sabes los tres colores de
+memoria. El logo ocupa lo mismo y se reconoce sin leer. La etiqueta sigue en el `title`.
+
+Los puntos que se quedan son los de ESTADO —nueva, esperando, cerrada—, que no tienen marca que
+poner y sí llevan su etiqueta al lado.
 
 ### 2026-08-25 — Los acentos llevaban días codificados dos veces y nadie lo había mirado
 
@@ -1042,6 +1056,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Antes de dibujar un icono, buscar si ya está en el repositorio: dos juegos de logos para lo
+  mismo es peor que uno regular, y el segundo siempre sale peor.
 - Una segunda copia de cincuenta líneas se separa en el primer arreglo que se haga solo en una:
   el momento de extraer el cuerpo común es antes de escribirla, no después.
 - Una forma de API se comprueba con un destinatario inválido: Meta valida el cuerpo antes que el

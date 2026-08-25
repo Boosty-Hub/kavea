@@ -1,6 +1,12 @@
 /**
  * Las marcas de los tres canales, en SVG dentro del propio bundle.
  *
+ * VIVÍA EN `ajustes/canales/` y ya lo importaban dos pantallas más por ruta
+ * relativa, subiendo dos carpetas. Con la bandeja son cuatro: es de todos, así
+ * que está en `lib`. Y hubo un momento en que la bandeja tuvo sus propios
+ * iconos dibujados a mano, que era la peor de las opciones —dos juegos de logos
+ * para los mismos tres canales, y el de la bandeja peor—.
+ *
  * NADA DE IMÁGENES REMOTAS. Un `<img src="...cdn.meta.com...">` mete un tercero
  * en el camino de render de una pantalla interna: se cae su CDN y la pantalla
  * queda con huecos, y de paso cada carga le cuenta a Meta quién está mirando el

@@ -6,6 +6,7 @@ import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 import type { CampoDeFicha, CanalDePersona } from '@/lib/bandeja'
 import type { Archivo, Documento, ResumenComercial } from '@/lib/comercial'
+import { LogoCanal } from '@/lib/logos-canal'
 import { etiquetaCanal, terminoSeguro, colorCanal } from '@/lib/ventana'
 import { Archivos } from './archivos'
 import { Compras } from './compras'
@@ -190,11 +191,9 @@ export function Ficha({
         ) : (
           canales.map((c) => (
             <div key={c.identidad_id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span
-                className="pildora__punto"
-                style={{ background: colorCanal(c.canal) }}
-                aria-hidden="true"
-              />
+              <span style={{ color: colorCanal(c.canal), display: 'inline-flex', flex: 'none' }}>
+                <LogoCanal canal={c.canal} size={15} />
+              </span>
               <span style={{ fontSize: 13, minWidth: 76 }}>{etiquetaCanal(c.canal)}</span>
               <span style={{ fontSize: 13, color: 'var(--k-text-2)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {c.etiqueta}

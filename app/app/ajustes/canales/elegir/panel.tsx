@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { LogoCanal } from '../logos'
+import { LogoCanal } from '@/lib/logos-canal'
 
 /**
  * Elegir qué activar, con la lista delante.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { LogoCanal } from '../../ajustes/canales/logos'
+import { LogoCanal } from '@/lib/logos-canal'
 
 /**
  * El contenido de una Página y de su Instagram, con la identidad delante.

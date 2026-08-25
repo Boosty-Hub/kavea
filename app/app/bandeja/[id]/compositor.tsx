@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
+import { LogoCanal } from '@/lib/logos-canal'
 import { etiquetaCanal, colorCanal } from '@/lib/ventana'
 
 /**
@@ -186,7 +187,11 @@ export function Compositor({
               style={{ cursor: 'pointer', font: 'inherit' }}
               title={c.ventana.motivo ?? 'Se puede responder'}
             >
-              <span className="pildora__punto" style={{ background: colorCanal(c.canal) }} aria-hidden="true" />
+              {/* La marca, la misma que la lista y que Canales. Un punto de
+                  color obliga a saberse los colores de memoria. */}
+              <span style={{ color: colorCanal(c.canal), display: 'inline-flex', flex: 'none' }}>
+                <LogoCanal canal={c.canal} size={14} />
+              </span>
               {porDonde(c)}
               {c.ventana.clase !== 'abierta' ? (
                 <span style={{ color: 'var(--k-text-2)' }}>
@@ -204,10 +209,13 @@ export function Compositor({
           style={{ color: 'var(--k-text-2)', fontSize: 12, margin: 0 }}
         >
           <span
-            className="pildora__punto"
-            style={{ background: colorCanal(conv.canal), marginRight: 6 }}
-            aria-hidden="true"
-          />
+            style={{
+              color: colorCanal(conv.canal), display: 'inline-flex',
+              flex: 'none', marginRight: 6, verticalAlign: 'text-bottom',
+            }}
+          >
+            <LogoCanal canal={conv.canal} size={14} />
+          </span>
           Respondes por {porDonde(conv)}
         </p>
       )}

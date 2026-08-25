@@ -3,8 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 import { organizacionActual, superficieActual, usuarioActual } from '@/lib/organizacion'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
-import { ESTADOS, etiquetaCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
-import { LogoCanal } from './logo-canal'
+import { LogoCanal } from '@/lib/logos-canal'
+import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
 import { AvisosDelSistema } from './avisos-del-sistema'
 import { Buscador } from './buscador'
@@ -202,7 +202,15 @@ function Fila({ t, huso }: { t: FilaBandeja; huso: string }) {
               style={{ background: 'var(--k-surface-2)', color: 'var(--k-text-2)' }}
               title={nombre ?? etiquetaCanal(c.canal)}
             >
-              <LogoCanal canal={c.canal} lado={14} />
+              {/* LA MARCA DE VERDAD, la misma que Canales y Contenido, y en el
+                  color de su canal: el logo hereda `currentColor`, así que basta
+                  con teñir el envoltorio. Antes había un punto de color, y el
+                  color solo distingue si ya sabes qué color es cada canal. */}
+              <span
+                style={{ color: colorCanal(c.canal), display: 'inline-flex', flex: 'none' }}
+              >
+                <LogoCanal canal={c.canal} size={15} />
+              </span>
               {repetido && cola ? `${etiquetaCanal(c.canal)} ·${cola}` : etiquetaCanal(c.canal)}
             </span>
           )
