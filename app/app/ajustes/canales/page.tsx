@@ -5,6 +5,7 @@ import { crearClienteServidor } from '@/lib/supabase/servidor'
 import { conexionesDe, embudosDe } from '@/lib/conexiones'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Canales } from './panel'
+import { SoltarCuenta } from './soltar'
 
 import { NavAjustes } from '../nav'
 
@@ -22,6 +23,9 @@ export default async function PaginaCanales({
   if (!org) notFound()
 
   const [conexiones, embudos] = await Promise.all([conexionesDe(org.id), embudosDe(org.id)])
+  // Cuántas se apagarían al soltar la cuenta. El número va en la confirmación:
+  // nadie debería descubrir después cuántos canales se llevó por delante.
+  const vivas = conexiones.filter((c) => c.estado !== 'disconnected').length
   const { conexion, motivo } = await searchParams
 
   // Quien no puede conectar no ve el botón. No es solo estética: la ruta
@@ -91,6 +95,11 @@ export default async function PaginaCanales({
                 que quieras, sin volver a pasar por Meta.{' '}
                 <a href="/api/meta/oauth/start?canal=mensajeria">Autorizar otra cuenta</a>.
               </span>
+              {/* Y la puerta de salida, en el mismo sitio que la de entrada.
+                  Antes solo se podía soltar un canal: la autorización de la que
+                  cuelgan todos no tenía botón, y quedarse vinculado sin querer
+                  no es una opción que el producto deba ofrecer. */}
+              <SoltarCuenta conexionesVivas={vivas} />
             </>
           ) : (
             <>

@@ -166,6 +166,12 @@ export function describirActividad(x: EntradaActividad, huso: string): string {
       return `respondió en público a un comentario de ${d.canal === 'messenger' ? 'Facebook' : 'Instagram'}`
     // El ciclo de moderación de la 0097. Se dice qué comentario, no su id:
     // el identificador de Meta no le dice nada a quien lee la actividad.
+    // Soltar la cuenta entera (0101). Se dice cuántos canales cayó por delante,
+    // porque es la diferencia entre esto y desconectar uno.
+    case 'meta.desautorizada':
+      return typeof d.conexiones === 'number' && d.conexiones > 0
+        ? `desconectó la cuenta de Facebook y con ella ${d.conexiones} ${d.conexiones === 1 ? 'conexión' : 'conexiones'}`
+        : 'desconectó la cuenta de Facebook'
     case 'comentario.oculto':
       return 'ocultó un comentario'
     case 'comentario.mostrado':
