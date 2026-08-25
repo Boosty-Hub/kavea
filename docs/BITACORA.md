@@ -233,6 +233,28 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Dos fallos que solo se veían usándolo
+
+**El propietario no podía crear plantillas.** La pantalla le decía «No puedes crear, editar ni
+borrar plantillas en este espacio». La causa: llamé a `puede` con `{ p_org, p_accion }` y la función
+es **`puede(org uuid, accion text)`**. Los otros seis sitios del código que la llaman usan los
+nombres buenos; el mío era el único con el prefijo `p_`. Un nombre de parámetro equivocado en un RPC
+**no da error de compilación ni de tipos**: la llamada falla, el valor vuelve nulo, y la guarda lo
+lee como «no puede». Un permiso denegado que parece una decisión.
+
+**Y la pestaña Internas seguía enseñando un bloque «De WhatsApp»** con las dos filas locales —el
+registro a mano de la 0042—, con su selector de estado y su botón de añadir. Desde el 24-ago esas
+filas ya no son un catálogo: son el **emparejamiento** de cada hueco con un dato de la ficha.
+Enseñarlas ahí como plantillas editables duplicaba la pestaña de al lado y dejaba dos sitios para
+cambiar lo mismo con resultados distintos. La sección se llama ahora «Respuestas rápidas» y solo
+lista internas; las ramas de WhatsApp del editor, que el typecheck marcó como inalcanzables, fuera.
+
+**Los dos se me escaparon por no usarlo.** Había comprobado que el formulario de autenticación
+aparece y que la píldora cuenta, pero **nunca creé una plantilla de verdad** — que es lo único que
+recorre la ruta de API y su guarda. Ahora sí: `prueba_kavea_395818` creada desde la pantalla, `200`,
+`status: PENDING`, con su cuerpo y sus dos ejemplos, y borrada después para no dejar basura en la
+WABA del cliente.
+
 ### 2026-08-25 — Editar plantillas, autenticación, y que un comentario se note
 
 **Puntos 3 y 4 de plantillas, cerrados.**
@@ -1024,3 +1046,8 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   tópico mal escrito no da error: simplemente no llega nada, que es peor.
 - Cuando una categoría de un tercero tiene forma propia, el formulario tiene que tener forma propia.
   Ofrecer un campo que el proveedor ignora —o por el que rechaza— es prometer un control que no hay.
+- Un nombre de parámetro equivocado en un RPC no rompe nada visible: devuelve nulo, y una guarda
+  que lee nulo como «no» convierte un error de tipeo en un permiso denegado creíble. Cuando una
+  función se llama en siete sitios, copiar uno de esos siete es más seguro que escribirla de nuevo.
+- Comprobar que un formulario se pinta no es comprobar que funciona. Lo único que recorre la ruta,
+  su guarda y la llamada al tercero es pulsar el botón.
