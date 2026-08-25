@@ -8,6 +8,12 @@ de git de este mismo archivo.
 **Regla:** solo entra lo comprobado, con la evidencia al lado. Lo planificado vive en
 `docs/fases/`, lo pendiente en la sección 2.
 
+**Y se compacta.** El 24-ago este archivo llegó a **veintinueve entradas de un solo día** y 1.802
+líneas: eso no es un registro comprimido, es un diario. Se fundieron en seis por tema y el archivo
+bajó a la mitad. Cuando un día vuelva a dejar más de tres o cuatro entradas, toca fundirlas: lo que
+se pierde al resumir está en el historial de git de este mismo archivo, y lo que se gana es que
+alguien lo lea entero.
+
 ---
 
 ## 1. Estado actual — al 24-ago-2026
@@ -18,10 +24,10 @@ de git de este mismo archivo.
 | Páginas legales | ✅ Publicadas | Rastreables por Meta |
 | App de Meta | ✅ Creada, dev mode | `compliant`, cero violaciones |
 | DNS en Netlify | ✅ Delegada | SOA `dns1.p01.nsone.net` en 7 resolvedores |
-| Esquema de base de datos | ✅ **98** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
+| Esquema de base de datos | ✅ **108** migraciones aplicadas y registradas | Contado en `public.schema_migrations` el 24-ago |
 | Bandeja de correo interna | ✅ `/admin/correos` | RPC y bucket verificados |
-| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 añadidos el 23-ago |
-| Ingesta y normalización | ✅ Producción | **10** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
+| Aislamiento entre tenants | ✅ 61/61 comprobaciones · 10/10 canarios | C8, C9 y C10 el 23-ago. C1 cazó `private.revision_permisos` sin RLS el 24-ago (0100) |
+| Ingesta y normalización | ✅ Producción | **12** crones vivos (contados en `cron.job` el 24-ago), mensajes reales entrando |
 | Bandeja, tarjetas, embudos, ficha, agenda, reparto | ✅ Producción | Un contacto con varios canales en una tarjeta |
 | Envío por Instagram | ✅ Texto, imagen, GIF, corazón | Echo en ≤6 s, contacto confirmando |
 | Envío por Messenger | ✅ Probado el 6-ago | `messaging_type: RESPONSE`, id de Meta, sin error |
@@ -30,11 +36,14 @@ de git de este mismo archivo.
 | Un hilo por número | ✅ Desde la 0082 | La tarjeta une los canales; el hilo ya no |
 | Pausar y desconectar un canal | ✅ Desde Ajustes → Canales | 0079; el borde da de baja los webhooks en Meta |
 | Plantillas de utilidad de Messenger | ✅ Leer y crear en vivo contra Meta | No se espejan en Postgres |
-| Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar, pero **no por falta de suscripción** —está puesta, comprobado el 24-ago— sino por modo desarrollo y el permiso rechazado; la lectura por API lo suple |
+| Comentarios | ✅ **Ciclo de moderación completo** | Publicar, editar, ocultar y borrar desde el hilo (0097/0098). Probado contra Instagram real el 24-ago: los dos ids consultados después en Graph dan «does not exist». El webhook de `comments` sigue sin llegar —modo desarrollo y permiso rechazado, no falta de suscripción—, así que la lectura por API corre **cada tres minutos** y difunde a la pantalla (0108) |
 | Callback de desautorización | ✅ Desplegado **y pegado** en el panel | Confirmado el 23-ago en Facebook Login for Business → Settings |
 | Callback de borrado de datos | ✅ Guardado | Recarga del panel a las 20:59 del 23-ago: el campo persiste. No hay forma de verificarlo por API (`data_deletion_url` no es campo de Graph), a diferencia de `deauth_callback_url`, que sí |
 | Contenido de Página e Instagram | ✅ `/contenido`, desde el 24-ago | Lista → detalle con la identidad delante. Verificado contra producción: `@boosty.digital` 1625 seguidores / 327 publicaciones con 12 medios, y `Boosty.digital` 172 seguidores con 10 posts y 10 fotos |
 | Token de una conexión | ✅ Se resuelve por su dueño | La credencial cifrada de la conexión primero, y solo si Meta la rechaza por permiso se deriva del portafolio, avisando. El ciclo de moderación salió `via: conexion`, así que un cliente de autoservicio también podrá moderar |
+| Envío fuera de la ventana | ✅ Solo por plantilla, y solo WhatsApp | `ventana_de` cierra WhatsApp a las 24 h (0106): allí no existe HUMAN_AGENT. Messenger e Instagram conservan su prórroga de 7 días |
+| Guarda de tipos en las funciones de borde | ✅ `deno check` en CI desde el 24-ago | `supabase functions deploy` no comprueba tipos. Las 23 funciones compilan |
+| Vigilancia de trabajos periódicos | ✅ Latidos + aviso por correo | `private.latidos` (0108). Una función que deja de EJECUTARSE no puede avisar: solo se detecta echándola de menos |
 | Diagnóstico de conexiones | ✅ Dos baterías, V1–V7, cron diario | Página+Instagram y WABA+número no comparten un nodo del grafo |
 | Panel interno | ✅ 5 pantallas | Salud, espacios, portafolio, accesos, uso |
 | Alta de cliente desde el panel | ✅ Ejecutada el 6-ago | Primera vez desde que se construyó |
@@ -52,7 +61,7 @@ de git de este mismo archivo.
 | Instagram y Messenger para terceros | ⛔ Rechazados | 6 permisos; solo funcionan dentro del portafolio de Boosty |
 | Correo saliente | ✅ Funciona | `kavea.ai` `verified` en Resend, y Supabase Auth manda por su SMTP |
 | Nombre a mostrar de `+1 321-393-1397` | ⚠️ `PENDING_REVIEW` en Meta | No bloquea enviar; es lo que ve el contacto |
-| Plantillas de WhatsApp | ⛔ Sin cablear con Meta | Modelo existe; las 25 aprobadas están en la WABA que se retira |
+| Plantillas de WhatsApp | ✅ **Leer, crear y ENVIAR**, contra la WABA | Categoría, idioma, cabecera —texto, imagen, vídeo o PDF—, cuerpo, pie y hasta diez botones. Envío probado el 24-ago: `hello_world` entregada con `wamid` fuera de la ventana de 24 h. La WABA nueva solo tiene `hello_world`: las 25 aprobadas se quedaron en la que se retiró |
 | Página de Boosty (`1790677317841377`) | ✅ Conectada por el **portafolio**, no por el diálogo | `config_id 1721663745727123`, `tasks` con `MESSAGING`, PAT rotado y **primer BISU de la base**. V1–V7 en verde salvo V6 |
 | Facebook Login for Business | ✅ **Estrenado el 24-ago** | Un canje real completo de extremo a extremo: diálogo, código, BISU cifrado, webhooks suscritos y rediagnóstico. Falta hacerlo desde un portafolio que no sea el de Boosty |
 | Permisos de la app, por API | ✅ 5 `live` | `business_management`, `pages_show_list`, `public_profile`, `whatsapp_business_management`, `whatsapp_business_messaging` |
@@ -60,7 +69,7 @@ de git de este mismo archivo.
 | Agentes (fase 6) | ⏸ Aparcada | Sin `ANTHROPIC_API_KEY` |
 | CI de GitHub Actions | 🟡 Restaurada abriendo el repositorio | Se agotaron los 3.000 minutos del plan; Gabriel puso `Boosty-Hub/kavea` en **público** el 24-ago para recuperar minutos gratis |
 | Repositorio | 🟡 `Boosty-Hub/kavea`, **público desde el 24-ago** | Se abrió para recuperar minutos de Actions; el plan es volver a cerrarlo. Historial auditado: cero credenciales en los 150 commits. Sí quedan expuestos nombres de clientes reales y 27 identificadores de activos de Meta, y Gabriel decidió dejarlos |
-| Comodín `*.kavea.ai` | 🟡 **Netlify puso condición: borrar los cuatro alias** | Ticket #1097522. Piden dejar solo el primario `admin.kavea.ai` y borrar `boosty`, `cuenta`, `conectar` y `demostracion`; luego habilitan el comodín y esos nombres vuelven solos. Comprobado que durante el hueco un host no reclamado da TLS válido y el 404 de Netlify —ni error de certificado ni pérdida de datos: los webhooks van a Supabase—. Preguntado si el comodín se lleva `www.kavea.ai`, que es del OTRO sitio (`kaveaai`) y hoy hace 301 al ápice. Correo enviado el 24-ago, esperando respuesta |
+| Comodín `*.kavea.ai` | ✅ **Activo desde el 24-ago** | Ticket #1097522 cerrado. Se borraron los cuatro alias y Netlify habilitó el comodín. `cualquiercosa.kavea.ai` responde, así que un inquilino nuevo ya no necesita una llamada a la API por alta ni esperar propagación. `www` sigue en el sitio público |
 
 Fases 0–4 operativas. Fase 5: **bloque B cerrado** el 24-ago (T3 `state` firmado, T5 `/start`, T6 `/callback` + `meta-canje`, T7 cifrado con `kid`). Sigue abierto el bloque de WhatsApp, que depende de Embedded Signup.
 
@@ -127,8 +136,6 @@ no se sabe.
 - Nadie vigila la bandeja de resultados del App Review (**B4** del plan). La respuesta del 7-ago
   estuvo dieciséis días sin leerse y no hay nada que avise: ni correo encaminado, ni comprobación
   en el cron de diagnóstico. Mientras no lo haya, se mira a mano.
-- Cablear las plantillas de WhatsApp. Las 25 aprobadas viven en la WABA `1415042803155441`, que
-  se retira: para el número nuevo hay que crearlas de cero en `2459716937850832`.
 - Incertidumbres de Meta sin resolver: TTL de las URLs `lookaside.fbsbx.com` · límite real del
   Send API de Instagram (100 o 300/s) · suelo de `4800×impresiones` para cuentas nuevas ·
   disponibilidad regional (VE/RD/MX) de Human Agent, private replies y Conversation Routing ·
@@ -176,7 +183,10 @@ de WhatsApp.
   canario · documento de límites que firma el cliente antes del alta.
 - Login único por correo (la cookie de sesión ya se fija en `.kavea.ai`; falta resolver cuando un
   usuario esté en varias organizaciones).
-- Guarda de tipos en CI para las Edge Functions (hoy Deno no se typechequea en ningún job).
+- **Rehacer las plantillas de WhatsApp aprobadas.** La WABA nueva `2459716937850832` solo tiene
+  `hello_world`; las 25 se quedaron en la que se retiró. Ya se pueden crear desde Kavea.
+- **Editar una plantilla ya aprobada** y **el formulario propio de la categoría Autenticación**, que
+  tiene componentes que el genérico no monta —botón de copiar código, caducidad—.
 - **Los `AbortSignal.timeout` de las rutas de API piden más de lo que Netlify concede.**
   `/api/contenido` declara 45 s y `sincronizar` 60 s; el techo de Netlify Pro son 26 s, con 10 s por
   defecto. Medido el 24-ago: 1,8 s, 2,0 s y 5,7 s, así que hoy hay margen — pero `sincronizar`
@@ -223,1053 +233,218 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
-### 2026-08-24 (cierre) — WhatsApp ya puede escribir fuera de las 24 horas
-
-**Se cerró el único canal sin salida.** Fuera de la ventana WhatsApp no tenía forma de escribir: ni
-texto —lo prohíbe Meta— ni plantilla —no estaba construido—. Ahora sí, y probado de punta a punta:
-`hello_world` vinculada desde la pantalla, elegida en el compositor y **entregada con
-`wamid.HBgMNTg0MTIxNzIyNzY3…` a un número cuyo último mensaje era de hace treinta horas**.
-
-**Tres piezas, y solo una era nueva.** Decir qué variable rellena cada hueco: la columna
-`plantillas.variables` existe desde la 0042 y `renderizar_plantilla` ya la sabía usar; faltaba una
-forma de rellenarla que no fuera escribir JSON. Resolver los huecos contra la ficha: también
-existía, pero devolvía el texto entero y **Meta pide los valores uno a uno, en orden** — el texto
-montado no se puede volver a trocear. Y encolar el envío, que sí era nuevo.
-
-Se extrajo `private.valores_de_tarjeta` porque el mapa de valores hacía falta en dos sitios.
-Copiarlo habría dejado dos listas de variables que se separan el día que alguien añada una: el mismo
-fallo que ya costó una lista de campos de webhook duplicada e incompleta.
-
-**Y aparecieron dos fallos por el camino, los dos anteriores a esto:**
-
-1. **`ventana_de` mentía en WhatsApp.** Devolvía `humana` con `tag = HUMAN_AGENT` entre las 24 horas
-   y los 7 días, para cualquier canal. En WhatsApp **HUMAN_AGENT no existe** —lo dice el propio
-   despachador dos líneas más arriba— así que un texto escrito a las treinta horas se encolaba, salía
-   hacia Cloud API y Meta lo rechazaba. El operador veía una ventana que la pantalla le decía
-   abierta. Las dos conversaciones del espacio estaban así. La 0106 cierra WhatsApp a las 24 h y el
-   motivo dice qué hacer, no solo qué no se puede.
-2. **El despachador mataba la plantilla con el motivo que la plantilla venía a resolver.** Reevalúa
-   la ventana antes de enviar —correcto para todo lo demás— y dejaba `hello_world` en `fallido` con
-   «Pasaron 24 horas desde su último mensaje». Ahora una plantilla se salta esa comprobación, pero
-   **no el freno duro**: canal pausado o hilo en standby siguen parándola.
-
-**Un hueco vacío no se manda.** Si a la ficha le falta el dato, `encolar_plantilla` se niega y dice
-cuál falta. «Hola , su pedido  ya va en camino» se cobra igual que uno bien escrito y lo lee el
-cliente.
-
-**Sobre las variables: ya estaban.** Los campos personalizados existen desde la 0028 —Ajustes →
-Campos, con tipos y ámbito— y `variables_disponibles` ya los exponía: hoy son once, tres de ellas
-propias del espacio. Lo que faltaba no era crear campos, era **emparejarlos con los huecos
-numerados** de una plantilla de Meta. Eso es lo que hace la pantalla nueva, y un campo que se cree
-mañana aparece en el desplegable sin tocar nada.
-
-**Y los comentarios dejan de depender de que alguien pulse.** El webhook no llega —modo desarrollo y
-permiso rechazado, no falta de suscripción— y la lectura por API sí los trae. Hoy volvió a pasar: se
-comentó una publicación de Boosty y no apareció hasta pulsar «Traer de Meta». La 0107 pone esa
-lectura cada quince minutos. Cuando el permiso se apruebe seguirá haciendo falta: un webhook es una
-entrega, y una entrega se pierde.
-
-### 2026-08-24 (cierre) — Por qué Meta rechazó, y las plantillas dejan de estar mezcladas
-
-**Los dos rechazos tienen nombre, y Meta lo daba.** El campo `rejected_reason` existe en la API y
-Kavea no lo pedía, así que la pantalla decía «Rechazada» y punto:
-
-| Plantilla | Motivo de Meta | Qué significa |
-|---|---|---|
-| `codigo_ingreso` | `INCORRECT_CATEGORY` | Un código de acceso es AUTHENTICATION, no UTILITY |
-| `aviso_de_pedido` | `INVALID_FORMAT` | Se creó el 6-ago sin ejemplos, antes de que el formulario los pidiera |
-
-La comparación lo dejó claro antes incluso de leer el motivo: **las cinco aprobadas llevan
-`example` y la única sin él está rechazada**, con un texto casi idéntico al de una aprobada. Ahora
-el motivo se pide por su nombre en `fields` y se enseña traducido, con la salida al lado.
-
-**Y la pantalla estaba mezclando tres cosas.** Internas, WhatsApp y Messenger, una debajo de otra,
-con un cuadro arriba explicando en qué se diferencian. Ese cuadro era la confesión: una pantalla que
-necesita un cuadro para entenderse está mal. Ayer se intentó crear una plantilla de WhatsApp en el
-bloque de Messenger, que es otro producto, con otra cuenta y otras reglas detrás.
-
-Ahora son **tres pestañas**. Se pidieron dos, y son tres a propósito: Messenger usa plantillas de la
-**Página**, WhatsApp de la **cuenta de WhatsApp**, y las internas no salen de Kavea. Juntarlas para
-que fueran dos sería volver a mezclar justo lo que se estaba confundiendo. Cada pestaña lleva su
-explicación debajo, solo la suya.
-
-**Las de WhatsApp dejan de ser un registro a mano.** La 0042 las guardaba en una tabla propia
-rellenada a mano «para llevar el registro de lo que ya está aprobado allí», y eso se desincroniza el
-primer día: Meta pausa o inhabilita una y Kavea sigue enseñando lo que se tecleó. Ahora se leen de
-la WABA y se crean contra ella, con **categoría, idioma, cabecera, cuerpo, pie y hasta diez
-botones** —respuesta rápida, enlace o teléfono—. Cada regla que se puede comprobar antes se
-comprueba antes, porque una plantilla rechazada **deja el nombre ocupado para siempre**.
-
-La categoría va la primera y explicada en castellano. Elegir a ciegas entre tres palabras en inglés
-es exactamente cómo se produjo el `INCORRECT_CATEGORY` de ayer.
-
-**LO QUE FALTA, y hay que decirlo porque la pestaña nueva podría prometerlo:**
-
-- **Enviar una plantilla de WhatsApp no existe todavía.** El despachador lo dice de su puño: «la
-  plantilla NO se elige automáticamente a propósito». Se pueden crear y ver, no mandar. Sin eso,
-  fuera de las 24 h no hay forma de escribir por WhatsApp.
-- **Cabeceras de imagen, vídeo o documento.** Meta no las acepta por URL: exige subir el fichero por
-  su API de subida reanudable y pasar el `header_handle`. Es un camino aparte con su propio
-  formulario, y la pantalla lo dice en vez de ofrecer un campo que no funcionaría.
-- **Editar una plantilla ya aprobada.** Meta lo permite con límites; aquí solo se crea y se borra.
-- **La categoría AUTHENTICATION tiene componentes propios** —botón de copiar código, caducidad— que
-  el formulario genérico no monta. Se puede elegir, pero una plantilla de autenticación de verdad
-  necesita su propio formulario.
-- **La WABA nueva `2459716937850832` tiene UNA plantilla**, `hello_world`. Las 25 aprobadas se
-  quedaron en la WABA que se retiró: hay que rehacerlas.
-
-### 2026-08-24 (cierre) — Retirar de la lista, que no es eliminar, y el menú por fin responde
-
-**Se pidió «eliminar los números desconectados para que no salgan más».** Lo primero fue mirar qué
-se llevaría un `delete`, y la respuesta estaba en las claves ajenas:
-
-    meta_connections → channels → conversations → messages     (todas `on delete cascade`)
-
-Borrar la conexión de un número retirado se lleva por delante **cada conversación y cada mensaje que
-pasó por él**. Para un número que se retiró eso es justo lo que no se puede perder: es el histórico
-del cliente. Un botón que dice «eliminar» y hace exactamente eso es el peor botón posible — cumple
-lo que promete y nadie esperaba tanto.
-
-Así que la 0104 **archiva**: desaparece de la lista, que es lo que se pidió, y no se pierde nada. Se
-puede deshacer, y solo funciona sobre lo desconectado —esconder algo vivo convertiría la pantalla de
-canales en lo contrario de lo que es—. El botón dice **«Retirar de la lista»** y no «eliminar»,
-porque la palabra tiene que decir lo que hace. Y en la cabecera del modal sale «Ver N retiradas»
-cuando hay algo que enseñar: sin ese camino de vuelta, retirar sería un borrado disfrazado.
-
-La columna se añadió a la tabla **y a la vista**. `estado_de_conexion` es de donde sale la lista, y
-añadirla solo a la tabla habría dejado el archivado invisible para la única pantalla que lo necesita,
-sin error en ninguna parte.
-
-**Y el menú lateral no tenía hover.** No por descuido de estilo: los enlaces se pintaban con
-`style={{...}}` en línea, y **`:hover` no se puede escribir en un atributo `style`**. Era la única
-superficie de la aplicación sin respuesta al ratón mientras la fila de la bandeja, el chip de canal y
-la tarjeta vieja sí la tenían. El color, el fondo y el peso salen a `.nav__enlace` en `globals.css`
-—con `--k-surface-2`, el mismo tono que usa el resto y que ya es consciente del tema oscuro— y lo
-único dinámico, cuál está activo, viaja como modificador. De paso el activo gana su barra lateral
-`inset 3px`, igual que la fila de la bandeja.
-
-### 2026-08-24 (cierre) — El portafolio que es dueño de la app no se puede elegir en el diálogo
-
-Gabriel intentó reconectar Boosty.digital por el diálogo de Facebook Login for Business y no
-aparecía. La razón la escribe Meta en la propia lista, en gris y sin poder marcarla:
-
-> **Boosty Digital LLC** — *This Meta Business Account owns the app*
-
-**El portafolio que es dueño de la app no se puede compartir consigo mismo.** No es un permiso que
-falte ni un fallo de Kavea: es la regla del diálogo. Y en la misma lista está el otro caso ya
-conocido, con su propio motivo — *Centro Mármol: You need full control of this business portfolio*,
-que es el acceso parcial del 24-ago.
-
-**Consecuencia para el producto, y no es pequeña:** las Páginas del propio portafolio de Boosty
-**nunca** entrarán por autoservicio. Tienen su camino, que es el de siempre —`/api/portafolio` con
-token de system user, desde el panel interno— y ese sigue funcionando: Boosty.digital volvió con
-`suscrito: true`, dos rutas, credencial, los dos canales activos y nueve campos suscritos en Meta.
-
-**Consecuencia para los vídeos:** el recorrido de autoservicio solo se puede grabar con una Página
-de un portafolio que NO sea dueño de la app. Es exactamente lo que Gabriel grabó sin saberlo, con
-`gabrielmontieltoro`. Si hubiera intentado grabarlo con Boosty.digital, el vídeo habría enseñado una
-opción en gris.
-
-### 2026-08-24 (cierre) — La separación, probada por el propio usuario
-
-A las **02:38:32** quedó restaurado `+1 321-393-1397`. A las **02:39:21**, cincuenta segundos
-después, Gabriel volvió a pulsar «Desconectar la cuenta de Facebook» — ya con la 0102 desplegada — y
-la actividad lo dice sin ambigüedad:
-
-    meta.desautorizada  {"conexiones": 1, "intactas": 1}
-
-Una cayó, la Página; una quedó en pie, el WhatsApp. Comprobado en la base justo después:
-`+1 321-393-1397` sigue `connected`, con su ruta, su credencial y su canal activo, mientras las
-cinco conexiones con `page_id` están todas desconectadas y la autorización se borró.
-
-La versión anterior habría dicho `conexiones: 2`. La prueba la hizo él sin saberlo, y es mejor que
-cualquiera que yo hubiera montado: el mismo gesto, el mismo botón, el mismo espacio, y el resultado
-distinto en lo único que tenía que cambiar.
-
-El lado de Facebook queda desconectado **a propósito** —lo pidió el botón— y la pantalla vuelve a
-ofrecer «Conectar con Facebook». Para grabar las tomas de Messenger e Instagram hay que volver a
-autorizar y activar las Páginas.
-
-### 2026-08-24 (cierre) — WhatsApp restaurado, y el camino de vuelta que no existía
-
-**Reparado `+1 321-393-1397`**, que el botón de soltar Facebook se había llevado por delante. Los
-tres pasos, comprobados uno a uno: la fila vuelve a `connected` con su ruta
-`whatsapp_phone_number` y su canal encendido · la credencial la reemite el borde
-(`credencial_whatsapp`) **verificándola contra Meta antes de guardar** —`+1 321-393-1397`,
-«Boosty Admin», calidad GREEN, CLOUD_API— · y la WABA `2459716937850832` estaba con
-`subscribed_apps: []`, lo que confirma que el corte la dio de baja; vuelta a suscribir.
-
-Estado final: dos conexiones vivas, cada una con sus rutas, canales activos y credencial.
-
-**Y salió una asimetría de fondo.** Desde la 0079 existe `desconectar_conexion` y **no existe nada
-que lo deshaga**. Para una Página da igual: «Elegir qué conectar» la registra otra vez desde el
-BISU. Para WhatsApp no hay equivalente —entra por el portafolio, con token de system user, desde una
-pantalla de staff—, así que un número desconectado por error se quedaba así hasta que alguien
-escribiera SQL a mano. Es la misma queja que motivó el botón de soltar, del revés: si hay puerta de
-salida tiene que haber puerta de vuelta.
-
-La 0103 añade `reconectar_conexion`, que rehace lo que la desconexión deshizo del lado de Postgres
-—estado, rutas y canales— y **dice lo que no puede hacer**: devuelve `falta: ['credencial',
-'suscripcion']`, porque esas dos viven fuera y prometer una reconexión completa sería mentir sobre
-lo que la función puede saber. Dos detalles que decidieron su forma: las rutas se derivan de la fila
-y no se reciben —aceptarlas sería ofrecer una forma de enrutar activos ajenos a este espacio—, y los
-canales solo se reencienden si los apagó una desconexión: uno pausado a mano por otro motivo sigue
-pausado, porque reconectar no es deshacer todas las decisiones tomadas mientras tanto.
-
-**Y antes de aplicarla, la restricción.** La 0003 creó `meta_asset_routes.tipo` con solo
-`page | ig_business_account`. Insertar `whatsapp_phone_number` habría reventado con 23514 — el mismo
-fallo que costó la 0089. Comprobado contra la base viva antes de aplicar: una migración posterior ya
-lo había ampliado.
-
-### 2026-08-24 (cierre) — El botón se llevó un WhatsApp que no era suyo
-
-La 0101 se desplegó y Gabriel la usó esa misma noche. La actividad lo cuenta entero: **01:52:41**
-`conexion.desconectada` de Boosty.digital a mano, **02:13:48** `meta.desautorizada` con
-`conexiones: 2` —el botón nuevo—, **02:17:37** una autorización nueva. El corte completo y la
-reconexión desde cero quedan probados en producción sin que los ejecutara yo.
-
-**Y con eso salió el fallo.** Esas dos conexiones eran la Página y el número de WhatsApp
-`+1 321-393-1397`. La Página tenía que caer; el número no. **WhatsApp no cuelga de la autorización
-de Facebook**: entra por el portafolio, con token de system user, por una superficie de staff.
-`desautorizar_meta` desconectaba todo lo que hubiera en `meta_connections` sin mirar de dónde venía.
-
-Un botón que apaga más de lo que su texto promete es peor que no tenerlo, y el precio se pagó
-entero: el número quedó sin rutas, y volver a levantarlo **no es un clic** —«Elegir qué conectar»
-solo activa Páginas e Instagram del BISU—, hay que rehacerlo desde el panel interno.
-
-Arreglado en la 0102: cae lo que la autorización produjo, o sea las conexiones con `page_id`. La
-confirmación dice ahora **las dos cifras** —cuántas caen y cuántas no— y la actividad también.
-Cuando WhatsApp entre por Embedded Signup colgará de la misma autorización y habrá que volver aquí:
-la regla no es «WhatsApp nunca», es «lo que vino de este permiso».
-
-**El vídeo del login, revisado con ffmpeg.** 5 min 20 s, VP9 1920×1080 sin audio. Cubre de sobra:
-incógnito → login de Kavea → «Conectar con Facebook» → login de Facebook con 2FA → «Trust this
-device» → **«Select the business assets to share with kavea»** con portafolio, Página e Instagram →
-código de confirmación → «Gabriel Montiel Toro has been connected to kavea» → vuelta a Kavea, «Qué
-conectar» → **Activar**. Y después, un mensaje de Instagram entrando y la respuesta saliendo.
-
-Partido en las dos tomas que el montador espera: `login.mp4` (0→178 s) e `instagram.mp4`
-(262→fin). Entre medias había **45 segundos de bandeja vacía** que no aportan nada. Comprobado en la
-base que la respuesta «ok» salió de Kavea —`enviado`, 02:20:10, con id de Instagram—; el «cool» que
-también se ve lo escribió él en Instagram. Con eso, **cinco de los ocho vídeos quedan montados**.
-
-### 2026-08-24 (cierre) — La puerta de salida, y Boosty.digital quedó desconectada
-
-**Ya se puede soltar la cuenta de Facebook entera** (0101 + `meta-soltar` + el botón en Canales).
-Antes se podía desconectar un canal pero no la autorización de la que cuelgan todos: la fila seguía
-con su BISU cifrado, la pantalla seguía diciendo «ya autorizaste», y Kavea seguía apareciendo en los
-ajustes de Facebook del cliente como una app con acceso. Un producto que deja entrar tiene que dejar
-salir por la misma puerta.
-
-**Soltar son tres cosas y el orden no es negociable.** Lo local —desconectar todas las conexiones,
-borrar credenciales y enrutado, apagar canales— ocurre sí o sí, porque el cliente pidió irse. Luego,
-en el borde: primero las bajas de webhooks, que necesitan un token de Página y los tokens de Página
-se piden CON el BISU; y después `DELETE /me/permissions`, que lo mata. Al revés, Meta se queda
-mandando eventos a una ruta que ya no existe. Por eso la fila se marca `revocada_en` en vez de
-borrarse: para la aplicación deja de existir en el mismo instante y el borde todavía puede leerla.
-
-La confirmación lleva escrito **cuántas conexiones se apagan** y dice que las conversaciones no se
-borran — la misma distinción que hace el callback de desautorización de Meta: retirar el acceso es
-«dejad de escribir en mi nombre», no «olvidad lo que pasó».
-
-**Un `div` dentro de un `p`.** El bloque de la autorización era un párrafo y el botón nuevo es un
-`div`: HTML inválido, el navegador cierra el párrafo antes de tiempo y salta el error de hidratación
-**418** de React. Compilaba, el typecheck pasaba y la pantalla se veía bien. Lo dijo la consola en la
-primera pasada con Playwright, que es exactamente para lo que esa pasada existe.
-
-**Y al comprobar el número de la confirmación salió otra cosa.** La tarjeta decía «2 conexiones
-activas» y las de canal sugerían tres; mirando la base, **`Boosty.digital` está `disconnected` desde
-las 01:52:41**, con su actividad `conexion.desconectada` —a mano, desde la pantalla de canales; no
-fue el botón nuevo, que registra `meta.desautorizada`—. Las rutas lo confirman: solo quedan las de
-`gabrielmontieltoro` y el número de WhatsApp. Mientras siga así, **ni los DM ni los comentarios de
-`@boosty.digital` entran**, y `/contenido` ya no la lista. La autorización sigue viva, así que
-volver a conectarla es un clic en `Elegir qué conectar → Activar`, sin pasar por Meta.
-
-### 2026-08-24 (cierre) — El montador, y el login se graba una vez
-
-`ffmpeg` instalado (9.0.1 por scoop) y `scripts/montar-screencasts.mjs` escrito. Pega las tomas en
-orden y saca los ocho vídeos del envío en `screencasts/entrega/`.
-
-**Por qué existe.** Meta pide cinco cosas en CADA screencast y las dos primeras son el login de Meta
-y la pantalla de consentimiento. Grabar eso ocho veces es absurdo: se graba **una vez** y el script
-lo pega delante de los ocho. Cuatro de los ocho —`human_agent`, `pages_read_engagement`,
-`instagram_basic`, `pages_manage_metadata`— quedan **completos con solo esa toma**, porque el resto
-del metraje ya lo grabó el runner.
-
-Los otros cuatro necesitan cliente nativo, que no lo puede grabar un runner: `pages_messaging`,
-`instagram_manage_messages`, `pages_utility_messaging` y el cierre de
-`instagram_manage_comments` —«Then, open the native client to confirm the final state»—.
-
-**Se normaliza antes de pegar, y no es cosmético.** `concat` exige mismo códec, tamaño, fps y pista
-de audio. Los vídeos de Playwright son VP8 1440x900 a 25 fps y **sin audio**; una grabación de
-pantalla es H.264 a la resolución del monitor y con audio. Pegarlos en crudo da un fichero que unos
-reproductores abren y otros no, y el del revisor de Meta es justo el que no se puede probar. Todo
-pasa por 1440x900, 25 fps, H.264 y una pista silenciosa. Y se escala con `pad` en vez de estirar:
-lo que el revisor tiene que hacer con este vídeo es LEER.
-
-**No monta vídeos a medias.** Si a un permiso le falta una toma, no se genera y se dice cuál falta
-por su nombre. Un fichero incompleto con el nombre correcto es lo que se sube sin mirar — ya pasó
-hoy con los 930 KB de `human_agent`.
-
-Probado de punta a punta con un clip de prueba: los cuatro que solo necesitan el login se montaron,
-los otros cuatro se reportaron por su nombre, y el resultado sale en 1440x900 H.264 con audio y con
-el segundo tramo en su sitio, comprobado extrayendo fotogramas.
-
-**Y la duda del botón:** no hay que desconectar nada para grabar el login. Con la autorización ya
-hecha, la pantalla de canales enseña «Elegir qué conectar» y debajo **«Autorizar otra cuenta»**, que
-apunta al mismo `/api/meta/oauth/start` que el botón de la primera vez. Lo que sí hace falta es una
-ventana sin sesión de Facebook —de incógnito— o el diálogo se salta el login, que es el requisito 1.
-
-### 2026-08-24 (cierre) — El comodín entró, y los doce vídeos
-
-**`*.kavea.ai` está vivo.** Netlify lo habilitó tras borrar los cuatro alias. Comprobado nombre por
-nombre: `boosty`, `demostracion`, `admin` y **`cualquiercosa.kavea.ai`** dan 307 —el comodín sirve
-cualquier subdominio nuevo sin registrarlo—, `www` sigue con su 301 al ápice y `kavea.ai` con su 200.
-**La fase C queda desbloqueada**: un inquilino nuevo ya no necesita una llamada a la API de Netlify
-por cada alta, ni depende de que el DNS propague.
-
-**Y casi se reporta un fallo que no existía.** `conectar.kavea.ai` y `cuenta.kavea.ai` seguían dando
-404 en la raíz mientras los otros funcionaban, con DNS idéntico —mismo destino, mismas IPs—. Lo
-resolvió una cabecera: el 404 traía `Netlify-Vary: … x-nextjs-data …`, o sea que lo devolvía **la
-aplicación**, no el CDN. Son superficies sin inquilino y su raíz no tiene página. Las rutas que sí
-sirven responden como deben: `cuenta/registro` y `cuenta/crear` 200,
-`conectar/api/meta/oauth/start` 401 —pide sesión— y `callback` 400 —falta el `state`—.
-
-**Los doce vídeos, grabados.** Con `human_agent` cerrado usando la tarjeta `7ecc5529…`, cuyo entrante
-de Instagram tenía 37 h: dentro del tramo de 24 h a 7 días. El hito enseña la píldora «Instagram
-solo intervención humana» y el aviso literal —«Fuera de las 24 horas. Se enviará como intervención
-humana, y solo vale hasta los 7 días»—, y el envío salió con `messaging_type = MESSAGE_TAG` y su id
-de Instagram. Tres envíos en vivo comprobados en la cola en la misma tirada: WhatsApp, Instagram con
-tag y Messenger con `RESPONSE`.
-
-Falta de B3 solo lo que necesita manos: el diálogo de Meta y el cliente nativo.
-
-### 2026-08-24 (cierre) — El DM de @eficienzia.ai no llegó, y no es un fallo de Kavea
-
-Gabriel mandó un DM desde `@eficienzia.ai` y no apareció en la bandeja. Diagnóstico, en este orden:
-
-1. **El último webhook de Instagram es de las 04:06.** Nada después. El mensaje no llegó a Kavea,
-   así que no hay nada que arreglar en la ingesta.
-2. **Las suscripciones están bien.** El objeto `instagram` tiene `messages`, `comments`,
-   `message_reactions`, `messaging_postbacks`, `messaging_referral`, `messaging_seen` y `standby`, y
-   la Página tiene sus nueve campos. La app entrega DM: 61 eventos de `instagram`, el último hoy.
-3. **La app está en modo desarrollo y solo tiene DOS roles**, los dos administradores. Ningún
-   tester. En modo desarrollo Meta entrega eventos únicamente de quien tiene rol en la app: por eso
-   los DM de `@gabrielmontieltoro` entran y los de `@eficienzia.ai` no.
-
-**Preguntarle a Graph no era una opción**, y eso también es un dato: `GET
-/{ig-id}/conversations` responde `(#3) Application does not have the capability to make this API
-call`, porque `instagram_manage_messages` está rechazado. El permiso que falta impide comprobar el
-problema causado por el permiso que falta.
-
-**Corrección de la bitácora.** Se venía diciendo que el webhook de comentarios no llega por «falta
-la suscripción al campo `comments` del objeto `instagram`». **La suscripción está.** De 61 eventos de
-`instagram`, ninguno es un comentario. La explicación que encaja es la misma que la del DM ajeno:
-modo desarrollo y `instagram_manage_comments` rechazado. Se arregla con la aprobación, no tocando el
-panel.
-
-**Salida para el vídeo:** no pelearse con los roles. `@gabrielmontieltoro` ya entrega, tiene la
-ventana de 24 h abierta (entrante de hace 8,7 h, tarjeta `da6c1b3e…`) y sirve igual como cliente
-nativo. Si algún día hace falta `@eficienzia.ai`, hay que añadir su cuenta de Facebook como tester
-de la app y aceptar la invitación.
-
-### 2026-08-24 (cierre) — Los cuatro alias borrados, y el cliente nativo no lo puede tocar un runner
-
-**Ejecutado el paso que Netlify pedía.** `kavea-app` se queda solo con el primario `admin.kavea.ai`;
-`boosty`, `cuenta`, `conectar` y `demostracion` fuera. Comprobado inmediatamente después: los cuatro
-dan **404**, y `admin` (307), `www` (301 al ápice) y `kavea.ai` (200) intactos, tal como Netlify
-anticipó. **Mientras esto siga así no se puede grabar nada**: los guiones apuntan a
-`boosty.kavea.ai`. Contestado a Romeo para que active el comodín.
-
-**El cliente nativo no se puede automatizar desde aquí, y no por falta de ganas.** Gabriel dejó
-abiertos WhatsApp Web del `+58 412 172 2767` e Instagram de `@eficienzia.ai` para que Kavea
-escribiera y se viera llegar. No hay herramienta de navegador en esta sesión, y la vía técnica
-—atacharse a su Chrome por CDP— está cerrada: el proceso corre sin `--remote-debugging-port` y desde
-Chrome 136 ese flag está **bloqueado con el perfil por defecto**, que es justo el que tiene las
-sesiones. Un perfil nuevo no está logueado, así que no hay atajo.
-
-Y aunque lo hubiera, el vídeo saldría partido: Playwright graba UN contexto, y el cliente nativo vive
-en otro navegador. Los cuatro «delivered message in the native client» son una grabación de pantalla
-de una persona, con Kavea en una pestaña y el cliente en la otra.
-
-**Lo que sí se pudo averiguar, y cambia el plan:**
-
-- **`+58 412 172 2767` SÍ está en la bandeja** —tarjeta `202c9cae…`, entrante de hace 14,1 h— así que
-  la ventana de 24 h está abierta. Es el número al que ya salió el envío de
-  `whatsapp_business_messaging`: el `wamid.HBgMNTg0MTIxNzIyNzY3…` lleva `584121722767` dentro.
-- **`@eficienzia.ai` NO está en la bandeja.** No hay conversación de Instagram con esa cuenta, y no
-  puede haberla: la mensajería de Instagram solo permite responder dentro de la ventana que abre el
-  usuario. **Tiene que escribir un DM a `@boosty.digital` primero.**
-- **`human_agent` SÍ se puede grabar hoy.** La tarjeta `7ecc5529…` tiene un entrante de Instagram de
-  hace **37,2 h**: dentro del tramo de 24 h a 7 días. Lo de ayer no falló por la ventana, falló por
-  la tarjeta.
-
-**Y el guion tenía un segundo fallo debajo del primero.** Buscaba `button.canal-chip` para elegir
-Instagram, pero el compositor **solo pinta ese botón cuando la tarjeta tiene más de una
-conversación**; con una sola pone una línea de texto. La tarjeta buena tiene exactamente un canal, así
-que el arreglo de ayer habría vuelto a fallar por otro motivo. Ahora: variable propia
-`TARJETA_HUMAN_AGENT` —el requisito no tiene nada que ver con el de WhatsApp—, el chip se clica solo
-si existe, y **se comprueba que el compositor anuncia intervención humana antes de escribir**. Sin esa
-comprobación, un entrante de menos de 24 h produce un vídeo que parece correcto y no enseña la feature.
-
-### 2026-08-24 (cierre) — Netlify o Vercel, con los números medidos
-
-Investigado a peticion de Gabriel. Lo que decide no es la comparativa de las webs de cada uno, es
-lo que ya está escrito en este repositorio.
-
-**El impuesto del adaptador está documentado en el propio código.** `app/middleware.ts` dice, de su
-puño: `NextResponse.next({ request: { headers } })` **no propaga** en el Next Runtime de Netlify —se
-comprobó en producción, el síntoma era un 404 en la raíz de cualquier subdominio— y hubo que rodearlo
-leyendo el `Host` en `lib/dominio.ts`. Es una función estándar de Next.js que el adaptador emula mal.
-Y `app/netlify.toml` fija `@netlify/plugin-nextjs` en `5.11.2` a propósito, porque una actualización
-automática cambia cómo se sirven las rutas del App Router. Vercel mantiene Next.js: no hay adaptador
-que emular ni versión que fijar.
-
-**El techo de las funciones, medido.** Netlify Pro corta las funciones síncronas a **26 s**, con
-**10 s por defecto** y hay que pedirle a soporte que lo suban. Vercel Pro: **300 s por defecto, 800 s
-de máximo**. Y el código de Kavea ya pide más de lo que Netlify puede dar: `/api/contenido` declara
-`AbortSignal.timeout(45_000)` y el `sincronizar` de `/api/comentarios`, 60_000.
-
-Medido hoy en producción, desde el navegador y con sesión real:
-
-| Ruta | Tiempo | Declarado en el código |
-|---|---|---|
-| `/api/contenido` · pagina | 1 792 ms | 45 s |
-| `/api/contenido` · instagram | 1 956 ms | 45 s |
-| `/api/comentarios` · sincronizar | 5 664 ms | 60 s |
-
-El techo no se toca hoy. Pero `sincronizar` escala con las cuentas conectadas: 5,7 s para **dos**
-cuentas, 24 publicaciones y 50 comentarios. Con ocho o diez cuentas cruza los 26 s, y entonces
-Netlify mata la petición mientras el código cree que tiene un minuto. **Eso hay que arreglarlo
-igual, en cualquier plataforma**: un `AbortSignal` más largo que el techo de la plataforma es una
-promesa que no se puede cumplir.
-
-**El comodín.** En Vercel los subdominios comodín son una función de primera clase para
-multi-inquilino, en todos los planes y sin ticket, y los dominios concretos conviven con el comodín.
-En Netlify costó el caso #1097522, seis requisitos, y ahora exige borrar los cuatro alias con una
-ventana de caída. Con comodín, además, la función `subdominio` —que llama a la API de Netlify para
-añadir un alias por inquilino, y cuya propagación de DNS era impredecible: `demostracion` no
-resolvía quince minutos después— deja de hacer falta.
-
-**Lo que cuesta mudarse, sin adornos.** El comodín de Vercel **exige sus nameservers**, así que la
-zona de `kavea.ai` tiene que mudarse entera: MX del entrante de SES, MX y SPF de `send.kavea.ai`,
-DKIM de Resend, DMARC. Ahí está el riesgo real —hay correo de por medio—, no en el hosting.
-`Netlify Blobs` lo usan tres funciones de Supabase (`drenar-amortiguador`, `subdominio`,
-`_compartido/almacen.ts`) como amortiguador de webhooks; hablan por token y seguirían funcionando
-desde cualquier sitio, pero mantenerlas significa depender de dos plataformas. El sitio público es
-Astro estático y da igual dónde viva. En precio es empate: Netlify Pro 19 $/miembro, Vercel Pro
-20 $/asiento con 20 $ de crédito y 1 TB incluido.
-
-**Y NO, las Actions no correrían en Vercel.** Vercel tiene *Native Deployment Checks*, pero solo
-ejecutan dos guiones fijos de `package.json`: `lint` y `typecheck`. No guiones arbitrarios. Los
-*Deployment Checks* generales **importan** el resultado de GitHub Actions —dependen de ellas, no las
-sustituyen—. Y no hay Docker en el camino de construcción, así que «Esquema desde cero y
-aislamiento» no se mueve a ninguna de las dos. De los cinco trabajos, Vercel cubriría de forma nativa
-el typecheck y el lint; los cuatro guardianes de node y grep habría que meterlos en el `command`, y
-el de esquema se queda en Actions. **La respuesta a lo de CI no cambia con la plataforma**: lo barato
-sigue siendo poner filtros `paths:` al workflow que ya existe.
-
-**Recomendación:** mudarse sí, pero **después de enviar el App Review**. La fase B tiene fecha —las
-llamadas de prueba caducan el 5-sep— y los once vídeos están grabados contra producción. Mover el
-hosting en medio del envío arriesga justo lo que tiene fecha. El comodín de Netlify, en cambio, sí
-ahora: son minutos de caída con un ingeniero esperando al otro lado, no hay clientes externos que
-puedan tropezar, y deja la fase C desbloqueada aunque la mudanza se retrase.
-
-### 2026-08-24 (cierre) — El canario C1 cazó una tabla sin RLS
-
-La 0099 creó `private.revision_permisos` y se dejó las dos líneas que llevan todas las demás
-tablas. Lo dijo CI, no una persona: «C1: tablas sin RLS activo y forzado:
-private.revision_permisos». Tres despliegues seguidos en rojo por eso, con los otros cuatro
-trabajos en verde.
-
-Estar en `private` —que PostgREST no expone— hace que no fuera alcanzable desde fuera, y por eso
-el olvido no rompió nada visible. Es exactamente la razón por la que el canario existe: una tabla
-que hoy nadie puede leer desde fuera es una tabla que mañana alguien expone sin saber que no tenía
-red. Y `force` importa más que `enable` aquí, porque todo lo que la toca son funciones
-`security definer`, que corren como el dueño y sin `force` se saltan sus propias políticas.
-
-Arreglado en la 0100, y comprobado que el vigilante sigue funcionando con RLS forzado:
-`relrowsecurity` y `relforcerowsecurity` en `true`, y la pasada siguiente devolvió
-`cambios: 0` como debe.
-
-### 2026-08-24 (cierre) — Once de los doce vídeos, grabados contra producción
-
-Con las pantallas desplegadas, `scripts/grabar-screencasts.mjs` sacó **once vídeos**, y lo que
-enseñan está comprobado en la base, no supuesto:
-
-- **`instagram_manage_comments`** — el ciclo entero sobre una publicación real: `comentario.respondido`
-  a las 10:59:00, `comentario.editado` a las 10:59:22, `comentario.borrado` a las 10:59:33.
-- **`whatsapp_business_messaging`** — envío en vivo, `estado: enviado`, `wamid.HBgMNTg0MTIxNzIyNzY3…`.
-- **`pages_messaging`** — envío en vivo, `estado: enviado`, `m_5VIxoSi2RdVRy0A8ynihT1rC9zij…`.
-- **`instagram_basic`** — handle `@boosty.digital`, ID `17841421294200897`, campos de perfil y la
-  lista etiquetada «Publicaciones de @boosty.digital».
-- **`pages_read_engagement`** — elección de Página, contenido leído en vivo y la identidad delante.
-
-**Hitos, para poder auditar sin ver doce vídeos.** Nueve PNG, uno por momento que justifica un
-permiso. Existen porque `ffmpeg` no está instalado y sin él no hay forma de sacar un fotograma
-después: tres guiones llevaban semanas grabando la pantalla equivocada y nadie lo vio porque el
-fichero salía, con su tamaño razonable.
-
-**Tres cosas del script que habrían producido un envío malo:**
-
-1. **Dos ficheros por permiso.** Playwright nombra con hash y el script pone el permiso delante,
-   así que tras dos tiradas convivían el `instagram_basic` del 6-ago —197 KB, la bandeja,
-   rechazado— con el nuevo de 2 MB. Elegir bien dependía de mirar la fecha de doce ficheros. Ahora
-   la carpeta anterior se aparta antes de grabar.
-2. **`human_agent` se saltaba en silencio** dentro de un `if` sin `else`: la tirada sacó once
-   vídeos y faltaba el duodécimo hasta contarlos.
-3. **Y luego grabó uno inútil.** Con la tarjeta puesta, el recorrido no encontró el chip de
-   Instagram, avisó y salió — y `grabar` guardó igual 930 KB de una pantalla sin Human Agent, con
-   el nombre del permiso delante y listo para subir. Ahora un recorrido puede devolver `false` y el
-   vídeo se tira.
-
-**`human_agent` no se puede grabar hoy**, y por dos razones a la vez: la tarjeta de WhatsApp que se
-usó es de un contacto que nunca escribió por Instagram, y el tag solo vale entre las 24 h y los
-7 días desde el último entrante —los tres canales tienen entrantes de hace 7 y 13 horas—. Mañana
-sí, si no entra nada nuevo que reinicie la ventana.
-
-**Y el hilo se limpió para la cámara.** Cuatro comentarios de prueba tachados eran lo primero que
-se veía. Van en un `details` nativo: se abre sin JavaScript, el rastro sigue ahí y no es lo primero.
-
-Falta de B3 lo que un runner no puede hacer: el diálogo de Meta —completar el login pide
-credenciales de Facebook en el navegador— y el cliente nativo, que son cuatro notas de rechazo.
-
-### 2026-08-24 (cierre) — El despliegue que se canceló solo, y los rojos que no eran fallos
-
-Se subieron los cinco commits del día de golpe. Netlify **canceló el build** de la aplicación y
-`boosty.kavea.ai/contenido` siguió dando 404: las pantallas nuevas nunca se desplegaron.
-
-La causa está en `app/netlify.toml`:
-
-    ignore = "git diff --quiet HEAD^ HEAD -- ."
-
-Eso mira **un solo commit**, el de la punta. El último de los cinco solo tocaba `docs/` y
-`scripts/`, así que la comparación salió limpia y Netlify canceló «due to no content change» —
-dejando sin construir los cambios de `app/` de los dos commits anteriores. El despliegue sale en
-rojo, pero el motivo que da suena a que no había nada que hacer, que es lo que hace que no se mire.
-
-Arreglado comparando contra `CACHED_COMMIT_REF`, el commit del último build con éxito: entre ese y
-el actual está todo lo que falta por construir. **Con respaldo `${CACHED_COMMIT_REF:-HEAD^}`**,
-porque una variable vacía ahí no falla: invierte el sentido. `git diff --quiet "" $COMMIT_REF -- .`
-compara el árbol de trabajo contra ese commit, sale limpio y **cancela**. De los dos errores
-posibles, ese es el peor, y la primera versión del arreglo lo tenía.
-
-**Y NO ESTÁ COMPROBADO.** El commit que lo arregla toca `app/`, así que la regla vieja también
-habría construido: el despliegue que salió bien no prueba nada sobre el arreglo. La prueba de
-verdad es el siguiente empujón de varios commits cuyo último no toque `app/`.
-
-**Corrección de una creencia anterior.** El sitio público lleva **al menos seis despliegues
-seguidos** en rojo con ese mismo mensaje, y la bitácora del 24-ago lo apuntó como señal de que el
-problema no era el código sino la facturación de Actions. La conclusión era correcta por accidente:
-esos rojos son el `ignore` haciendo su trabajo —`web/` no cambia— reportado como error. **Un
-despliegue rojo del sitio público no es un fallo**, y confundirlo cuesta buscar en el sitio
-equivocado.
-
-Y el 502 de `/contenido` justo después del despliegue era arranque en frío de la función: al tercer
-intento, 307 a `/entrar`, que es lo correcto.
-
-### 2026-08-24 (cierre) — Tres de los ocho vídeos grababan la pantalla equivocada
-
-Al reescribir `scripts/grabar-screencasts.mjs` para B3 apareció algo que la nota de rechazo no
-decía y que explica más que ella:
-
-- **`instagram_manage_comments`** grababa `${BASE}/comentarios`. Esa ruta **dejó de existir el
-  21-ago**, cuando los comentarios pasaron a ser una pestaña de la Bandeja. El vídeo enseñaba un
-  404, con mucha calma y en buena resolución.
-- **`pages_read_engagement`** grababa `/admin/portafolio` con scroll: una lista de nombres de
-  Páginas. La nota pide elegir una Página, leer su contenido y pintarlo con su identidad delante.
-  Una lista de nombres no es ninguna de las tres cosas.
-- **`instagram_basic`** grababa `/bandeja`. Es mensajería: no tiene handle, ni campos de perfil,
-  ni lista de medios. Nada de lo que la nota nombra.
-
-Los tres se rechazaron. La causa que Meta puso —«Screencast Not Aligned with Use Case Details»—
-era literal, y se leyó como si fuera solo el asunto del login. Era las dos cosas.
-
-Reescritos contra las pantallas que ahora existen: el ciclo completo en el hilo del comentario,
-`/contenido` para el contenido de la Página, y su pestaña de Instagram para el perfil. Y la
-cabecera del script dice ahora **qué no puede grabar**: el login de Meta y la pantalla de
-consentimiento —existen desde el 24-ago, pero completar el diálogo pide credenciales de Facebook
-en el navegador— y el cliente nativo, que son cuatro notas de rechazo y un teléfono en la mano.
-
-**No se ha grabado nada todavía**: el script apunta a producción y las pantallas nuevas están en
-tres commits sin desplegar.
-
-### 2026-08-24 (cierre) — Alguien mira el App Review, y el encuadre del envío estaba caduco
-
-**B4.** La respuesta del App Review del 7-ago estuvo **dieciséis días** sin leerse. No fue
-descuido: no hay webhook de esto, el correo de Meta cae donde nadie mira a diario y el panel hay
-que abrirlo a propósito. Ahora `vigilar-revision` pregunta cada día a
-`GET /{app-id}/permissions` con **token de app** —`{id}|{secreto}`, que no caduca y no depende de
-ninguna persona—, compara contra lo último visto (0099) y manda correo si cambió algo.
-
-Los rechazados no aparecen en esa lista, así que la comparación funciona en las dos direcciones:
-un permiso que **aparece** es una aprobación y uno que **desaparece** es una revocación. La segunda
-importa más — es la que avisaría de que Kavea se quedó sin poder mandar nada.
-
-Tres decisiones que hacen que se le pueda hacer caso:
-- **La primera pasada siembra y calla.** Con la tabla vacía todo parece un cambio; un vigilante
-  que grita el día que lo instalas es un vigilante al que se deja de hacer caso.
-- **Sin `data` no se anota nada.** Un error de red tratado como respuesta buena diría que se
-  perdieron los trece permisos de golpe. Misma guarda que `verificar-autorizaciones`.
-- **El correo se marca después de que Resend acepte.** Una alerta marcada como notificada sin
-  correo enviado sale de la lista de pendientes y nadie vuelve a mirarla.
-
-Probado de punta a punta, no solo el camino feliz: primera pasada `primera_vez: true` sin avisar ·
-segunda `cambios: 0` · se falseó un estado guardado y la tercera detectó el cambio, escribió la
-alerta 112 y **entregó el correo** (`avisado: true`) · la cuarta volvió al silencio. Hicieron falta
-dos secretos nuevos en el proyecto: `RESEND_API_KEY` y `KAVEA_CORREO_ALERTAS`.
-
-**B2, y aquí había un error de documento.** `docs/07` decía «Kavea no tiene ninguno de los dos, y
-no es un olvido: es la arquitectura». Era verdad el 7-ago y dejó de serlo el 24, cuando Facebook
-Login for Business entró en producción. Enviar con ese encuadre habría sido declarar que no
-tenemos algo que sí tenemos, y renunciar al argumento más fuerte que hay. Son **dos caminos**:
-autoservicio, donde el login de Meta y la pantalla de consentimiento se ven completos, y clientes
-del portafolio con token de system user, donde no los hay —y ese es el caso que contempla el
-quinto punto de la propia lista de Meta—. El texto del envío está escrito en inglés y listo para
-pegar en *Request again*, con lo que enseña cada vídeo, permiso por permiso.
-
-Lo que ese texto NO promete: que los vídeos de los permisos que solo se usan por el camino del
-portafolio enseñen un login. Prometer de más en el formulario es cómo se consigue un segundo
-rechazo con la misma nota.
-
-### 2026-08-24 (cierre) — El ciclo de moderación, y la Página que se elegía sola
-
-**Lo que Meta pidió, verbatim:** «a complete comment moderation loop… add a comment from your app,
-edit that comment, and delete it. Then, open the native client to confirm the final state on that
-post». Kavea sabía responder y nada más.
-
-**Editar no existe en Instagram.** La arista de un comentario de IG acepta `hide` y `DELETE`; el
-texto no se cambia. Así que editar es publicar el nuevo y borrar el viejo, EN ESE ORDEN: si falla
-el segundo paso quedan dos comentarios —visibles, y se arreglan—, y al revés no quedaría ninguno.
-De los dos fallos posibles se elige el que deja rastro. La pantalla lo dice con esas palabras
-antes de pulsar, porque el resultado se ve en público y el enlace del comentario cambia.
-
-Editar y borrar solo en lo que publicó Kavea (`propio`); ocultar y mostrar en lo demás. Un botón
-de borrar sobre el comentario de un cliente, en una bandeja compartida y sin vuelta atrás, se
-pulsa por error un día.
-
-**Y LA PÁGINA SE ELEGÍA SOLA.** `sincronizar-comentarios` y `responder-comentario` resolvían la
-cuenta con `meta_asset_routes?tipo=eq.page&limit=1`: la primera fila de la tabla ENTERA. Con una
-Página conectada acierta siempre y parece correcto; desde ayer hay tres, de dos organizaciones.
-Pulsar «Traer de Meta» en un espacio leía la cuenta que devolviera Postgres. No era un permiso mal
-puesto —RLS seguía en pie— era una pregunta mal hecha con una respuesta plausible, que es lo que
-la mantuvo invisible dieciocho días. Ahora la organización llega resuelta desde el servidor y se
-recorren TODAS sus cuentas: la primera pasada arreglada trajo **49 comentarios que nunca habían
-entrado**.
-
-**De dónde sale el token, en orden:** la credencial cifrada de la conexión, y solo si Meta la
-rechaza por permiso, la derivada del portafolio —y entonces AVISA—. Importa cuál gana: el ciclo
-entero se probó y salió `via: "conexion"`, así que un cliente de autoservicio, que no está en el
-portafolio de Boosty y del que no se puede derivar nada, también puede moderar.
-
-**Probado contra Instagram de verdad**, no contra un ejemplo: publicar (`18349773871172333`),
-editar (`17981634636116725`, id nuevo), borrar. Los dos ids consultados después en Graph: «does
-not exist». El ciclo no deja nada puesto.
-
-**El fallo del intermedio.** La 0097 insertaba la fila de la respuesta propia y se olvidó de
-`raw`, que es `not null` desde la 0066. Reventó con 23502 DESPUÉS de que Meta ya hubiera
-publicado: quedó un comentario suelto en Instagram que Kavea no sabía que era suyo y por tanto no
-podía borrar. Lo dijo el aviso «salió en Meta pero no se pudo guardar aquí», que está puesto justo
-para eso; sin él la pantalla habría dicho «publicado» y ya. Se limpió a mano por Graph y se
-arregló en la 0098.
-
-**El guardián tenía un punto ciego.** Los cuatro tipos nuevos se construían como
-`'comentario.' || case …`, y el comprobador de actividades busca literales: dijo «63 tipos, todos
-traducidos» de cuatro que no sabía que existían. Ahora el nombre se escribe entero y el guardián
-conoce el prefijo. 67 tipos.
-
-**La lista es una cola de trabajo.** Lo que publica Kavea y lo borrado ya no salen en la lista de
-comentarios —no son tareas de nadie— pero siguen en el hilo, que es donde cuentan la historia.
-
-### 2026-08-24 (cierre) — B1: las dos pantallas que Meta dijo que no vio
-
-Los ocho permisos se rechazaron el 7-ago con notas que describen pantallas, no código. Dos de
-ellas no existían y hoy existen: `pages_read_engagement` («Page selection, the retrieval of Page
-content such as posts, photos, events, and the rendered results in your app's UI with the Page
-identity visibly displayed») e `instagram_basic` («the selected Instagram professional account
-with its handle or ID visible, a sample of profile fields, and a media list labeled for that
-account»). Las dos piden lo mismo con palabras distintas: **elegir un activo y luego verlo con su
-identidad delante**. Por eso son lista → detalle, y por eso el identificador numérico está a la
-vista: es lo que deja a un revisor comprobar que lo pintado es de la cuenta que dice ser.
-
-- **`meta-contenido`** (función nueva). Existe porque el Page Access Token está cifrado en
-  `private.meta_credentials` y la clave vive en el almacén del borde; descifrarlo es lo único que
-  no puede hacer Next. Acción `instagram`: perfil (nueve campos) + doce medios. Acción `pagina`:
-  identidad + publicaciones, fotos y eventos **en paralelo**, con un aviso por sección: una Página
-  sin eventos y una Página cuyo permiso de eventos falló se ven igual en pantalla si nadie lo dice.
-  No cachea nada: una foto borrada en Instagram no puede seguir viéndose en Kavea.
-- **`/contenido`** y **`/contenido/[conexion]`**. La conexión se busca en `conexionesDe(org.id)`,
-  que lee bajo RLS: un id de otro inquilino no aparece y responde 404. La ruta de API repite la
-  comprobación con el cliente del usuario antes de proxyar con la clave de servicio.
-- **Quién puede: cualquier miembro.** Es leer lo que el negocio ya publicó. Pedir `conectar` aquí
-  habría sido la misma confusión que hoy costó un camino muerto: la guarda pesa lo que pesa la
-  acción.
-
-Verificado contra producción, no contra un ejemplo: `@boosty.digital · 1625 seguidores · 327
-publicaciones`, doce medios pintados; `Boosty.digital · Agencia de marketing · 172 seguidores`,
-diez publicaciones y diez fotos, cero eventos, sin avisos. Trece imágenes cargadas, cero errores
-de consola.
-
-**El fallo que solo se ve pulsando.** La primera pasada reventó con `Cannot read properties of
-undefined (reading 'profile_picture_url')`. Al cambiar de pestaña, React repinta con la pestaña ya
-cambiada y los datos todavía de la anterior; el bloque de Instagram leía el perfil de una Página.
-Un fotograma de vida. Ahora el dato viaja con la pestaña a la que pertenece y no hay pareja
-imposible que pintar.
-
-### 2026-08-24 (cierre) — Fase A cerrada, y cada canal a su embudo
-
-**A2 completa.** Con permiso de Gabriel para mandarse mensajes, se envió uno real por **Instagram**
-y otro por **Messenger** desde la bandeja, con el PAT que vino del diálogo, y **los dos volvieron
-como echo de Meta** con su `mid`. Un echo solo existe si Meta lo entregó. De paso queda probado
-**Messenger de extremo a extremo con un contacto real**, que era un pendiente desde el 6-ago.
-Con eso la fase A queda cerrada entera.
-
-**Una conexión desconectada ya lo parece.** Al desconectar Centromarca, la cabecera seguía
-ofreciendo «Desconectar» y «Volver a comprobar» mientras sus canales decían «Inactivo»: la misma
-tarjeta afirmaba dos cosas a diez píxeles. El panel no lo ocultaba, no podía saberlo —
-`estado_de_conexion` no exponía `estado` (0094)—. Ahora enseña «Desconectada» y ofrece «Volver a
-conectar», y las tarjetas de canal cuentan las desconectadas aparte: no están rotas, lo están a
-propósito, y decir «todo en orden» incluyéndolas sería falso.
-
-**Cada canal a su embudo (0095).** Gabriel creó un segundo embudo, «Clientes», y pidió poder
-decidir a cuál entra cada canal. Hasta ahora `tarjeta_de_contacto` metía toda tarjeta nueva en el
-predeterminado y no sabía por qué canal había llegado la conversación; con un canal eso era
-invisible, con dos números de WhatsApp mezcla en un tablero lo que el negocio lleva separado.
-
-`resolver_conversacion` ya recibía el `channel_id` desde la 0082 —lo necesitaba para no mezclar
-dos números en un hilo— y no se lo pasaba a la tarjeta. Esa es la línea que cambia.
-
-Tres decisiones:
-
-- **El embudo es del CANAL, no de la conexión.** Una Página trae Messenger e Instagram y no hay
-  razón para que vayan al mismo sitio: captación por uno, posventa por el otro.
-- **La tarjeta sigue siendo por contacto y no se mueve.** Si la misma persona escribe primero por
-  un canal y luego por otro que apunta a otro embudo, manda el primero. Partir la ficha de alguien
-  en dos tableros porque escribió dos veces sería peor que el problema que resuelve.
-- **El selector solo sale si hay más de un embudo.** Con uno la elección no existe, y un desplegable
-  de una opción es ruido que hay que leer para descartar.
-
-La primera versión listaba «Ventas (por defecto)» y debajo «Ventas». Significan cosas distintas
-—seguir al predeterminado, o clavarse a ese embudo pase lo que pase— pero se lee como un error.
-Ahora el predeterminado no se repite abajo salvo que el canal esté clavado a él.
-
-**Netlify contestó lo del comodín** y trae una condición que no estaba en la lista de seis: con
-subdominios comodín activados **no se pueden tener alias de dominio**, solo el dominio primario y
-lo que cuelgue de él. Hoy `kavea-app` tiene cuatro alias —`boosty`, `cuenta`, `conectar`,
-`demostracion`—. Quitarlos a ciegas y descubrir después que el comodín no los cubre es tirar
-producción, así que se pregunta antes en vez de probarlo en vivo.
-
-**Y una decisión de producto que cierra la C0:** el autoservicio se vende a quien tiene **sus
-propias Páginas**, no Páginas de socio. Quien es dueño de la suya ya tiene *Full access* y el
-diálogo la ve. Las 26 de clientes se siguen conectando por la vía asistida.
-
-### 2026-08-24 (cierre) — A5: la autorización también se muere, y ahora alguien mira
-
-Los Page Access Tokens ya tenían vigilancia —el despachador marca
-`token_invalid_since` con el error 190 al enviar, y el reconciliador comprueba cada quince
-minutos—. **El BISU no tenía a nadie**, y es el que peor falla: un token de Página muerto se nota
-al primer mensaje, pero el BISU solo se usa al descubrir y activar activos. Puede llevar semanas
-caído y el síntoma llega el día que un cliente entra a conectar un canal y la pantalla se queda en
-blanco sin poder decir por qué.
-
-`verificar-autorizaciones`, cron diario a las 04:41. Usa **`debug_token`** y no una llamada
-cualquiera: una llamada normal solo dice «funcionó», y `debug_token` dice si sigue vivo, cuándo
-caduca de verdad y **qué scopes quedan** — que importa porque un cliente puede quitar UN permiso
-sin revocar la app, y entonces el token vale para unas cosas y no para otras.
-
-Tres decisiones que valen más que el código:
-
-- **«No se sabe» no es «está muerto».** Si `debug_token` no devuelve `data`, no se marca nada.
-  Marcar inválida una autorización sana por un fallo de red le enseña al cliente a reautorizar sin
-  motivo, que es la forma más rápida de que ignore el aviso el día que sea verdad.
-- **`expires_at: 0` significa «no caduca»**, no «caducó en 1970».
-- **`invalida_desde` no se pisa**: saber que lleva tres días caída es distinto de saber que cayó
-  hace un minuto.
-
-Y no arregla nada, solo anota: renovar un BISU es que una persona vuelva a pasar por el diálogo, y
-eso no lo hace un cron. Lo que sí hace es que la pantalla de canales lo diga.
-
-Ejecutado en vivo: una organización, válida, sin caducidad —coherente con el `Never` de la
-configuración— y nueve scopes guardados.
-
-Un detalle del proceso: el disparador iba a leer la URL y la clave de `vault.decrypted_secrets`
-porque es lo que suena razonable. Se miró `disparar_diagnostico` antes de escribirlo y este
-proyecto usa `private.cfg`. Suponerlo habría dado una migración que se aplica sin error y un cron
-que no dispara nunca.
-
-### 2026-08-24 (cierre) — El envío probado, y otro camino que nunca pudo funcionar
-
-Con permiso de Gabriel para conectar su Página personal y mandarse mensajes.
-
-**`portafolio` → `conectar` no había funcionado nunca.** Al intentarlo:
-
-    postgrest 403 {"code":"42501","message":"Solo el equipo de Boosty."}
-
-`registrar_conexion` empieza por `if not public.es_staff()`, que mira `auth.uid()`. Esa función
-llama a PostgREST con la CLAVE DE SERVICIO, donde no hay usuario: la guarda es siempre falsa y el
-RPC siempre levantaba. La guarda no estaba de más, estaba en la capa equivocada — quien autoriza
-es `/api/portafolio`, que exige `esStaff()` y la superficie `admin` con una sesión de verdad, que
-es donde se puede preguntar quién eres. Repetirla contra un rol que por definición no tiene
-identidad no protegía nada: cerraba el camino entero. Ahora llama a
-`registrar_conexion_oauth`, que es la versión pensada para el borde.
-
-Es el **tercer camino muerto del día** y los tres estaban en la misma función.
-
-**Y una tercera copia de la lista de campos**, esta vez incompleta: a `portafolio` le faltaba
-`feed`, así que una Página conectada por el panel quedaba suscrita a ocho campos y el
-reconciliador le añadía el noveno quince minutos después. La incoherencia duraba poco y por eso
-nadie la vio. Importada de `_compartido/campos.ts` como las otras dos.
-
-**Conectada `Gabriel Montiel Toro`** (`106042974225260`, `@gabrielmontieltoro`): conexión,
-credencial cifrada, los dos canales y **las dos rutas, con `ig_business_account`**. Es la primera
-vez que esa rama se ejecuta desde la 0089 de esta mañana; antes habría abortado.
-
-**A2 PROBADO.** Se envió un mensaje real por Instagram desde la bandeja, con el PAT que vino del
-diálogo de OAuth, y **volvió el echo de Meta** con su `mid`. Un echo solo existe si Meta lo
-entregó. El riesgo de que el token del diálogo concediera menos que el de system user queda
-cerrado por medición y no por lectura de `tasks`.
-
-**Messenger sigue sin probar de extremo a extremo** y no lo puedo hacer yo: hace falta un mensaje
-ENTRANTE de una persona a la Página, y no hay ninguna conversación de Messenger en ventana. Es el
-mismo pendiente que arrastra desde el 6-ago.
-
-### 2026-08-24 (cierre) — Por qué el diálogo no ve las 26 Páginas de clientes
-
-Gabriel notó que el selector de Meta solo le ofrecía dos Páginas y que las demás salían en gris
-—«es extraño, en el portafolio salen todos los permisos»—. Tiene razón en lo que ve y la
-explicación cambia el modelo comercial.
-
-El selector dice, literal, sobre `Gabriel Montiel Toro` y `Spatium Coworking`:
-
-> Give Boosty Digital LLC full control to continue. **Update permissions**
-
-Y en Business Settings → Partners se ve por qué. Esa Página **no la posee Boosty**: la posee otro
-negocio (`2626518904258226`), y Boosty Digital LLC figura como **socio** con
-**Partial access (business tools only)** — con los siete interruptores encendidos: Content,
-Community activity, Messages and calls, Ads, Insights, Creator content, Creator management.
-
-Los siete puestos y aun así es «parcial». Meta tiene tres niveles y el diálogo de Facebook Login
-for Business exige el tercero:
-
-| Nivel | Qué es |
-|---|---|
-| Partial access (business tools only) | Lo que Boosty tiene hoy en esas Páginas |
-| Partial access (business tools and Facebook) | Un interruptor más |
-| **Full access — Everything (except sensitive actions)** | **Lo que el diálogo exige** |
-
-**LA CONSECUENCIA IMPORTA MÁS QUE EL DETALLE: el camino de OAuth es MÁS EXIGENTE que el del token
-de system user.** Las 26 Páginas de clientes asignadas como socio con acceso parcial funcionan hoy
-por la vía A —system user— y NO son elegibles en el autoservicio. Las dos vías de alta que
-`docs/fases/05` mantenía en paralelo no eran redundancia: son dos poblaciones distintas de
-clientes, y ahora se sabe por qué.
-
-Y hay una parte que no es técnica. Pedirle a un cliente que suba a *Full access* es pedirle el
-derecho a dar y quitar acceso a cualquiera —incluso a sí mismo— y a borrar su Página. Para un
-cliente que ya trabaja con Boosty puede ser razonable; para alguien que se registra en la web un
-martes por la noche, es una barrera de entrada que hay que decidir antes de venderlo.
-
-### 2026-08-24 (cierre) — Canales deja de ser una columna de cuatro pantallas
-
-Petición de Gabriel: que Canales enseñe una tarjeta por canal y que el detalle se abra en un
-modal, «que no sea bajar en la página, que se ve desordenado».
-
-Tenía razón y el motivo es medible: con cuatro conexiones y siete comprobaciones cada una, la
-página era una columna que no contestaba de un vistazo lo único que se viene a preguntar —«¿mis
-canales están bien?»—. Ahora son tres tarjetas —WhatsApp, Instagram, Messenger— con su cuenta y su
-veredicto, y **el peor estado manda**: una tarjeta que dijera «todo en orden» teniendo una conexión
-rota debajo sería peor que no tener tarjeta. Medido después: 860 px, una pantalla.
-
-Detalles que no se ven pero se notan al usarlo: Escape cierra, el fondo no se desplaza mientras
-hay algo encima, y el clic de fuera solo cierra si EMPIEZA fuera —sin comparar con
-`currentTarget`, arrastrar desde dentro hasta el borde cierra el modal y se lleva por delante lo
-que estuvieras haciendo—.
-
-De paso, un susto propio: la primera versión del corte se llevó por delante `Canalitos` y `Fila`
-porque busqué el final de la componente con `rindex('  )
-}')` y eso encuentra el final del
-FICHERO. Lo cazó el typecheck; se revirtió y se rehízo cortando por números de línea verificados.
-
-### 2026-08-24 (cierre) — Una autenticación, muchos activos
-
-Gabriel probó el flujo dos veces y las dos salieron mal, cada una por un motivo distinto y los
-dos míos:
-
-- **Al cancelar**, la pantalla decía «Permissions error». Es el `error_description` de Meta
-  repetido tal cual: en inglés, con pinta de avería, y describiendo un permiso que nadie denegó.
-  Lo que pasó es que cambió de opinión.
-- **Al autorizar dos Páginas**, el alta abortó con «Kavea todavía conecta una por vez: repite el
-  diálogo». Eso lo escribí yo a propósito, y estaba mal.
-
-Su diagnóstico, y tiene razón: *«La conexión debería ser una sola, que es la cuenta de Facebook, y
-después dentro de Kavea habilitar las páginas de Messenger y los Instagram que tenga vinculados
-esa cuenta. Para que el usuario solo haga una autenticación con Facebook.»*
-
-Pedirle a alguien que repita un diálogo de OAuth una vez por Página es cobrarle el precio de
-nuestra implementación: son cinco pantallas de Meta por activo. **El modelo correcto es autorizar
-una vez y elegir después, con la lista delante** — que además es el único momento en que puede ver
-qué hay, qué ya está conectado y qué no se puede.
-
-**Lo que se movió de sitio.** El BISU deja de colgar de una conexión y pasa a la organización
-(`private.meta_autorizaciones`, 0092). Era lo que fue siempre: el diálogo no autoriza una Página,
-autoriza un portafolio. Guardarlo bajo una conexión obligaba a que existiera una conexión antes de
-poder mirar qué había. El Page Access Token no se mueve: ese sí es por Página.
-
-**Las piezas quedan así:**
-
-| | |
-|---|---|
-| `meta-canje` | Solo canjea y guarda la autorización. Ya no crea conexiones ni aborta por número de Páginas |
-| `meta-activos` | Lista lo que la autorización deja ver, y activa Páginas de una en una. **No necesita el App Secret** |
-| `/ajustes/canales/elegir` | La pantalla que faltaba |
-
-Activar es por Página a propósito: un fallo en la tercera no puede deshacer las dos anteriores ni
-dejar la pantalla sin saber cuál falló.
-
-**Probado de extremo a extremo** con la autorización que Gabriel ya había dado: `listar` devuelve
-sus dos Páginas con el estado correcto —Boosty.digital `conectada`, Centromarca Mercedes
-`sin_conectar` con `@kia.caracas`—, y la pantalla las pinta con su botón. El BISU que estaba
-guardado bajo la conexión se movió a la tabla nueva para no obligarle a reautorizar.
-
-Un detalle del modelo que conviene tener presente: la lista **solo trae lo que se compartió en el
-diálogo**, no las 27 Páginas del portafolio. Meta decide qué se comparte; Kavea decide qué se
-activa. Son dos permisos distintos y está bien que lo sean.
-
-### 2026-08-24 (cierre) — El hilo enseñaba los 100 mensajes más ANTIGUOS
-
-Gabriel escribió a Boosty por Instagram. El mensaje entró, apareció en la lista de conversaciones
-y **no estaba en el hilo al abrirlo**, ni refrescando.
-
-`obtenerHilo` pedía `order('momento', ascending: true).limit(100)`: las cien entradas **más
-antiguas**, no las últimas. Mientras una tarjeta tuvo menos de cien daba igual. La de Boosty tiene
-**104**, así que se caían las cuatro últimas — el WhatsApp «Prueba Kavea» del 23-ago y el
-«Kavea» de Instagram recién enviado. La lista sí los veía porque lee `last_message_at`.
-
-Es el peor fallo posible en una bandeja de soporte, y no por perder el dato —el mensaje está en la
-base— sino porque **no hay nada que lo delate**: ni error, ni hueco, ni contador. Un cliente
-escribe, el agente abre el hilo, no ve nada nuevo, y cierra. Y empeora solo con el tiempo: le pasa
-a cada conversación en cuanto cruza las cien entradas.
-
-Arreglado pidiendo `ascending: false` y dando la vuelta al resultado antes de devolverlo — el
-orden de lectura es una propiedad del hilo, no una decisión de quien lo dibuja.
-
-**El tiempo real, en cambio, funciona.** Medido con los frames del websocket en producción: la
-suscripción a `org:{uuid}` acaba en `status: ok`, la fila entra en `realtime.messages` —incluida
-la del mensaje real, con `inserted_at` idéntico al `created_at` del mensaje— y el frame de
-difusión LLEGA al navegador. Los dos refrescadores están montados y las dos páginas son
-`force-dynamic`.
-
-Una medición intermedia dijo «0 difusiones recibidas» y era falsa: el filtro buscaba
-`"event":"cambio"` en JSON y Phoenix serializa ese frame en formato compacto, con el nombre del
-evento como texto suelto. Tercer error de medición en dos días con la misma forma —una cadena
-vacía, una lista vacía, y ahora un formato supuesto—, y el único motivo de que no se convirtiera
-en un arreglo inventado sobre `realtime` fue volver a mirar sin el filtro.
-
-### 2026-08-24 (cierre) — Fase A: reconectar, y no mentir sobre un diagnóstico viejo
-
-**A4, botón «Reconectar»**, visible solo con `token_invalido_desde` no nulo y en conexiones de
-Página. Verificado simulando el token inválido y revirtiéndolo.
-
-**A6, que el veredicto no se presente como actual cuando no lo es.** La 0090 expuso `updated_at`
-para compararlo con `ultima_pasada`, y medido acto seguido salía viejo **siempre, por 45
-milisegundos**: el propio diagnóstico escribe en la conexión al guardar
-`messaging_feature_status` y `token_last_verified_at`. Comparar contra `updated_at` es preguntar
-si cambió algo desde el diagnóstico cuando lo único que cambió fue el diagnóstico.
-
-La 0091 lo arregla con un trigger, no acordándose en cada función: `invalidado_en` se pone solo
-cuando cambia una columna que describe el MUNDO —Página, Instagram, `config_id`, `tasks`, estado,
-suscripción, token inválido— y no cuando escribe el OBSERVADOR. Probado en los dos sentidos con
-transacciones revertidas: tocar solo lo del diagnóstico deja `invalidado_en` en null; cambiar el
-estado lo pone.
-
-Se llegó a desplegar el aviso con la comparación mala. Lo que impidió dejarlo así fue mirar la
-pantalla: los tres canales avisaban a la vez, y un aviso que sale siempre enseña a ignorar el
-panel.
-
-### 2026-08-24 — El autoservicio conecta un canal por primera vez
-
-**El flujo de OAuth completo, en producción.** Bloque B de la fase 5 (`b9a94c5`): `state` firmado
-con HMAC + nonce en cookie de `.kavea.ai`, `/api/meta/oauth/start`, callback en
-`conectar.kavea.ai` y la función de borde `meta-canje` con los siete pasos de T6. El App Secret no
-sale del borde. Dos desvíos deliberados del documento de fase: la organización sale del Host bajo
-RLS y no de un parámetro, y `puede(org,'conectar')` es **solo owner** —la 0040 manda sobre el
-documento—.
-
-**Producción:** `META_APP_ID`, `KAVEA_ESTADO_SECRETO` y `GRAPH_API_VERSION` en Netlify;
-`META_APP_SECRET` NO está ahí, comprobado. `meta-canje` desplegada, y
-`reconciliar-suscripciones` redesplegada porque su lista de campos pasó a `_compartido/campos.ts`
-—dos copias que se separan hacen que el reconciliador corrija cada quince minutos algo que no
-está roto—.
-
-**Verificado en `boosty.kavea.ai`:** 302 con `config_id 1721663745727123`,
-`redirect_uri` a `conectar.kavea.ai`, `state` de 262 caracteres, cookie `httpOnly`/`secure`/`Lax`
-en `.kavea.ai` **y vista desde `conectar`** —lo único que en local no se podía probar—. El
-callback rechaza `state` ausente, basura y manipulado.
-
-**Dos fallos propios antes de estrenarlo:** el `kid` por defecto era `v1` y el secreto real es
-`KAVEA_CRED_KEY_k1` (habría fallado al cifrar, con el código de OAuth ya gastado); y `.boton` no
-existía en el CSS aunque `/registro`, `/crear` y canales la invocaban — las tres pintaban el botón
-nativo del navegador. El segundo se vio en la captura, no compilando.
-
-**El primer canje real falló, y el fallo era del 6-ago.** Meta autorizó y el flujo llegó al paso 6:
-
-    registrar_conexion_oauth 400 {"code":"23514", ...
-      Failing row contains (17841421294200897, instagram, ...)
-      new row for relation "meta_asset_routes" violates check constraint
-
-`meta_asset_routes.tipo` admite `page`, `ig_business_account` y `whatsapp_phone_number` desde la
-0003. Las funciones de alta escriben `instagram`. **La línea es de la 0058**, la ruta del staff, y
-la heredé al copiarme de ella: dar de alta a mano cualquier Página con Instagram llevaba dieciocho
-días abortando sin que nadie la pisara. `on conflict do nothing` no cubría nada — resuelve
-unicidad, no CHECK. La transacción revirtió entera y el token de producción no se tocó. Arreglado
-en la **0089**, las dos funciones.
-
-**Y al segundo intento, conectó.** Primer canje real del proyecto:
-
-| | |
-|---|---|
-| `config_id` | `1721663745727123` |
-| `tasks` | `CREATE_CONTENT, MODERATE, MESSAGING, ADVERTISE, ANALYZE, MANAGE` |
-| BISU | **el primero que existe en esta base**, `kid k1` |
-| PAT | rotado; el del 2-ago sustituido |
-| Suscripción | los 9 campos, `subscription_ok: true` |
-| Diagnóstico | V1–V7 en verde salvo V6, que nunca fue verificable |
-
-`MESSAGING` estaba entre las tareas, así que el riesgo de que el token del diálogo concediera
-menos que el de system user no se materializó.
-
-**Un fallo de pantalla que el propio alta destapó:** al refrescar, canales seguía diciendo «esta
-conexión se creó sin pasar por el diálogo». Era el diagnóstico cacheado del día anterior — V2 se
-calcula sobre `tasks`, que hasta ese canje no existía. `meta-canje` gana un **paso 8** que
-rediagnostica al terminar, no abortante.
-
-**El repositorio es público.** Se agotaron los 3.000 minutos de Actions. Historial auditado antes
-de nada: los patrones de credencial sobre los blobs de los **150 commits** dan cero, y los
-**valores literales** de los seis secretos en uso no aparecen en ningún commit — esta última es la
-prueba que cierra la pregunta, porque no depende de acertar el patrón. Ninguna clave privada. **No
-hay rotación forzada.** Sí quedan expuestos nombres de clientes reales y 27 identificadores de
-activos de Meta en `docs/04`, `docs/fases/05` y esta bitácora; Gabriel decidió dejarlos y volver el
-repositorio a privado después.
-
-**El comodín `*.kavea.ai` se puede activar.** El `422 invalid site` del 2-ago nunca significó «no
-se permite», sino «por ese endpoint no». Netlify (#1097522) dio seis requisitos; cinco ya se
-cumplían —plan Pro, DNS en Netlify con certificado `*.kavea.ai` ya `issued`, sin subdominios de
-rama ni automáticos, y el dominio primario `admin.kavea.ai` **al mismo nivel** que el comodín, que
-se había dado por incumplido de un vistazo—. El sexto se hizo: `CNAME *.kavea.ai →
-kavea-app.netlify.app`, ttl 3600. Resuelve, y los registros explícitos siguen intactos. Ticket
-contestado; falta que lo habiliten del lado del sitio.
-
-**CI cayó por facturación, no por código.** «recent account payments have failed or your spending
-limit needs to be increased»: cinco trabajos, cero pasos, 2 s. Lo delataba que también fallaba
-*Sitio público* y que ya fallaba en dos commits que solo tocaban documentación. Cuatro commits
-entraron sin verificar; se ejecutaron a mano `tsc`, `next build`, `deno check`, el canario C8 y la
-guarda de secretos. Restaurada al abrir el repositorio.
-
-**Repaso completo de la bitácora contra la realidad**, trece correcciones: 86 migraciones cuando
-eran 88, ocho crones cuando eran nueve, y dos filas «Repositorio» contradiciéndose. Y
-`aplicar-migraciones.ps1` decía que el CLI de Supabase no está instalado; está, 2.84.2.
-
-**`docs/PLAN.md`**: lo pendiente en cinco fases con criterio de hecho por tarea, separando lo
-nuestro de lo que espera a terceros.
+### 2026-08-24 — Fase A: una autenticación, muchos activos
+
+**El autoservicio conectó su primer canal.** Facebook Login for Business en producción: diálogo,
+código, BISU cifrado, webhooks suscritos y rediagnóstico, todo de extremo a extremo. Primer BISU de
+la base.
+
+**Y el modelo cambió a mitad de camino, con razón.** La primera versión conectaba una Página por
+autorización y abortaba si el diálogo devolvía varias. Ahora es **una autorización por
+organización** (0092) y dentro de Kavea se eligen las Páginas e Instagram que se quieran activar
+(`meta-activos`). Una sola pasada por Meta.
+
+**Lo que se cerró además:** reconectar sin volver a empezar · la autorización también se muere, y
+un cron diario la comprueba con `debug_token` (0093, 04:41) · cada canal a su embudo (0095/0096) ·
+selección de activos con estado por Página.
+
+**Tres caminos muertos que llevaban semanas ahí:**
+
+- `registrar_conexion` (0058) insertaba `'instagram'` donde el CHECK exige `'ig_business_account'`.
+  Dieciocho días con una inserción imposible porque esa rama no se había pisado. Copiada tal cual en
+  la 0088. Arreglado en la 0089.
+- `portafolio conectar` **nunca pudo funcionar**: llamaba a `registrar_conexion`, que empieza por
+  `if not public.es_staff()`, con la clave de servicio — donde `auth.uid()` es nulo y `es_staff()`
+  siempre falso. La guarda estaba en el sitio equivocado; vive en `/api/portafolio`, que sí tiene
+  sesión.
+- Tercera copia de `CAMPOS_MESSENGER`, incompleta: a `portafolio` le faltaba `feed`, y el
+  reconciliador lo parcheaba cada quince minutos. Por eso nadie lo vio.
+
+**El hilo enseñaba los 100 mensajes más ANTIGUOS.** `obtenerHilo` ordenaba ascendente y cortaba a
+100: con 104 entradas, los mensajes nuevos eran invisibles en la conversación y visibles en la
+lista. Un `.order(ascending: false)` + `.reverse()`.
+
+**Por qué el diálogo no ve las 26 Páginas de clientes.** El selector de Meta pide *«full control»* y
+Boosty tiene **acceso parcial (herramientas de negocio)** sobre ellas, con los siete permisos
+puestos. **El camino OAuth es más exigente que el de system user**, así que son dos poblaciones de
+cliente distintas. Decidido: el autoservicio se vende a quien tiene **sus propias Páginas**.
+
+**Y el portafolio dueño de la app no se puede elegir**, lo escribe Meta en gris: *«This Meta Business
+Account owns the app»*. Las Páginas de Boosty entran por el portafolio, nunca por autoservicio.
+
+---
+
+### 2026-08-24 — Fase B: las tres pantallas, los doce vídeos y quien vigila el resultado
+
+**B1 cerrada.** Las tres pantallas que los vídeos tenían que enseñar y no existían:
+
+- **Ciclo de moderación** (0097/0098): publicar, editar, ocultar y borrar desde el hilo. *Editar no
+  existe en Instagram* —Graph solo expone `hide` y `DELETE`— así que es publicar el nuevo y borrar
+  el viejo, **en ese orden**: si falla el segundo paso quedan dos comentarios visibles, y al revés
+  ninguno. Probado contra Instagram real; los ids consultados después dan «does not exist».
+- **Contenido de Página** e **Instagram** (`/contenido`): lista → detalle con la identidad delante.
+  `@boosty.digital`, 1625 seguidores, 12 medios; `Boosty.digital`, 172 seguidores, 10 posts.
+
+**B2: el encuadre del envío estaba caduco.** `docs/07` decía «Kavea no tiene el login de Meta… es la
+arquitectura». Verdad el 7-ago, falso desde la fase A. Ahora declara **dos caminos** —autoservicio
+con login visible, y portafolio server-to-server— y trae el texto listo para *Request again*.
+
+**B3: once vídeos grabados contra producción**, más el duodécimo con `human_agent`. Y tres guiones
+llevaban semanas **grabando la pantalla equivocada**: `instagram_manage_comments` apuntaba a
+`/comentarios`, ruta borrada el 21-ago —el vídeo era un 404—; `pages_read_engagement` grababa la
+lista del portafolio; `instagram_basic`, la bandeja. Los tres se rechazaron.
+
+Del arnés salieron tres fallos más: dos ficheros por permiso tras dos tiradas —convivía el
+`instagram_basic` de 197 KB ya rechazado con el nuevo—; `human_agent` saltándose en silencio dentro
+de un `if` sin `else`; y un vídeo de 930 KB que no enseñaba el permiso y se guardaba igual.
+
+**El montador** (`montar-screencasts.mjs`) pega el login una vez delante de los ocho. Cuatro quedan
+completos solo con esa toma. Normaliza antes de pegar: VP8 sin audio y H.264 con audio en crudo dan
+un fichero que abre en el reproductor de quien lo montó, y el del revisor no se puede probar.
+
+**B4: alguien mira el resultado.** La respuesta del 7-ago estuvo dieciséis días sin leerse.
+`vigilar-revision` pregunta a diario por `GET /{app-id}/permissions` con token de app, compara
+(0099) y manda correo. Sirve en las dos direcciones: aparecer es aprobación, desaparecer es
+revocación. La primera pasada siembra y calla.
+
+**Grabado el login por Gabriel**, 5:20 en incógnito, con 2FA y consentimiento completos; partido en
+`login.mp4` e `instagram.mp4`. Falta el cliente nativo de Messenger, plantilla y comentarios.
+
+---
+
+### 2026-08-24 — El comodín, los alias y la plataforma
+
+**`*.kavea.ai` está vivo.** Netlify lo habilitó tras borrar los cuatro alias. `cualquiercosa.kavea.ai`
+responde: **la fase C queda desbloqueada**, un inquilino nuevo ya no necesita una llamada a la API
+de Netlify por alta. Durante el hueco los cuatro dieron 404 con TLS válido, como se había medido.
+
+Casi se reporta un fallo inexistente: `conectar` y `cuenta` seguían en 404 en la raíz. Lo resolvió
+una cabecera —`Netlify-Vary` con campos de Next— que delata que contestaba **la aplicación**: son
+superficies sin inquilino y su raíz no tiene página. Sus rutas reales dan 200, 401 y 400.
+
+**El `ignore` de despliegue miraba un solo commit.** `git diff --quiet HEAD^ HEAD -- .` con cinco
+commits subidos de golpe y el último tocando solo `docs/` canceló el build y dejó `app/` sin
+desplegar. Arreglado con `CACHED_COMMIT_REF` **y respaldo**: una variable vacía ahí no falla,
+invierte el sentido y cancela. Sin comprobar todavía bajo la forma que falló.
+
+**Corrección:** los despliegues rojos del sitio público no son fallos, son el `ignore` haciendo su
+trabajo. Llevaban seis seguidos y una vez llevaron a buscar en el sitio equivocado.
+
+**Netlify o Vercel, con números medidos.** Lo decide el repositorio, no los folletos:
+`app/middleware.ts` documenta que `NextResponse.next({ request: { headers } })` **no propaga** en el
+runtime de Netlify, y `netlify.toml` fija el plugin porque una actualización cambia el App Router.
+Techos: Netlify Pro corta las funciones síncronas a **26 s** (10 s por defecto); Vercel Pro, **300 s
+por defecto y 800 de máximo**. Kavea ya pide 45 s y 60 s. Medido: 1,8 s, 2,0 s y 5,7 s — hay margen,
+pero `sincronizar` escala con las cuentas. **Las Actions no correrían en Vercel**: sus checks nativos
+solo ejecutan `lint` y `typecheck`, y los generales *importan* el resultado de GitHub Actions.
+Recomendación: mudarse **después** del App Review.
+
+**El canario C1 cazó una tabla sin RLS**, `private.revision_permisos` (0100). Estar en `private` la
+hacía inalcanzable desde fuera y por eso no rompió nada visible — que es para lo que está el canario.
+
+---
+
+### 2026-08-24 — Conectar y desconectar, por la misma puerta
+
+**Se puede soltar la cuenta de Facebook entera** (0101 + `meta-soltar`). Antes solo se desconectaba
+un canal: la autorización seguía con su BISU y Kavea seguía apareciendo en los ajustes de Facebook
+del cliente. Tres pasos y el orden no es negociable: lo local ocurre sí o sí; luego las bajas de
+webhooks, que necesitan un token que se pide **con** el BISU; y después `DELETE /me/permissions`,
+que lo mata.
+
+**El botón se llevó un WhatsApp que no era suyo.** Gabriel lo usó la misma noche y apagó dos
+conexiones: la Página, que debía caer, y `+1 321-393-1397`, que no — WhatsApp entra por el
+portafolio, no por esa autorización. La 0102 acota a las conexiones con `page_id` y la confirmación
+dice **las dos cifras**. Probado por él: la vez siguiente, `conexiones: 1, intactas: 1`.
+
+**Faltaba el camino de vuelta.** Existía `desconectar_conexion` desde la 0079 y nada que lo
+deshiciera; para WhatsApp no hay «Elegir qué conectar». La 0103 añade `reconectar_conexion`, que
+rehace estado, rutas y canales y **dice lo que no puede hacer**: devuelve `falta: ['credencial',
+'suscripcion']`.
+
+**Restaurado el número** con los tres pasos comprobados —credencial reemitida y verificada contra
+Meta (GREEN, CLOUD_API), WABA con `subscribed_apps: []` vuelta a suscribir— y **Boosty.digital** por
+el portafolio, con dos rutas y nueve campos suscritos.
+
+**Retirar de la lista no es eliminar** (0104). Un `delete` arrastra `channels → conversations →
+messages`: el historial entero del canal. Se archiva, con camino de vuelta, y solo sobre lo
+desconectado. Probado: retirado `+1 829-954-3803`, sus **3 conversaciones y 9 mensajes intactos**.
+
+**Y el menú por fin responde al ratón.** No faltaba por descuido: los enlaces se pintaban con
+`style` en línea y `:hover` no se puede escribir ahí.
+
+---
+
+### 2026-08-24 — Plantillas: tres clases, y WhatsApp de punta a punta
+
+**Por qué Meta rechazó.** El campo `rejected_reason` existía en la API y nadie lo pedía:
+`codigo_ingreso` → **`INCORRECT_CATEGORY`** (un código de acceso es AUTHENTICATION, no UTILITY);
+`aviso_de_pedido` → **`INVALID_FORMAT`** (sin ejemplos). La comparación lo decía antes que el
+motivo: las cinco aprobadas llevan `example` y la única sin él está rechazada.
+
+**La pantalla mezclaba tres cosas** con un cuadro arriba explicando en qué se diferencian — el
+cuadro era el diagnóstico. Ahora son **tres pestañas**: Internas · WhatsApp · Messenger. Se pidieron
+dos y son tres a propósito: Messenger usa plantillas de la **Página** y WhatsApp de la **cuenta de
+WhatsApp**.
+
+**Las de WhatsApp dejan de ser un registro a mano** y se leen de la WABA. Se crean con categoría
+—explicada, que es lo que más rechazos causa—, idioma, cabecera, cuerpo, pie y hasta diez botones.
+Y con **cabeceras de imagen, vídeo o PDF**: Meta no las acepta por URL, exige su API de subida
+reanudable, y su segunda llamada pide `Authorization: OAuth`, no `Bearer`.
+
+**Y ya se pueden mandar** (0105). Era el único canal sin salida: fuera de las 24 h WhatsApp no tenía
+ni texto —lo prohíbe Meta— ni plantilla. Tres piezas, y solo una nueva: el mapeo existía desde la
+0042, resolver contra la ficha también, faltaba encolar con la forma que Meta pide —los valores
+**uno a uno y en orden**—. Probado: `hello_world` entregada con `wamid` a un número cuyo último
+mensaje era de hace treinta horas.
+
+**Dos fallos anteriores por el camino.** `ventana_de` devolvía `humana` con tag `HUMAN_AGENT` entre
+24 h y 7 días **para cualquier canal**, y en WhatsApp ese tag no existe: un texto a las treinta horas
+se encolaba y Meta lo rechazaba (0106). Y el despachador **mataba la plantilla con el motivo que la
+plantilla venía a resolver** — ahora se salta la ventana pero no el freno duro.
+
+**Sobre las variables: ya estaban.** Los campos personalizados existen desde la 0028 y
+`variables_disponibles` ya los exponía —once, tres propias del espacio—. Lo que faltaba era
+**emparejarlos con los huecos numerados**, y un campo nuevo aparece en el desplegable sin tocar nada.
+
+---
+
+### 2026-08-24 — Los comentarios, en vivo y vigilados
+
+**El webhook de comentarios no llega**, y no por falta de suscripción —está puesta, comprobado— sino
+por modo desarrollo con `instagram_manage_comments` rechazado: de 61 eventos de `instagram`, cero
+comentarios. Lo mismo explica que un DM de `@eficienzia.ai` no entrara: en ese modo Meta solo
+entrega eventos de quien **tiene rol en la app**, y la app solo tiene dos administradores.
+
+Preguntarle a Graph tampoco era opción: la arista de conversaciones responde `(#3) capability`
+porque falta ese mismo permiso. **El permiso que falta impide diagnosticar el problema que causa.**
+
+**Tres piezas para que no vuelva a fallar** (0108):
+
+1. **`comentarios` no tenía disparador de difusión.** `messages`, `actividades`, `conversations` y
+   `tarjetas` lo tienen desde la 0023; esa tabla nunca. Aunque el cron los metiera, la bandeja
+   abierta no se enteraba. Ahora difunde en `insert` **y** en `update`: moderar desde otra pestaña
+   dejaba la primera mintiendo.
+2. **La lectura baja de quince minutos a tres.**
+3. **Un latido por pasada buena.** Una función que revienta puede avisar; una que deja de
+   **ejecutarse** no puede avisar de nada, y ese es el fallo que ocurre —un cron desprogramado, un
+   secreto caducado—. Lo único que lo detecta es echar de menos algo que debería estar. El vigilante
+   diario, que ya manda correo, mira también los latidos.
+
+**Y CI comprueba las funciones de borde.** `supabase functions deploy` **no comprueba tipos**: subió
+el despachador con tres campos que no existían en su tipo. Al añadir `deno check` salieron dos cosas
+más: se indexaba el cuerpo con una clave que podía ser `undefined` —una propiedad llamada
+«undefined» que Meta ignora: un envío con media que llega sin media y sin error— y Deno **escribía**
+un campo `workspaces` en el `package.json` del repositorio al ver el `pnpm-workspace.yaml`. Las 21
+funciones compilan.
+
+**Y el punto 2 de plantillas, cerrado el mismo día:** cabeceras de imagen, vídeo y PDF. Meta no las
+acepta por URL —exige su API de subida reanudable, y su segunda llamada pide `Authorization: OAuth`
+en vez de `Bearer`—, así que son tres llamadas donde parecía haber un campo de texto. El fichero
+viaja en base64 dentro del JSON: un multipart tendría que cruzar la ruta de Next y la de Supabase
+con dos límites distintos y el tope real sería el menor de los dos igualmente. El handle es de un
+solo uso y no se guarda.
+
 
 ### 2026-08-23 — Del token de system user al diálogo de Meta
 
