@@ -233,6 +233,68 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-25 — Los acentos llevaban días codificados dos veces y nadie lo había mirado
+
+Buscando por qué no salían las plantillas en una conversación, la propia pantalla enseñaba otra
+cosa: **«Pasaron 24 horas desde su Ãºltimo mensaje»**. En el compositor, en producción.
+
+Los bytes guardados eran `ÃÂº` donde debía haber `Ãº`: cada byte del acento
+se había codificado como UTF-8 otra vez. La causa está en una línea del script de migraciones:
+
+    $sql = Get-Content $f.FullName -Raw        # sin -Encoding UTF8
+
+Sin `-Encoding UTF8`, `Get-Content` usa el juego de caracteres del sistema cuando el script corre
+con `powershell` (5.1) en vez de `pwsh` — **y en esta máquina no hay `pwsh`**. El fichero ya avisaba
+de este riesgo en un comentario, pero el comentario cubría la conversión del *cuerpo* de la petición,
+no la *lectura* del fichero. Se arregló la mitad del problema y se documentó como si fuera entero.
+
+**Alcance, medido y no estimado:** trece funciones —`ventana_de`, `encolar_plantilla`,
+`moderar_comentario`, `desautorizar_meta`, `reconectar_conexion`, `archivar_conexion`,
+`avisar_bandeja`, `anotar_moderacion`, `anotar_respuesta`, `anotar_revision`,
+`organizaciones_con_autorizacion`, `parametros_de_plantilla`, `vincular_plantilla_whatsapp`— y
+**una sola fila de datos** en todo el esquema: `outbound_messages.error_mensaje`. Se barrieron
+todas las columnas de texto y jsonb de `public` para saberlo.
+
+**No se reparó con `convert_from(convert_to(x,'LATIN1'),'UTF8')`,** que es el arreglo de manual.
+Se intentó y falló: `character with byte sequence 0xe2 0x80 0x9c has no equivalent in LATIN1`. La
+corrupción era **parcial** —había comillas tipográficas sanas en las mismas funciones— y una
+conversión global habría roto lo que estaba bien. Se reaplicó cada función desde su última
+migración, que en el repositorio está correcta. El extractor de rangos costó tres intentos: se
+comía el cuerpo de las que no tienen `grant` propio, y cortaba a la mitad un `grant` de dos líneas
+—lo que producía «syntax error at or near create» en la función *siguiente*, señalando al sitio
+equivocado.
+
+### La misma pantalla enseñaba un segundo fallo: «Sin contenido»
+
+Una plantilla enviada aparecía en el hilo como una burbuja vacía. La actividad de al lado sí decía
+«envió la plantilla hello_world», así que el dato existía: `linea_tiempo` pintaba
+`o.cuerpo->>'texto'`, y una plantilla no guarda texto —guarda el nombre y los valores, porque la
+frase la monta Meta—.
+
+La 0111 lo recompone al leer con `private.texto_de_plantilla`, **no al encolar**: guardar la frase
+ya montada crearía una segunda versión que envejece, porque la plantilla se puede editar en Meta y
+lo que el cliente recibe cambia. Y la burbuja dice ahora de qué plantilla salió, que el operador
+necesita saber: cada envío fuera de las 24 horas se factura y no todas dicen lo mismo.
+
+### Y la respuesta a la pregunta de partida
+
+Las plantillas no salían porque **no tenían por qué salir**. Son tres familias y el compositor las
+trata distinto:
+
+| | Dónde vive | Cuándo se ofrece |
+|---|---|---|
+| **Internas** | En Kavea, sin aprobación | Siempre; se insertan como texto en la caja |
+| **WhatsApp** | En la WABA, las aprueba Meta | Solo con la ventana **cerrada**, y solo si se pulsó «Dejar lista para usar» |
+| **Messenger** | En la Página, las aprueba Meta | **Nunca**: no hay carril de envío |
+
+La conversación donde se buscaba era de Messenger y con la ventana abierta —11 h—, así que fallaban
+dos de las tres condiciones. Y el desplegable que sí aparecía era el de respuestas rápidas
+internas, que es otra cosa.
+
+Lo de «solo con la ventana cerrada» es deliberado y está escrito en el propio compositor: ofrecer
+una plantilla dentro de la ventana empuja a un envío facturado por conversación que se podía haber
+hecho con texto normal y gratis.
+
 ### 2026-08-25 — Los ocho montajes, y el punto flojo que queda a la vista
 
 `plantilla.mp4` era la última toma que faltaba, y llegó en dos piezas: las plantillas de la Página
@@ -929,6 +991,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
 
 ## 4. Lecciones (cada una, una sola vez)
 
+- Un comentario que documenta media solución es peor que ninguno: cierra la pregunta sin cerrar
+  el fallo.
+- Antes de reparar datos corrompidos hay que medir si la corrupción es total o parcial: el arreglo
+  de manual rompe lo sano.
+- Buscar la causa de un fallo mirando la pantalla encuentra los otros dos que nadie había visto.
 - Al recortar una grabación, la pausa larga suele SER la prueba: el margen se elige por lo que
   hay que leer, no por acortar.
 - Cuando un vídeo cambia de superficie, un rótulo de dos segundos evita la pregunta que el
