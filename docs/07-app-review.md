@@ -469,6 +469,9 @@ Value for the person using the app: today these businesses answer Instagram from
 
 Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
 What the recording shows, in the order you asked for: (1) the connected asset is visible — the Instagram professional account's handle and its numeric ID appear on the channels screen during setup, and the conversation header names the account the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Instagram app is then opened on the customer's side to show the delivered message.
+Kavea is a custom inbox solution, not an automated experience: every reply is written by a person on the business's team, and the app never starts a conversation on its own. A conversation begins when the customer sends a Direct message to the business account, and the team answers it from the shared inbox.
+
+Unsent messages: when a customer unsends a message, Meta sends the deletion event and Kavea applies it — the message is marked as deleted and its text is erased from our database, not merely hidden from the screen. The thread then shows "Mensaje eliminado" where the bubble was, so the operator knows something was removed instead of finding a gap.
 ```
 
 **Vídeo:** `instagram_manage_messages`. Bandeja y un hilo abierto.
@@ -486,6 +489,23 @@ de dos casos y pide información adicional en cada uno:
 Hay que abrir el `View requirements` del primero y comprobar que no falte nada.
 Es el tipo de requisito que bloquea la aprobación sin aparecer en la nota de
 rechazo, así que no se da por cubierto: se mira.
+
+**Los dos últimos párrafos salieron de la guía, no de la nota de rechazo.** El
+recuadro amarillo de esta tarjeta lleva a
+`instagram-messaging/app-review/apps-for-other-businesses`, que es el caso de
+Kavea —procesar mensajes por cuenta de terceros— y pide dos cosas que el texto no
+decía: **clasificar** la app como *custom inbox solution* o *automated
+experience*, y **declarar el procesamiento de mensajes eliminados**.
+
+Lo segundo el producto ya lo hacía: cuando llega el evento de borrado,
+`aplicar_efecto_mensajeria` marca `deleted_at` **y pone el texto a null**. No lo
+esconde de la pantalla: lo borra. Hay 2 eventos reales procesados en producción.
+
+**Lo que esa guía pide y el vídeo NO enseña:** *«how to test unsent message
+processing»*. La nota del revisor para este permiso pedía tres cosas y las tres
+están; la guía general pide más. Queda declarado en texto y sin grabar, a
+sabiendas. Si lo vuelven a pedir es una toma de treinta segundos: escribir desde
+Instagram, eliminar el mensaje allí, y ver a Kavea poniendo «Mensaje eliminado».
 
 ### `pages_read_engagement`
 

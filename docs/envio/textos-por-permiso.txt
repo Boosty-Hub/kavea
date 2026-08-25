@@ -1,21 +1,20 @@
 LOS OCHO TEXTOS DECLARADOS, uno por permiso
 ===========================================
 
-Los ocho estan en docs/07-app-review.md. Esta hoja es la copia plana para
-tenerla al lado del formulario, que pide una pantalla por permiso.
+Los ocho estan en docs/07-app-review.md. Esta hoja es la copia plana.
 
 CAMBIADOS respecto a lo que habia en el formulario de Meta:
   - pages_utility_messaging: incluye el envio y el cliente nativo
   - instagram_manage_comments: pestaña del buzon, y el bucle de editar y borrar
-  - pages_messaging: ultimo parrafo nuevo: los tres puntos de la nota
-  - instagram_manage_messages: ultimo parrafo nuevo: los tres puntos de la nota
+  - pages_messaging: parrafo nuevo: los tres puntos de la nota
+  - instagram_manage_messages: tres parrafos nuevos: los tres puntos, la clasificacion, y los mensajes eliminados
 
 CAMPOS QUE SOLO TIENEN ALGUNAS TARJETAS:
-  - pages_messaging: desplegable «Select a Page» (elegir Boosty.digital) y
-    las instrucciones paso a paso. Los dos obligatorios.
-  - instagram_manage_messages: recuadro amarillo con «View requirements».
-    El caso que aplica es el PRIMERO, procesar datos por cuenta de cuentas
-    de Instagram de terceros. Hay que abrirlo y comprobar que no falta nada.
+  - pages_messaging: «Select a Page» (Boosty.digital) e instrucciones paso a
+    paso. Los dos obligatorios.
+  - instagram_manage_messages: recuadro amarillo. El caso que aplica es el de
+    procesar datos por cuenta de TERCEROS, y su guia pide clasificar la app y
+    declarar el procesamiento de mensajes eliminados. Ambos van en el texto.
 
 --- Human Agent -------------------------------------------------
 
@@ -76,7 +75,7 @@ Why the business needs it: a comment left unanswered on a post is visible to eve
 
 
 --- pages_messaging ---------------------------------------------
-  (CAMBIADO: ultimo parrafo nuevo: los tres puntos de la nota)
+  (CAMBIADO: parrafo nuevo: los tres puntos de la nota)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Facebook Page; Kavea is their technology provider and is verified as such by Meta.
 
@@ -92,7 +91,7 @@ What the recording shows, in the order you asked for: (1) the connected asset is
 
 
 --- instagram_manage_messages -----------------------------------
-  (CAMBIADO: ultimo parrafo nuevo: los tres puntos de la nota)
+  (CAMBIADO: tres parrafos nuevos: los tres puntos, la clasificacion, y los mensajes eliminados)
 
 Kavea is a shared team inbox for small and medium businesses in Latin America. Our users are the businesses that own the Instagram professional account; they connect it to Kavea, and Kavea is their technology provider, verified as such by Meta.
 
@@ -106,6 +105,9 @@ Value for the person using the app: today these businesses answer Instagram from
 
 Without this permission Kavea cannot receive or answer Instagram Direct messages, which is the core of the product for this use case.
 What the recording shows, in the order you asked for: (1) the connected asset is visible — the Instagram professional account's handle and its numeric ID appear on the channels screen during setup, and the conversation header names the account the reply goes out from; (2) a reply is written and sent live from our app, and the outgoing message appears in the thread with its delivery receipt; and (3) the Instagram app is then opened on the customer's side to show the delivered message.
+Kavea is a custom inbox solution, not an automated experience: every reply is written by a person on the business's team, and the app never starts a conversation on its own. A conversation begins when the customer sends a Direct message to the business account, and the team answers it from the shared inbox.
+
+Unsent messages: when a customer unsends a message, Meta sends the deletion event and Kavea applies it — the message is marked as deleted and its text is erased from our database, not merely hidden from the screen. The thread then shows "Mensaje eliminado" where the bubble was, so the operator knows something was removed instead of finding a gap.
 
 
 --- pages_read_engagement ---------------------------------------
