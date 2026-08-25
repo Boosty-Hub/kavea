@@ -8,6 +8,7 @@ import { etiquetaCanal, haceCuanto } from '@/lib/ventana'
 import { ListaComentarios } from '../lista'
 import { ResponderComentario } from '../responder'
 import { AccionesComentario } from '../acciones'
+import { Refrescador } from '../../refrescador'
 
 export const dynamic = 'force-dynamic'
 
@@ -52,6 +53,10 @@ export default async function HiloComentario({ params }: { params: Promise<{ id:
 
   return (
     <div className="bandeja bandeja--hilo">
+      {/* El hilo de un comentario no se refrescaba solo: el `Refrescador` estaba
+          en la bandeja y en el hilo de mensajes, no aquí. Desde la 0108 los
+          comentarios difunden, así que solo faltaba escuchar. */}
+      <Refrescador organizationId={org.id} />
       <ListaComentarios org={org} huso={huso} avisos={avisos} pendientes={pendientes} activoId={id} />
 
       <section className="bandeja__hilo" aria-label="Hilo del comentario">

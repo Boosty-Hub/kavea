@@ -53,6 +53,46 @@ const MEDIA: Record<string, { mime: RegExp; topeMb: number }> = {
   DOCUMENT: { mime: /^application\/pdf$/,                                    topeMb: 100 },
 }
 
+/**
+ * Los componentes de una plantilla de AUTENTICACIÓN, que no se parecen a nada.
+ *
+ * NO SE ESCRIBE EL TEXTO. Meta lo genera él, traducido a cada idioma, y solo deja
+ * decidir tres cosas: si añade la línea de «no compartas este código», a los
+ * cuántos minutos caduca, y qué botón lleva. Mandar un `text` propio en el BODY
+ * de una autenticación es un rechazo seguro.
+ *
+ * Por eso el formulario de esta categoría es otro y no una variante del de
+ * utilidad: enseñar un campo de texto que Meta va a ignorar —o peor, por el que
+ * va a rechazar— es prometer un control que no existe.
+ */
+function componentesAutenticacion(c: {
+  recomendacion: boolean
+  caducidad?: number
+  botonTexto: string
+  otpTipo: string
+}): { ok: true; valor: unknown[] } | { ok: false; error: string } {
+  const texto = (c.botonTexto ?? '').trim()
+  if (!texto) return { ok: false, error: 'El botón necesita su texto.' }
+  if (texto.length > 25) return { ok: false, error: 'El texto del botón pasa de 25 caracteres.' }
+  if (!['COPY_CODE', 'ONE_TAP'].includes(c.otpTipo)) {
+    return { ok: false, error: `Tipo de código no admitido: ${c.otpTipo}` }
+  }
+  if (c.caducidad !== undefined && (c.caducidad < 1 || c.caducidad > 90)) {
+    return { ok: false, error: 'La caducidad va entre 1 y 90 minutos, que es el rango de Meta.' }
+  }
+
+  const fuera: unknown[] = [
+    { type: 'BODY', add_security_recommendation: c.recomendacion },
+  ]
+  // El pie SOLO existe para la caducidad, y solo si se pide: un FOOTER sin
+  // `code_expiration_minutes` en una autenticación es un componente vacío.
+  if (c.caducidad !== undefined) {
+    fuera.push({ type: 'FOOTER', code_expiration_minutes: c.caducidad })
+  }
+  fuera.push({ type: 'BUTTONS', buttons: [{ type: 'OTP', otp_type: c.otpTipo, text: texto }] })
+  return { ok: true, valor: fuera }
+}
+
 /** Los botones que esta versión sabe construir. */
 const BOTONES = ['QUICK_REPLY', 'URL', 'PHONE_NUMBER']
 
@@ -238,6 +278,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     nombre?: string; idioma?: string; categoria?: string
     cabecera?: string; ejemplo_cabecera?: string
     media_formato?: string; media_datos?: string; media_nombre?: string; media_tipo?: string
+    // Solo para AUTHENTICATION. Ver `componentesAutenticacion`.
+    recomendacion?: boolean; caducidad?: number; boton_texto?: string; otp_tipo?: string
     cuerpo?: string; ejemplos?: string[]; pie?: string
     botones?: Boton[]
     plantilla_id?: string
@@ -320,7 +362,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
         mediaHandle = subida.handle
       }
 
-      const piezas = componentes({
+      // AUTENTICACIÓN VA POR SU CAMINO. Ver `componentesAutenticacion`.
+      const piezas = categoria === 'AUTHENTICATION'
+        ? componentesAutenticacion({
+            recomendacion: Boolean(c.recomendacion),
+            caducidad: typeof c.caducidad === 'number' ? c.caducidad : undefined,
+            botonTexto: (c.boton_texto ?? 'Copiar código').trim(),
+            otpTipo: (c.otp_tipo ?? 'COPY_CODE').trim().toUpperCase(),
+          })
+        : componentes({
         cabecera: (c.cabecera ?? '').trim() || undefined,
         ejemploCabecera: (c.ejemplo_cabecera ?? '').trim() || undefined,
         mediaFormato: mf || undefined,
@@ -346,6 +396,47 @@ Deno.serve(async (req: Request): Promise<Response> => {
       // estado para que la pantalla lo diga en el momento, no en la siguiente
       // lectura.
       return json({ creada: { id: j.id, status: j.status, category: j.category } })
+    }
+
+    // --- editar ---------------------------------------------------------------
+    //
+    // Meta deja editar una plantilla YA APROBADA, con límites suyos: no se puede
+    // cambiar el nombre, ni el idioma, ni —salvo en algunos casos— la categoría.
+    // Lo que sí se puede es el contenido, y al hacerlo **vuelve a revisión**.
+    //
+    // SE EDITA POR ID, no por nombre. El nombre identifica a la familia entera de
+    // traducciones; el id, a una sola. Editar por nombre cambiaría la versión en
+    // inglés al retocar la española.
+    if (c.accion === 'editar') {
+      const id = (c.plantilla_id ?? '').trim()
+      if (!id) return json({ error: 'falta el identificador de la plantilla' }, 400)
+
+      const categoria = (c.categoria ?? '').trim().toUpperCase()
+      const piezas = categoria === 'AUTHENTICATION'
+        ? componentesAutenticacion({
+            recomendacion: Boolean(c.recomendacion),
+            caducidad: typeof c.caducidad === 'number' ? c.caducidad : undefined,
+            botonTexto: (c.boton_texto ?? 'Copiar código').trim(),
+            otpTipo: (c.otp_tipo ?? 'COPY_CODE').trim().toUpperCase(),
+          })
+        : componentes({
+            cabecera: (c.cabecera ?? '').trim() || undefined,
+            ejemploCabecera: (c.ejemplo_cabecera ?? '').trim() || undefined,
+            cuerpo: (c.cuerpo ?? '').trim(),
+            ejemplos: (c.ejemplos ?? []).map((x) => String(x).trim()).filter(Boolean),
+            pie: (c.pie ?? '').trim() || undefined,
+            botones: (c.botones ?? []).filter((b) => (b.texto ?? '').trim()),
+          })
+      if (!piezas.ok) return json({ error: piezas.error }, 400)
+
+      const r = await fetch(`https://graph.facebook.com/${V}/${encodeURIComponent(id)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ components: piezas.valor }),
+      })
+      const j = await r.json().catch(() => ({})) as { success?: boolean; error?: { message?: string } }
+      if (j.error) return json({ error: j.error.message }, 502)
+      return json({ editada: Boolean(j.success) })
     }
 
     // --- borrar -------------------------------------------------------------

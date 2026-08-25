@@ -176,18 +176,40 @@ export function Sidebar() {
     if (enPanelAdmin || sinMenu(ruta)) return
     let vivo = true
     async function cargar() {
-      const { data, error } = await crearClienteNavegador()
-        .from('tarjetas')
-        .select('no_leidos')
-        .neq('estado', 'cerrada')
-        .gt('no_leidos', 0)
-      if (error) console.error('[sidebar] no_leidos', error)
+      const cliente = crearClienteNavegador()
+      /**
+       * DOS CUENTAS, PORQUE SON DOS COSAS QUE ESPERAN RESPUESTA.
+       *
+       * La píldora contaba solo `tarjetas.no_leidos`, y **un comentario no tiene
+       * tarjeta**: llegaba uno nuevo y el menú no se movía. Para quien atiende,
+       * un comentario sin contestar pesa lo mismo que un mensaje sin leer, así
+       * que suman. Los propios y los borrados no cuentan: no son de nadie.
+       */
+      const [mensajes, comentarios] = await Promise.all([
+        cliente.from('tarjetas').select('no_leidos').neq('estado', 'cerrada').gt('no_leidos', 0),
+        cliente.from('comentarios').select('id', { count: 'exact', head: true })
+          .eq('estado', 'nuevo').eq('propio', false).is('borrado_en', null),
+      ])
+      if (mensajes.error) console.error('[sidebar] no_leidos', mensajes.error)
+      if (comentarios.error) console.error('[sidebar] comentarios nuevos', comentarios.error)
       if (!vivo) return
-      setNoLeidos((data ?? []).reduce((s, t: { no_leidos: number }) => s + t.no_leidos, 0))
+      const m = (mensajes.data ?? []).reduce((s, t: { no_leidos: number }) => s + t.no_leidos, 0)
+      setNoLeidos(m + (comentarios.count ?? 0))
     }
     cargar()
+
+    // Y se recarga al vuelo con la difusión, no solo cada treinta segundos: la
+    // bandeja se refresca sola desde la 0086 y el menú se quedaba atrás medio
+    // minuto, enseñando un número que ya no era verdad.
+    const alCambio = () => { void cargar() }
+    window.addEventListener('kavea:cambio', alCambio)
+
     const reloj = setInterval(cargar, 30_000)
-    return () => { vivo = false; clearInterval(reloj) }
+    return () => {
+      vivo = false
+      clearInterval(reloj)
+      window.removeEventListener('kavea:cambio', alCambio)
+    }
   }, [ruta, enPanelAdmin])
 
   useEffect(() => {

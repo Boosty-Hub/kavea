@@ -34,11 +34,11 @@ export async function POST(req: Request) {
 
   const supabase = await crearClienteServidor()
 
-  if (accion === 'crear' || accion === 'borrar') {
+  if (accion === 'crear' || accion === 'editar' || accion === 'borrar') {
     const { data: puede } = await supabase.rpc('puede', { p_org: org.id, p_accion: 'configurar' })
     if (!puede) {
       return NextResponse.json(
-        { error: 'No puedes crear ni borrar plantillas en este espacio.' },
+        { error: 'No puedes crear, editar ni borrar plantillas en este espacio.' },
         { status: 403 },
       )
     }

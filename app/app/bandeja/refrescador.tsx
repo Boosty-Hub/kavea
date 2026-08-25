@@ -63,7 +63,20 @@ export function Refrescador({ organizationId }: { organizationId: string }) {
 
     const canal = supabase
       .channel(`org:${organizationId}`, { config: { private: true } })
-      .on('broadcast', { event: 'cambio' }, refrescar)
+      .on('broadcast', { event: 'cambio' }, (msg) => {
+        refrescar()
+        /**
+         * Y se reemite para quien quiera hacer algo más con ello.
+         *
+         * UNA SOLA SUSCRIPCIÓN AL CANAL. La primera versión de los avisos del
+         * sistema abría la suya propia y, por escribir mal el nombre del tópico,
+         * no recibía nada: difundía `org:{id}` y escuchaba `avisos:{id}`. Aunque
+         * el nombre hubiera estado bien, dos canales sobre el mismo tópico en el
+         * mismo cliente es una fuente de sorpresas. Un evento del DOM lo resuelve
+         * sin abrir nada.
+         */
+        window.dispatchEvent(new CustomEvent('kavea:cambio', { detail: msg?.payload ?? {} }))
+      })
       .subscribe((estado, error) => {
         if (estado === 'SUBSCRIBED') {
           if (aviso) { clearTimeout(aviso); aviso = null }

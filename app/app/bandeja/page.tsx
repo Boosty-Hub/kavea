@@ -5,6 +5,7 @@ import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
 import { Refrescador } from './refrescador'
+import { AvisosDelSistema } from './avisos-del-sistema'
 import { Buscador } from './buscador'
 import { PestanasVista } from './pestanas-vista'
 import { ListaComentarios } from './comentario/lista'
@@ -70,6 +71,10 @@ export default async function Bandeja({
   return (
     <div className="bandeja">
       <Refrescador organizationId={org.id} />
+      {/* El aviso del sistema vive en la BANDEJA y no en el layout: es la
+          pantalla que se deja abierta, y pedir el permiso desde cualquier otra
+          sería pedirlo fuera de contexto. */}
+      <AvisosDelSistema organizationId={org.id} />
 
       <section className="bandeja__lista" aria-label="Conversaciones">
         <header className="bandeja__cabecera">

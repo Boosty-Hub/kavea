@@ -149,6 +149,17 @@ export function PlantillasDeWhatsApp({
    * ofrecer las dos a la vez sería dejar elegir algo que se descarta solo.
    */
   const [formato, setFormato] = useState<'TEXTO' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'>('TEXTO')
+  /**
+   * Solo para AUTENTICACIÓN. Meta escribe el texto él, traducido a cada idioma, y
+   * solo deja decidir estas tres cosas. Un cuerpo propio en esa categoría es un
+   * rechazo seguro, así que el formulario ni lo ofrece.
+   */
+  const [recomendacion, setRecomendacion] = useState(true)
+  const [caducidad, setCaducidad] = useState('10')
+  const [botonOtp, setBotonOtp] = useState('Copiar código')
+  const [otpTipo, setOtpTipo] = useState<'COPY_CODE' | 'ONE_TAP'>('COPY_CODE')
+  /** Id de la plantilla que se está editando, o null si es nueva. */
+  const [editando, setEditando] = useState<string | null>(null)
   const [fichero, setFichero] = useState<{ nombre: string; tipo: string; datos: string; mb: number } | null>(null)
 
   const necesarias = variablesDe(cuerpo)
@@ -178,6 +189,35 @@ export function PlantillasDeWhatsApp({
     setCabecera(''); setEjemploCabecera(''); setCuerpo('')
     setEjemplos([]); setPie(''); setBotones([])
     setFormato('TEXTO'); setFichero(null)
+    setRecomendacion(true); setCaducidad('10'); setBotonOtp('Copiar código'); setOtpTipo('COPY_CODE')
+    setEditando(null)
+  }
+
+  /**
+   * Abrir una existente para editarla.
+   *
+   * Meta permite cambiar el CONTENIDO de una plantilla aprobada; el nombre y el
+   * idioma no. Por eso esos dos campos se rellenan y se bloquean en vez de
+   * ocultarse: quien edita tiene que ver sobre qué está trabajando.
+   */
+  function abrirParaEditar(p: Plantilla) {
+    const cab = p.components?.find((x) => x.type === 'HEADER')
+    const body = p.components?.find((x) => x.type === 'BODY')?.text ?? ''
+    const foot = p.components?.find((x) => x.type === 'FOOTER')?.text ?? ''
+    const btns = p.components?.find((x) => x.type === 'BUTTONS')?.buttons ?? []
+    limpiar()
+    setEditando(p.id ?? null)
+    setNombre(p.name ?? ''); setIdioma(p.language ?? 'es_ES')
+    setCategoria(p.category ?? 'UTILITY')
+    if (cab?.format && cab.format !== 'TEXT') setFormato(cab.format as 'IMAGE' | 'VIDEO' | 'DOCUMENT')
+    else setCabecera(cab?.text ?? '')
+    setCuerpo(body); setPie(foot)
+    setBotones(btns.filter((b) => b.type !== 'OTP').map((b) => ({
+      tipo: (b.type as Boton['tipo']) ?? 'QUICK_REPLY',
+      texto: b.text ?? '', url: b.url ?? '', telefono: b.phone_number ?? '', ejemplo: '',
+    })))
+    setAbierto(true)
+    setAviso(null); setError(null)
   }
 
   /**
@@ -213,7 +253,13 @@ export function PlantillasDeWhatsApp({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          accion: 'crear', nombre, categoria, idioma,
+          accion: editando ? 'editar' : 'crear',
+          plantilla_id: editando ?? undefined,
+          nombre, categoria, idioma,
+          recomendacion,
+          caducidad: caducidad ? Number(caducidad) : undefined,
+          boton_texto: botonOtp,
+          otp_tipo: otpTipo,
           cabecera: formato === 'TEXTO' ? cabecera : '',
           ejemplo_cabecera: formato === 'TEXTO' ? ejemploCabecera : '',
           media_formato: formato === 'TEXTO' ? '' : formato,
@@ -236,6 +282,12 @@ export function PlantillasDeWhatsApp({
        * estado es cómo alguien descubre el rechazo tres días después, cuando va a
        * mandarla. Se dice en el momento.
        */
+      if (editando) {
+        // Editar devuelve la plantilla a revisión: Meta aprobó otra cosa.
+        setAviso('Cambio enviado. Meta la vuelve a revisar, así que pasa a «En revisión».')
+        setAbierto(false); limpiar(); await cargar()
+        return
+      }
       const estado = j.creada?.status
       setAviso(estado === 'REJECTED'
         ? `Meta la creó y la rechazó en el acto. Revisa la categoría y los ejemplos: el nombre «${nombre}» ya queda ocupado.`
@@ -434,15 +486,30 @@ export function PlantillasDeWhatsApp({
                 <span style={{ flex: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="pildora" style={{ background: cara.bg, color: cara.fg }}>{cara.texto}</span>
                   {puedeConfigurar ? (
-                    <button
-                      type="button"
-                      className="operar__control"
-                      style={{ cursor: 'pointer', fontSize: 12 }}
-                      disabled={borrando === p.name}
-                      onClick={() => void borrar(p)}
-                    >
-                      {borrando === p.name ? 'Borrando' : 'Borrar'}
-                    </button>
+                    <>
+                      {/* Editar devuelve la plantilla a revisión, así que no se
+                          ofrece sobre una que ya está esperando: sería pedir dos
+                          revisiones de lo mismo. */}
+                      {p.status !== 'PENDING' ? (
+                        <button
+                          type="button"
+                          className="operar__control"
+                          style={{ cursor: 'pointer', fontSize: 12 }}
+                          onClick={() => abrirParaEditar(p)}
+                        >
+                          Editar
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="operar__control"
+                        style={{ cursor: 'pointer', fontSize: 12 }}
+                        disabled={borrando === p.name}
+                        onClick={() => void borrar(p)}
+                      >
+                        {borrando === p.name ? 'Borrando' : 'Borrar'}
+                      </button>
+                    </>
                   ) : null}
                 </span>
               </div>
@@ -489,6 +556,11 @@ export function PlantillasDeWhatsApp({
               <input
                 className="campo" value={nombre} onChange={(e) => setNombre(e.target.value)}
                 placeholder="pedido_en_camino" required
+                /* Al editar, ni el nombre ni el idioma se pueden cambiar en Meta.
+                   Se enseñan bloqueados en vez de ocultarse: quien edita tiene que
+                   ver sobre qué está trabajando. */
+                readOnly={!!editando}
+                style={editando ? { opacity: .6 } : undefined}
               />
               <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
                 Minúsculas, números y guion bajo. Si Meta la rechaza, ese nombre queda ocupado.
@@ -496,12 +568,78 @@ export function PlantillasDeWhatsApp({
             </label>
             <label style={{ display: 'grid', gap: 4, flex: '0 1 200px' }}>
               <span className="label">Idioma</span>
-              <select className="campo" value={idioma} onChange={(e) => setIdioma(e.target.value)}>
+              <select
+                className="campo" value={idioma} disabled={!!editando}
+                onChange={(e) => setIdioma(e.target.value)}
+              >
                 {IDIOMAS.map((i) => <option key={i.valor} value={i.valor}>{i.nombre}</option>)}
               </select>
             </label>
           </div>
 
+          {categoria === 'AUTHENTICATION' ? (
+            <div style={{ display: 'grid', gap: 14 }}>
+              {/* EL TEXTO NO SE ESCRIBE. Meta lo genera y lo traduce; lo único que
+                  se decide es esto. Ofrecer un cuerpo aquí sería ofrecer un campo
+                  que Meta ignora, o por el que rechaza. */}
+              <p style={{ fontSize: 13, color: 'var(--k-text-2)', margin: 0 }}>
+                En autenticación el texto lo escribe Meta y lo traduce a cada idioma. Aquí solo se
+                decide qué lleva alrededor.
+              </p>
+
+              <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                <input
+                  type="checkbox" checked={recomendacion}
+                  onChange={(e) => setRecomendacion(e.target.checked)}
+                  style={{ marginTop: 3 }}
+                />
+                <span style={{ fontSize: 14 }}>
+                  Añadir la advertencia de seguridad
+                  <span style={{ display: 'block', fontSize: 12, color: 'var(--k-text-2)' }}>
+                    «No compartas este código con nadie», con las palabras de Meta.
+                  </span>
+                </span>
+              </label>
+
+              <label style={{ display: 'grid', gap: 4, maxWidth: 260 }}>
+                <span className="label">Caduca a los (minutos)</span>
+                <input
+                  className="campo" type="number" min={1} max={90}
+                  value={caducidad} onChange={(e) => setCaducidad(e.target.value)}
+                />
+                <span style={{ fontSize: 12, color: 'var(--k-text-2)' }}>
+                  Entre 1 y 90, que es el rango de Meta. Déjalo vacío para no mostrar caducidad.
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <label style={{ display: 'grid', gap: 4, flex: '0 1 220px' }}>
+                  <span className="label">Botón</span>
+                  <select
+                    className="campo" value={otpTipo}
+                    onChange={(e) => setOtpTipo(e.target.value as 'COPY_CODE' | 'ONE_TAP')}
+                  >
+                    <option value="COPY_CODE">Copiar el código</option>
+                    <option value="ONE_TAP">Autorrellenar en la app</option>
+                  </select>
+                </label>
+                <label style={{ display: 'grid', gap: 4, flex: '1 1 200px' }}>
+                  <span className="label">Texto del botón</span>
+                  <input
+                    className="campo" value={botonOtp} maxLength={25}
+                    onChange={(e) => setBotonOtp(e.target.value)} required
+                  />
+                </label>
+              </div>
+              {otpTipo === 'ONE_TAP' ? (
+                <p style={{ fontSize: 12, color: 'var(--k-text-2)', margin: 0 }}>
+                  Autorrellenar necesita que la app del cliente esté registrada en Meta con su
+                  firma. Si no lo está, WhatsApp cae a «copiar el código» solo.
+                </p>
+              ) : null}
+            </div>
+          ) : (
+          <>
           <div style={{ display: 'grid', gap: 6 }}>
             <span className="label">Cabecera (opcional)</span>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -689,9 +827,14 @@ export function PlantillasDeWhatsApp({
             ) : null}
           </div>
 
+          </>
+          )}
+
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn" disabled={guardando}>
-              {guardando ? 'Enviando a Meta' : 'Crear y enviar a Meta'}
+              {guardando
+                ? 'Enviando a Meta'
+                : editando ? 'Guardar el cambio en Meta' : 'Crear y enviar a Meta'}
             </button>
             <button
               type="button" className="operar__control" style={{ cursor: 'pointer' }}
