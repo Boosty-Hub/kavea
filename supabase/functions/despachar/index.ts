@@ -211,9 +211,8 @@ function peticion(e: Envio, token: string, urlMedia?: string): { url: string; in
   //
   // Y NO SE MANDA `tag` NI `messaging_type`. En WhatsApp no existe HUMAN_AGENT:
   // fuera de las 24 h la única vía es una plantilla aprobada, y mandar un tag de
-  // Messenger aquí devuelve error. La ventana ya se reevaluó más arriba con
-  // `ventana_de()`, así que si llegamos hasta aquí es que está abierta; si estaba
-  // cerrada, el envío se marcó fallido con su motivo y nunca entra en esta rama.
+  // Messenger aquí devuelve error. Desde la 0106 `ventana_de` lo refleja y cierra
+  // WhatsApp a las 24 h en vez de ofrecer una prórroga que no existe.
   //
   // LA PLANTILLA NO SE ELIGE SOLA, y eso no ha cambiado: la elige una persona en
   // el compositor y llega aquí ya encolada con su nombre y sus parámetros
@@ -393,7 +392,26 @@ Deno.serve(async (): Promise<Response> => {
           { method: 'POST', body: JSON.stringify({ p_conversacion: e.conversation_id, p_emisor: e.emisor }) },
         ))?.[0]
 
-        if (!v || v.clase === 'cerrada') {
+        /**
+         * UNA PLANTILLA NO MIRA LA VENTANA, y por eso existe.
+         *
+         * La regla de arriba es correcta para todo lo demás: entre encolar y
+         * despachar pasan minutos y las 24 horas no esperan. Pero una plantilla
+         * aprobada es precisamente el permiso de Meta para escribir cuando la
+         * ventana está cerrada; aplicarle la comprobación la deja siempre en
+         * `fallido` con el motivo que ella misma venía a resolver.
+         *
+         * Pasó en la primera prueba: `hello_world` se encoló bien y murió aquí
+         * con «Pasaron 24 horas desde su último mensaje».
+         *
+         * Lo que sí sigue valiendo es el kill-switch: si el canal está pausado o
+         * el hilo está en standby, no sale nada, plantilla incluida. Por eso se
+         * mira el motivo y no solo la clase.
+         */
+        const esPlantilla = e.cuerpo?.tipo === 'plantilla'
+        const frenoDuro = !v
+          || /pausado|standby|no existe/i.test(v.motivo ?? '')
+        if ((!esPlantilla && v.clase === 'cerrada') || frenoDuro) {
           await marcar(e.id, {
             estado: 'fallido',
             error_mensaje: v?.motivo ?? 'La ventana se cerró antes de poder enviar.',

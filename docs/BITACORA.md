@@ -223,6 +223,52 @@ producción · retención tras la baja de un cliente.
 
 ## 3. Entradas
 
+### 2026-08-24 (cierre) — WhatsApp ya puede escribir fuera de las 24 horas
+
+**Se cerró el único canal sin salida.** Fuera de la ventana WhatsApp no tenía forma de escribir: ni
+texto —lo prohíbe Meta— ni plantilla —no estaba construido—. Ahora sí, y probado de punta a punta:
+`hello_world` vinculada desde la pantalla, elegida en el compositor y **entregada con
+`wamid.HBgMNTg0MTIxNzIyNzY3…` a un número cuyo último mensaje era de hace treinta horas**.
+
+**Tres piezas, y solo una era nueva.** Decir qué variable rellena cada hueco: la columna
+`plantillas.variables` existe desde la 0042 y `renderizar_plantilla` ya la sabía usar; faltaba una
+forma de rellenarla que no fuera escribir JSON. Resolver los huecos contra la ficha: también
+existía, pero devolvía el texto entero y **Meta pide los valores uno a uno, en orden** — el texto
+montado no se puede volver a trocear. Y encolar el envío, que sí era nuevo.
+
+Se extrajo `private.valores_de_tarjeta` porque el mapa de valores hacía falta en dos sitios.
+Copiarlo habría dejado dos listas de variables que se separan el día que alguien añada una: el mismo
+fallo que ya costó una lista de campos de webhook duplicada e incompleta.
+
+**Y aparecieron dos fallos por el camino, los dos anteriores a esto:**
+
+1. **`ventana_de` mentía en WhatsApp.** Devolvía `humana` con `tag = HUMAN_AGENT` entre las 24 horas
+   y los 7 días, para cualquier canal. En WhatsApp **HUMAN_AGENT no existe** —lo dice el propio
+   despachador dos líneas más arriba— así que un texto escrito a las treinta horas se encolaba, salía
+   hacia Cloud API y Meta lo rechazaba. El operador veía una ventana que la pantalla le decía
+   abierta. Las dos conversaciones del espacio estaban así. La 0106 cierra WhatsApp a las 24 h y el
+   motivo dice qué hacer, no solo qué no se puede.
+2. **El despachador mataba la plantilla con el motivo que la plantilla venía a resolver.** Reevalúa
+   la ventana antes de enviar —correcto para todo lo demás— y dejaba `hello_world` en `fallido` con
+   «Pasaron 24 horas desde su último mensaje». Ahora una plantilla se salta esa comprobación, pero
+   **no el freno duro**: canal pausado o hilo en standby siguen parándola.
+
+**Un hueco vacío no se manda.** Si a la ficha le falta el dato, `encolar_plantilla` se niega y dice
+cuál falta. «Hola , su pedido  ya va en camino» se cobra igual que uno bien escrito y lo lee el
+cliente.
+
+**Sobre las variables: ya estaban.** Los campos personalizados existen desde la 0028 —Ajustes →
+Campos, con tipos y ámbito— y `variables_disponibles` ya los exponía: hoy son once, tres de ellas
+propias del espacio. Lo que faltaba no era crear campos, era **emparejarlos con los huecos
+numerados** de una plantilla de Meta. Eso es lo que hace la pantalla nueva, y un campo que se cree
+mañana aparece en el desplegable sin tocar nada.
+
+**Y los comentarios dejan de depender de que alguien pulse.** El webhook no llega —modo desarrollo y
+permiso rechazado, no falta de suscripción— y la lectura por API sí los trae. Hoy volvió a pasar: se
+comentó una publicación de Boosty y no apareció hasta pulsar «Traer de Meta». La 0107 pone esa
+lectura cada quince minutos. Cuando el permiso se apruebe seguirá haciendo falta: un webhook es una
+entrega, y una entrega se pierde.
+
 ### 2026-08-24 (cierre) — Por qué Meta rechazó, y las plantillas dejan de estar mezcladas
 
 **Los dos rechazos tienen nombre, y Meta lo daba.** El campo `rejected_reason` existe en la API y
@@ -1746,3 +1792,11 @@ del espacio de Boosty antes de dar acceso al revisor (las sigue atendiendo Kommo
   es la solución: es el diagnóstico.
 - Antes de buscar el motivo en la documentación, comparar lo que funciona con lo que no. Cinco
   plantillas aprobadas con ejemplo y una rechazada sin él contestan la pregunta sin salir de la API.
+- Una función que reevalúa una precondición antes de actuar tiene que preguntarse si la acción
+  existe PARA saltarse esa precondición. La plantilla moría con el mensaje que ella misma resolvía.
+- Un comentario que explica correctamente una regla dos líneas más arriba no impide que el código de
+  al lado la incumpla: el despachador decía que en WhatsApp no hay HUMAN_AGENT mientras `ventana_de`
+  se lo entregaba.
+- Antes de construir lo que alguien pide, mirar si ya está. Los campos personalizados llevaban desde
+  la 0028 y ya salían como variables; lo que faltaba era el emparejamiento, que es un tercio del
+  trabajo y no el trabajo entero.
