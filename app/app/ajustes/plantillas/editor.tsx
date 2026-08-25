@@ -48,19 +48,28 @@ export function EditorPlantillas({
     router.refresh()
   }
 
+  /**
+   * SOLO LAS INTERNAS, y esto cambió el 25-ago.
+   *
+   * Este editor enseñaba también un bloque «De WhatsApp» con las filas locales de
+   * `tipo = 'whatsapp'`, que era el registro a mano de la 0042. Desde el 24-ago
+   * las de WhatsApp se leen de la WABA en su propia pestaña, y esas filas locales
+   * ya no son un catálogo: son **el emparejamiento** de cada hueco con un dato de
+   * la ficha. Enseñarlas aquí como plantillas editables duplicaba la pestaña de al
+   * lado y dejaba dos sitios para cambiar lo mismo con resultados distintos.
+   */
   const porTipo = {
     interna: plantillas.filter((p) => p.tipo === 'interna'),
-    whatsapp: plantillas.filter((p) => p.tipo === 'whatsapp'),
   }
 
   return (
     <div style={{ display: 'grid', gap: 28, marginTop: 28 }}>
       {error ? <p className="error" role="alert">{error}</p> : null}
 
-      {(['interna', 'whatsapp'] as const).map((tipo) => (
+      {(['interna'] as const).map((tipo) => (
         <section key={tipo}>
           <h2 style={{ fontSize: 16 }}>
-            {tipo === 'interna' ? 'Internas' : 'De WhatsApp'} ({porTipo[tipo].length})
+            Respuestas rápidas ({porTipo[tipo].length})
           </h2>
 
           <div className="tarjeta" style={{ padding: 0, marginTop: 12, overflow: 'hidden' }}>
@@ -81,33 +90,10 @@ export function EditorPlantillas({
                       ) : null}
                     </div>
                     <div className="plantilla__cuerpo">{p.cuerpo}</div>
-                    {tipo === 'whatsapp' ? (
-                      <div style={{ fontSize: 12, color: 'var(--k-text-2)', marginTop: 4 }}>
-                        {p.categoria} · {p.idioma} · {ESTADOS[p.estado] ?? p.estado}
-                        {p.variables?.length ? ` · ${p.variables.join(', ')}` : ''}
-                        {p.motivo_rechazo ? (
-                          <span style={{ color: 'var(--k-escalada-fg)' }}> · {p.motivo_rechazo}</span>
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
 
                   {puedeConfigurar ? (
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {tipo === 'whatsapp' ? (
-                        <select
-                          className="operar__control"
-                          value={p.estado}
-                          disabled={ocupado}
-                          aria-label={`Estado de ${p.nombre} en Meta`}
-                          onChange={(e) => cambiarEstado(p, e.target.value)}
-                          title="Lo que pasó en Meta. Kavea todavía no envía plantillas: esto es un registro."
-                        >
-                          {Object.entries(ESTADOS).map(([v, n]) => (
-                            <option key={v} value={v}>{n}</option>
-                          ))}
-                        </select>
-                      ) : null}
                       <button type="button" className="operar__control" style={{ cursor: 'pointer' }}
                         onClick={() => { setEditando(p); setCreando(null) }} disabled={ocupado}>
                         Editar
@@ -152,6 +138,14 @@ function Formulario({
   organizacionId, tipo, inicial, variables, ocupado, setOcupado, setError, alCerrar,
 }: {
   organizacionId: string
+  /**
+   * Sigue admitiendo `'whatsapp'` en el tipo, pero esta pantalla ya no lo pasa
+   * nunca: las de WhatsApp viven en su pestaña y se leen de la WABA. Las ramas de
+   * abajo que miran `tipo === 'whatsapp'` son, por tanto, inalcanzables desde
+   * aquí. Se dejan porque el formulario es genérico y quitarlas ahora obligaría a
+   * partirlo en dos; lo que no se deja es la duda: si alguien vuelve a montar un
+   * editor de plantillas de WhatsApp, que sea a propósito y no por herencia.
+   */
   tipo: 'interna' | 'whatsapp'
   inicial: Plantilla | null
   variables: VariableDisponible[]

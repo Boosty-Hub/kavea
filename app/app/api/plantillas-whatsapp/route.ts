@@ -35,7 +35,17 @@ export async function POST(req: Request) {
   const supabase = await crearClienteServidor()
 
   if (accion === 'crear' || accion === 'editar' || accion === 'borrar') {
-    const { data: puede } = await supabase.rpc('puede', { p_org: org.id, p_accion: 'configurar' })
+    /**
+     * `org` y `accion`, NO `p_org` y `p_accion`.
+     *
+     * La función es `puede(org uuid, accion text)` y los otros seis sitios que la
+     * llaman usan esos nombres. Este era el único con el prefijo `p_`, así que la
+     * llamada fallaba, `puede` volvía nulo y la pantalla decía «no puedes crear
+     * plantillas en este espacio» al propietario del espacio. Un nombre de
+     * parámetro equivocado no da error de compilación ni de tipos: da un permiso
+     * denegado que parece una decisión.
+     */
+    const { data: puede } = await supabase.rpc('puede', { org: org.id, accion: 'configurar' })
     if (!puede) {
       return NextResponse.json(
         { error: 'No puedes crear, editar ni borrar plantillas en este espacio.' },
