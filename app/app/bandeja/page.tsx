@@ -93,11 +93,9 @@ export default async function Bandeja({
 
   return (
     <div className="bandeja">
+      {/* `Refrescador` devuelve null, así que no ocupa celda del grid. El aviso
+          del sistema SÍ pintaba una, y ahí estaba el fallo: ver más abajo. */}
       <Refrescador organizationId={org.id} />
-      {/* El aviso del sistema vive en la BANDEJA y no en el layout: es la
-          pantalla que se deja abierta, y pedir el permiso desde cualquier otra
-          sería pedirlo fuera de contexto. */}
-      <AvisosDelSistema organizationId={org.id} />
 
       <section className="bandeja__lista" aria-label="Conversaciones">
         <header className="bandeja__cabecera">
@@ -105,6 +103,24 @@ export default async function Bandeja({
           <h1 style={{ fontSize: 22, marginTop: 4 }}>Bandeja</h1>
 
           <PestanasVista activa="conversaciones" />
+
+          {/* EL AVISO DEL SISTEMA VA AQUÍ DENTRO, y no como hijo de `.bandeja`,
+              que es donde estaba.
+              `.bandeja` es un grid de DOS columnas y este componente pinta un
+              `<p>` —o un `<button>`— cuando el permiso de notificaciones está
+              `denied` o `default`. Siendo hijo directo del grid, ese aviso se
+              comía la primera celda: la lista se iba a la segunda columna y el
+              hilo caía a una segunda fila. O sea que la bandeja aparecía con las
+              columnas invertidas a TODO el que no hubiera concedido los avisos,
+              que es casi todo el mundo. No se veía porque en el navegador de
+              quien lo escribió el permiso estaba `granted` y el componente
+              devuelve null.
+              Lo cazó una captura de Playwright del 5-sep, que corre con los
+              avisos bloqueados por defecto.
+              Sigue viviendo en la bandeja a propósito —es la pantalla que se
+              deja abierta y pedir el permiso desde otra sería fuera de
+              contexto—, solo que ahora dentro de la columna que le toca. */}
+          <AvisosDelSistema organizationId={org.id} />
 
           <Buscador huso={huso} />
 

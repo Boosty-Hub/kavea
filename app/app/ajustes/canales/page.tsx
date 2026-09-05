@@ -60,11 +60,17 @@ export default async function PaginaCanales({
 
       <p className="label" style={{ marginTop: 16 }}>{org.nombre}</p>
       <h1 style={{ marginBlock: '8px 12px' }}>Canales</h1>
-      <p style={{ color: 'var(--k-text-2)', marginTop: 0, maxWidth: 620 }}>
-        Cada canal se comprueba por partes, no de golpe. Un canal que dice «conectado» y del
-        que no llega un solo mensaje es el caso más común y el más difícil de diagnosticar:
-        esta pantalla existe para decir cuál de las siete comprobaciones falla, no si falla.
-      </p>
+      {/* Este párrafo explica el DIAGNÓSTICO, y solo tiene sentido cuando hay
+          algo que diagnosticar. En un espacio sin canales era lo primero que se
+          leía —«un canal que dice conectado y del que no llega un mensaje»— y le
+          hablaba de un problema que no puede tener todavía. */}
+      {conexiones.length > 0 ? (
+        <p style={{ color: 'var(--k-text-2)', marginTop: 0, maxWidth: 620 }}>
+          Cada canal se comprueba por partes, no de golpe. Un canal que dice «conectado» y del
+          que no llega un solo mensaje es el caso más común y el más difícil de diagnosticar:
+          esta pantalla existe para decir cuál de las siete comprobaciones falla, no si falla.
+        </p>
+      ) : null}
 
       {conexion ? (
         <p
