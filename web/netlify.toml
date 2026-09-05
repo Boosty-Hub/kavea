@@ -8,7 +8,24 @@
 # netlify.toml dentro de esa base.
 
 [build]
-  command = "npm run build"
+  # `npm ci` VA AQUÍ Y NO SE PUEDE QUITAR, aunque Netlify ya tenga un paso de
+  # instalación propio. El 5-sep el sitio llevaba once días sin desplegar y el
+  # log lo dijo en tres líneas: «No pnpm workspaces detected» → «Installing npm
+  # packages using pnpm version 9.15.0» → «Scope: all 2 workspace projects», y
+  # después `sh: 1: astro: not found`.
+  #
+  # El motivo: `"packageManager": "pnpm@9.15.0"` en la package.json de la RAÍZ
+  # enciende Corepack, pnpm sube a la raíz, instala los dos proyectos del
+  # workspace —`app` y `scripts`— y se salta `web/`, que `pnpm-workspace.yaml`
+  # excluye a propósito. O sea que el paso de instalación de Netlify no instala
+  # nada de este sitio y `web/package-lock.json` no se usa nunca.
+  #
+  # Funcionaba en agosto porque la imagen de build era otra: la de hoy dice
+  # `noble-new-builds` y detecta el gestor de otra forma. La lección es que este
+  # sitio no puede depender de que Netlify adivine npm; se lo decimos nosotros.
+  # Cuesta unos segundos de instalación repetida en un sitio estático de cinco
+  # páginas, y compra un despliegue reproducible desde el lockfile versionado.
+  command = "npm ci && npm run build"
   publish = "dist"
 
 # Con dos sitios sobre un repositorio, cada commit dispara los dos builds.
@@ -30,10 +47,20 @@
 # sale limpio y CANCELA el build. Es el fallo peor de los dos, así que si la
 # variable no está se cae al comportamiento anterior en vez de a lo desconocido.
 #
-# SIN COMPROBAR TODAVÍA bajo la forma que falló. El commit que arregla esto toca
-# esta misma carpeta, así que la regla vieja también habría construido: la prueba
-# de verdad es el siguiente empujón de varios commits cuyo último no toque aquí.
-  ignore = "git diff --quiet ${CACHED_COMMIT_REF:-HEAD^} ${COMMIT_REF:-HEAD} -- ."
+# YA SE COMPROBÓ, Y FALLÓ. El 5-sep esta regla canceló un commit que SÍ tocaba
+# `web/` —el que añadió el botón de Facebook— y la misma orden en local daba
+# exit 1, o sea «construir». Al forzar un build con caché limpia sí arrancó, y
+# esa es la pista: sin caché `CACHED_COMMIT_REF` viene vacío, cae a `HEAD^` y
+# compara bien; con caché devolvió 0. La explicación que encaja con todo lo
+# observado es que `CACHED_COMMIT_REF` valía lo mismo que `COMMIT_REF`, y
+# comparar un commit consigo mismo sale limpio y cancela SIEMPRE.
+#
+# De ahí la guarda de delante: si los dos refs son iguales, no hay nada que
+# comparar y se construye. Un build de más cuesta catorce segundos; un build de
+# menos deja el sitio público once días sin desplegar sin que nadie lo note,
+# porque el despliegue sale en rojo con un motivo que suena a «no había nada que
+# hacer». Ante la duda, esta regla construye.
+  ignore = "[ \"$CACHED_COMMIT_REF\" != \"$COMMIT_REF\" ] && git diff --quiet ${CACHED_COMMIT_REF:-HEAD^} ${COMMIT_REF:-HEAD} -- ."
 
 [build.environment]
   NODE_VERSION = "22"
