@@ -118,8 +118,16 @@ vive tres clics dentro, en `/ajustes/canales`; y es **solo del propietario**
 podía llegar al diálogo **ni con instrucciones perfectas**. Las instrucciones que se mandaron,
 además, declaran que Facebook Login existe y nunca dicen dónde está.
 
-**Decidido el 5-sep:** se arregla con autenticación de verdad en la puerta —el proveedor
-`facebook` de Supabase Auth—, **sin publicar la app**, y se reenvía solo Human Agent.
+**Decidido el 5-sep, y corregido el mismo día.** Primero se intentó arreglar con autenticación de
+verdad en la puerta —el proveedor `facebook` de Supabase Auth—, **sin publicar la app**, reenviando
+solo Human Agent. La puerta se construyó, se verificó contra el diálogo real y **se apagó**: Meta no
+permite añadir a esta app el caso de uso del login de consumo (ver F10).
+
+**Y al caerse, quedó claro un error de encuadre que conviene no repetir: el 7.a nunca pidió el login
+de consumo.** No dice «no tienes Facebook Login», dice que **no lo encontraron**; y lo que salió
+investigando es que el rol del revisor tampoco podía pulsarlo. Eso se remedia con el botón de Login
+for Business que ya existe, haciéndolo **encontrable** (F5) y **alcanzable** (F6), contándolo (F8) y
+grabándolo (F7). O sea que F6–F9 no dependían de la puerta y el reenvío sigue en pie.
 
 **F0. Encender el proveedor de Facebook en Supabase Auth.** — ✅ **HECHO el 5-sep.**
 `external_facebook_enabled: true` con el App Secret, y comprobado contra el servicio real y no
@@ -137,18 +145,21 @@ Functions la API devuelve nombres pero no valores.
 Facebook del mismo correo. Supabase enlaza la identidad o da error según configuración, y el
 primero que lo sufra será un cliente.
 
-**F1. «Continuar con Facebook» en las tres superficies de entrada.** — 🟡 **ESCRITO el 5-sep, sin
-probar en navegador.** `lib/supabase/cookies.ts` y `app/entrar-con-facebook.tsx` nuevos, y el botón
-puesto en las tres. Typecheck y los dos builds en verde; el canje real necesita un navegador con
-sesión de Facebook y no se ha hecho.
-`app/app/entrar`, `app/app/registro` —ahí como botón primario— y `web/src/pages/entrar.astro`
-como un `<a>` plano a `cuenta.kavea.ai/registro?con=facebook`, para que el sitio público siga sin
-JavaScript, que es lo que defiende su propio comentario. Hoy `kavea.ai/entrar` no enlaza a crear
-cuenta por ningún sitio: quien llega nuevo no encuentra la puerta.
-*Hecho cuando:* el botón se ve en las tres y desde `kavea.ai` se llega a crear cuenta sin escribir
-una URL a mano.
+**F1. «Continuar con Facebook» en las tres superficies de entrada.** — ⏸ **APAGADO el 5-sep, el
+mismo día.** Se construyó, se verificó contra el diálogo real —llega a Facebook, sin «URL Blocked»—
+y se apagó al descubrir F10: Meta no permite añadir a esta app el caso de uso del login de consumo.
+Vive detrás de `PUERTA_CON_FACEBOOK` en `app/entrar-con-facebook.tsx`; encenderlo es cambiar esa
+constante y apuntar el proveedor de Supabase a una app que sí lo admita. El botón del sitio público
+se quitó del todo y habría que rehacerlo (seis líneas).
+Lo que SÍ se queda de esta tarea: `kavea.ai/entrar` ya enlaza a crear cuenta, que no lo hacía por
+ningún sitio —quien llegaba nuevo no encontraba la puerta—, y de paso salió un defecto que llevaba
+ahí sin que nadie lo viera: Astro se come el salto de línea antes de un `<a>` y en producción se
+leía «escríbenos ahola@kavea.ai».
+*Se enciende cuando:* haya una app de Meta que admita el login de consumo. No antes.
 
-**F2. Enrutar al recién autenticado.** — 🟡 **ESCRITO el 5-sep, sin probar en navegador.**
+**F2. Enrutar al recién autenticado.** — ✅ **HECHO el 5-sep**, y sirve igual: es el mismo reparto
+que usará cualquier proveedor el día que haya uno. Lleva además la guarda de F10.
+
 `app/entrar/retorno/route.ts`: canjea el código y reparte. Route handler y no página porque
 escribir cookies es lo que un componente de servidor no puede hacer, y con `opcionesDeCookie()`
 para que la sesión quede en `.kavea.ai` y sobreviva el salto al subdominio del espacio.
@@ -158,7 +169,8 @@ organización va a `/crear`; sesión con organización, a su espacio.
 *Hecho cuando:* una cuenta nueva por Facebook acaba en `/crear`, una que ya tiene espacio acaba en
 su bandeja, y ninguna acaba en una pantalla muerta.
 
-**F3. Que `/crear` redirija al espacio.** — 🟡 **ESCRITO el 5-sep, sin probar con un alta real.**
+**F3. Que `/crear` redirija al espacio.** — ✅ **HECHO y PROBADO el 5-sep con un alta real.**
+Playwright creó `revision.kavea.ai` de punta a punta y aterrizó dentro, en `/bandeja`, con sesión.
 Redirige con `window.location.assign`, y de paso **se cayó la llamada a `/api/subdominio`**: era el
 alias por inquilino que el comodín volvió innecesario, y era el único sitio del código que la
 usaba. La pantalla final pasó de destino a pantalla de paso, con el enlace visible por si la
@@ -168,8 +180,8 @@ La precaución de no redirigir (`crear/page.tsx:100-112`) quedó obsoleta: el co
 que la sesión sobrevive el salto de subdominio.
 *Hecho cuando:* al crear el espacio se aterriza dentro, con sesión, sin copiar una dirección.
 
-**F4. La bienvenida, como checklist atado al estado.** — 🟡 **ESCRITO el 5-sep, sin ver con un
-espacio nuevo de verdad.** `app/bandeja/bienvenida.tsx` y `hayCanalVivo()` en `lib/conexiones.ts`.
+**F4. La bienvenida, como checklist atado al estado.** — ✅ **HECHO y VISTO el 5-sep** en el espacio
+recién nacido de la revisión. `app/bandeja/bienvenida.tsx` y `hayCanalVivo()` en `lib/conexiones.ts`.
 Sale cuando el espacio no tiene **ninguna** tarjeta, ni abierta ni cerrada —no cuando la lista
 filtrada está vacía, que en un espacio lleno también es cero—, y las dos consultas que necesita
 solo se hacen en ese caso: la bandeja es la pantalla que más se recarga.
@@ -182,7 +194,10 @@ propietario: «pídele al propietario del espacio que conecte los canales», no 
 *Hecho cuando:* un espacio sin conexiones enseña el checklist con «Conectar canales» como acción
 principal, y un `agente` ve el aviso en vez del botón.
 
-**F5. Que conectar canales se encuentre.** — 🟡 **ESCRITO el 5-sep.** «Canales» ya es entrada de
+**F5. Que conectar canales se encuentre.** — ✅ **HECHO el 5-sep, y rehecho entero.** Ya no es un
+botón suelto: tres tarjetas con su logo diciendo qué entra por cada canal —y WhatsApp diciendo que
+NO entra por aquí, porque `configDe()` solo tiene `mensajeria`—, los tres pasos del diálogo, y el
+botón en el azul de Meta con su logo, que es lo que un revisor busca. Verificado en producción. «Canales» ya es entrada de
 primer nivel en el sidebar; el aviso del segundo diálogo quedó como texto junto al botón y no como
 pantalla aparte, que es una ruta menos por el mismo efecto; y «Reconectar» ya solo lo ve quien
 puede conectar —`puedeConectar` baja por prop a `Canales`, que se pinta fuera del guard—, y a los
@@ -195,7 +210,10 @@ otra vez. Y cerrar el enlace «Reconectar», que está **fuera** del guard de ro
 *Hecho cuando:* desde la bandeja se llega al diálogo de Meta en dos clics y ningún enlace visible
 para un `agente` acaba en 403.
 
-**F6. Un espacio de demostración con el revisor como propietario.**
+**F6. Un espacio de demostración con el revisor como propietario.** — ✅ **HECHO el 5-sep.**
+`revisor-demo@kavea.ai` es propietario de **`revision.kavea.ai`**, creado por el alta real de la
+aplicación y no a mano en la base. `revisor@kavea.ai` sigue `agente` en el espacio de Boosty, así
+que el revisor tiene las dos puertas y ninguna le deja soltar los canales vivos de Boosty.
 Todo el rechazo es que el revisor no podía llegar al diálogo. `revisor@kavea.ai` se queda `agente`
 en el espacio de Boosty —ahí están las conversaciones reales y ahí se prueba Human Agent— y una
 segunda cuenta es propietaria de un espacio de demostración vacío, donde el journey de conexión se
