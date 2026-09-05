@@ -5,6 +5,7 @@ import { crearClienteServidor } from '@/lib/supabase/servidor'
 import { conexionesDe, embudosDe } from '@/lib/conexiones'
 import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { Canales } from './panel'
+import { ConectarUnCanal } from './conectar'
 import { SoltarCuenta } from './soltar'
 
 import { NavAjustes } from '../nav'
@@ -88,45 +89,30 @@ export default async function PaginaCanales({
         </p>
       ) : null}
 
-      {/* `div` y no `p`, y no es cosmético: dentro va el botón de soltar, que es
-          un `div`, y un `div` dentro de un `p` es HTML inválido. El navegador
-          cierra el párrafo antes de tiempo, el DOM deja de coincidir con lo que
-          React pintó y salta el error de hidratación 418. Compilaba y se veía
-          bien; lo dijo la consola. */}
-      {puedeConectar === true ? (
+      {/* Las tarjetas y los pasos salen SIEMPRE, también para quien no puede
+          conectar: dentro se le dice que es cosa del propietario. Antes el
+          bloque entero desaparecía y un `agente` veía una pantalla de canales
+          que no explicaba por qué no había ninguno. */}
+      <ConectarUnCanal
+        puedeConectar={puedeConectar === true}
+        yaAutorizo={yaAutorizo}
+        autorizacionMuerta={autorizacionMuerta}
+        hayConexiones={conexiones.some((c) => c.archivada_en === null)}
+      />
+
+      {/* La puerta de salida, en el mismo sitio que la de entrada. Antes solo se
+          podía soltar un canal: la autorización de la que cuelgan todos no tenía
+          botón, y quedarse vinculado sin querer no es una opción que el producto
+          deba ofrecer.
+
+          Va FUERA de la tarjeta de conectar y en su propio `div`: dentro lleva un
+          `div`, y un `div` dentro de un `p` es HTML inválido —el navegador cierra
+          el párrafo antes de tiempo, el DOM deja de coincidir con lo que React
+          pintó y salta el error de hidratación 418. Compilaba y se veía bien; lo
+          dijo la consola. */}
+      {puedeConectar === true && yaAutorizo && !autorizacionMuerta ? (
         <div style={{ margin: '0 0 24px' }}>
-          {yaAutorizo && !autorizacionMuerta ? (
-            <>
-              <a className="boton" href="/ajustes/canales/elegir">Elegir qué conectar</a>
-              <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>
-                Ya autorizaste tu cuenta de Facebook. Desde ahí activas las Páginas e Instagram
-                que quieras, sin volver a pasar por Meta.{' '}
-                <a href="/api/meta/oauth/start?canal=mensajeria">Autorizar otra cuenta</a>.
-              </span>
-              {/* Y la puerta de salida, en el mismo sitio que la de entrada.
-                  Antes solo se podía soltar un canal: la autorización de la que
-                  cuelgan todos no tenía botón, y quedarse vinculado sin querer
-                  no es una opción que el producto deba ofrecer. */}
-              <SoltarCuenta conexionesVivas={vivas} intactas={intactas} />
-            </>
-          ) : (
-            <>
-              <a className="boton" href="/api/meta/oauth/start?canal=mensajeria">
-                Conectar con Facebook
-              </a>
-              {/* SE DICE QUE ES EL SEGUNDO DIÁLOGO, y hace falta decirlo: desde
-                  el 5-sep se entra a Kavea con Facebook, así que quien llega
-                  aquí pulsó un botón azul de Facebook hace un minuto y este
-                  parece el mismo. No lo es —aquel solo identifica, este da
-                  acceso a los activos del negocio— y sin explicarlo el segundo
-                  clic se lee como un fallo del primero. */}
-              <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>
-                Este es el segundo diálogo de Facebook y pide algo distinto al de la entrada: allí
-                solo se comprobó quién eres, aquí le das a Kavea acceso a las Páginas e Instagram
-                de tu negocio. Una sola autorización; después eliges aquí qué cuentas atender.
-              </span>
-            </>
-          )}
+          <SoltarCuenta conexionesVivas={vivas} intactas={intactas} />
         </div>
       ) : null}
 

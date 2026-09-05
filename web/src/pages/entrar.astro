@@ -28,23 +28,13 @@ import Base from '../layouts/Base.astro'
 >
   <section class="section">
     <div class="page acceso">
+      {/* AQUÍ HUBO UN «Continuar con Facebook» durante una hora, el 5-sep, y se
+          quitó el mismo día: Meta no permite añadir a esta app el caso de uso que
+          habilita el login de consumo —los trece que ofrece son de publicidad,
+          Threads, Catálogo, Páginas y App Events—, así que el diálogo contestaba
+          `Invalid Scopes: email`. Volverá cuando haya una app de Meta que admita
+          ese login; el detalle está en `app/entrar-con-facebook.tsx`. */}
       <h1>Entrar en Kavea</h1>
-      <p class="lead">
-        Con Facebook no hace falta recordar nada: te llevamos a tu espacio, y si todavía no
-        tienes uno, lo creas ahí mismo.
-      </p>
-
-      <a class="btn acceso__fb" href="https://cuenta.kavea.ai/registro?con=facebook">
-        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
-          <path
-            d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.5c-1.5 0-1.96.93-1.96 1.89v2.25h3.32l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07Z"
-          />
-        </svg>
-        Continuar con Facebook
-      </a>
-
-      <div class="acceso__o"><span>o con el nombre de tu espacio</span></div>
-
       <p class="lead">
         Cada organización tiene su propio espacio, y se entra por su subdominio. Si tu empresa
         se llama Acme en Kavea, tu dirección es <code>acme.kavea.ai</code>.
@@ -109,35 +99,6 @@ import Base from '../layouts/Base.astro'
     display: grid;
     gap: var(--s-3);
     justify-items: start;
-  }
-
-  /* El azul es el de Meta y no una variable de Kavea: un botón de Facebook que
-     no parece de Facebook no se reconoce, y reconocerlo es justo lo que se le
-     pide a esta pantalla. */
-  .acceso__fb {
-    margin-top: var(--s-5);
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    background: #1877f2;
-    border-color: #1877f2;
-    color: #fff;
-  }
-
-  .acceso__o {
-    display: flex;
-    align-items: center;
-    gap: var(--s-3);
-    margin: var(--s-6) 0 var(--s-5);
-    color: var(--k-text-2);
-    font-size: 13px;
-  }
-
-  .acceso__o::before,
-  .acceso__o::after {
-    content: '';
-    flex: 1;
-    border-top: 1px solid var(--k-border);
   }
 
   .acceso__campo {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
-import { EntrarConFacebook } from '../entrar-con-facebook'
+import { EntrarConFacebook, PUERTA_CON_FACEBOOK } from '../entrar-con-facebook'
 
 /**
  * Alta self-service, paso 1 de 2: la cuenta.
@@ -106,22 +106,26 @@ export default function Registro() {
         Después eliges tu subdominio y conectas WhatsApp e Instagram desde el propio panel.
       </p>
 
-      <EntrarConFacebook texto="Crear cuenta con Facebook" arranqueAutomatico={desdeElSitio} />
-      <p style={{ color: 'var(--k-text-2)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-        Con Facebook no hay que confirmar el correo: Meta ya lo da verificado, así que se entra
-        directo a elegir el nombre del espacio.
-      </p>
+      {PUERTA_CON_FACEBOOK ? (
+        <>
+          <EntrarConFacebook texto="Crear cuenta con Facebook" arranqueAutomatico={desdeElSitio} />
+          <p style={{ color: 'var(--k-text-2)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+            Con Facebook no hay que confirmar el correo: Meta ya lo da verificado, así que se entra
+            directo a elegir el nombre del espacio.
+          </p>
 
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
-        }}
-      >
-        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
-        o con tu correo
-        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
-      </div>
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
+            }}
+          >
+            <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+            o con tu correo
+            <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+          </div>
+        </>
+      ) : null}
 
       <form onSubmit={enviar} style={{ display: 'grid', gap: 14 }}>
         <div>

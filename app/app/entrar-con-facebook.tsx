@@ -4,6 +4,32 @@ import { useEffect, useState } from 'react'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
 
 /**
+ * APAGADO EL 5-sep, EL MISMO DÍA QUE SE ENCENDIÓ. Meta no deja.
+ *
+ * El primer canje real contestó `Invalid Scopes: email`, y al buscar el caso de
+ * uso que lo habilita —Use cases → Add use cases— resultó que **no está en la
+ * lista**: los trece que ofrece esta app son de publicidad, Threads, Catálogo,
+ * Fundraisers, Live Video, oEmbed, Páginas y App Events. Ninguno trae permisos
+ * de identidad, porque es una app de Login for Business, y el propio diálogo lo
+ * avisa: «not all use cases can be added to the same app. Create a new app if
+ * use cases you want to add aren't available».
+ *
+ * Así que no hay clic que lo arregle, y dejarlo encendido era ofrecer un camino
+ * muerto: a un developer le bloquea el diálogo y a un cliente le deja pasar SIN
+ * correo, que es peor porque `registrarse` (0087) exige correo confirmado.
+ *
+ * Se apaga con `PUERTA_CON_FACEBOOK` y no se borra: el código está probado y
+ * verificado contra el diálogo real —llega a Facebook, sin «URL Blocked»—, y lo
+ * único que falta es una app de Meta que admita el login de consumo. Encenderlo
+ * es cambiar esta constante y apuntar el proveedor de Supabase a esa app.
+ *
+ * Lo que NO cambia por esto: el arreglo del App Review no dependía de este
+ * botón. El 7.a se remedia con el botón de Login for Business que ya existe en
+ * Ajustes → Canales, haciéndolo encontrable y alcanzable por el revisor.
+ */
+export const PUERTA_CON_FACEBOOK = false
+
+/**
  * «Continuar con Facebook»: la puerta que a Kavea le faltaba.
  *
  * POR QUÉ ESTÁ EN LA PUERTA Y NO SOLO EN AJUSTES. Meta rechazó Human Agent el

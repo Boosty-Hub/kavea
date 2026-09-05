@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
-import { EntrarConFacebook } from '../entrar-con-facebook'
+import { EntrarConFacebook, PUERTA_CON_FACEBOOK } from '../entrar-con-facebook'
 
 export default function Entrar() {
   const router = useRouter()
@@ -49,18 +49,23 @@ export default function Entrar() {
       <p className="label">Kavea</p>
       <h1 style={{ marginBlock: '12px 24px' }}>Entrar</h1>
 
-      <EntrarConFacebook />
-
-      <div
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
-        }}
-      >
-        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
-        o con tu correo
-        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
-      </div>
+      {/* El separador va DENTRO de la condición: un «o con tu correo» sin nada
+          encima es una pantalla que promete una opción que no existe. */}
+      {PUERTA_CON_FACEBOOK ? (
+        <>
+          <EntrarConFacebook />
+          <div
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
+            }}
+          >
+            <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+            o con tu correo
+            <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+          </div>
+        </>
+      ) : null}
 
       <form onSubmit={enviar} style={{ display: 'grid', gap: 16 }}>
         <div>
