@@ -62,9 +62,37 @@ import { chromium } from 'playwright'
 import { mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
-const [correo, clave, carpeta = 'screencasts'] = process.argv.slice(2)
+const argumentos = process.argv.slice(2)
+
+/**
+ * `--solo permiso[,permiso]`: graba unos pocos en vez de los doce.
+ *
+ * NO ES COMODIDAD, ES NO HACER DAÑO. Estos recorridos tocan producción de
+ * verdad: `instagram_manage_comments` publica un comentario en una publicación
+ * real y luego lo borra, `pages_utility_messaging` entrega una plantilla a una
+ * persona real, y `human_agent` manda un mensaje. Cuando un reenvío del App
+ * Review pide UN permiso —el 5-sep, Human Agent—, recorrer los doce le escribe
+ * a contactos de verdad sin que haga falta.
+ *
+ * Sin el argumento se graban todos, que es lo que hacía antes.
+ */
+const iSolo = argumentos.findIndex((a) => a === '--solo')
+const SOLO = iSolo === -1
+  ? null
+  : new Set((argumentos[iSolo + 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean))
+if (SOLO && SOLO.size === 0) {
+  console.error('--solo necesita al menos un permiso: --solo human_agent')
+  process.exit(1)
+}
+
+// El `iSolo === -1` de delante NO sobra: sin él, `iSolo + 1` vale 0 y el filtro
+// se come el primer argumento, que es el correo. Lo cazó la prueba del parser.
+const posicionales = iSolo === -1
+  ? argumentos
+  : argumentos.filter((_, i) => i !== iSolo && i !== iSolo + 1)
+const [correo, clave, carpeta = 'screencasts'] = posicionales
 if (!correo || !clave) {
-  console.error('uso: node scripts/grabar-screencasts.mjs <correo> <clave> [carpeta]')
+  console.error('uso: node scripts/grabar-screencasts.mjs <correo> <clave> [carpeta] [--solo p1,p2]')
   process.exit(1)
 }
 
@@ -166,6 +194,12 @@ async function sesion() {
  * no enseña el permiso es peor que no tener vídeo, porque el hueco no se ve.
  */
 async function grabar(permiso, recorrido) {
+  // El filtro se aplica AQUÍ y no en cada llamada: `grabar` es el único sitio por
+  // el que pasan los doce, así que ninguno se puede escapar por olvido.
+  if (SOLO && !SOLO.has(permiso)) {
+    console.log(`  ·  ${permiso}: saltado (--solo)`)
+    return
+  }
   const estado = await sesion()
   const ctx = await navegador.newContext({
     viewport: { width: 1440, height: 900 },
