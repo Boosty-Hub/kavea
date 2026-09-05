@@ -114,9 +114,16 @@ export default async function PaginaCanales({
               <a className="boton" href="/api/meta/oauth/start?canal=mensajeria">
                 Conectar con Facebook
               </a>
+              {/* SE DICE QUE ES EL SEGUNDO DIÁLOGO, y hace falta decirlo: desde
+                  el 5-sep se entra a Kavea con Facebook, así que quien llega
+                  aquí pulsó un botón azul de Facebook hace un minuto y este
+                  parece el mismo. No lo es —aquel solo identifica, este da
+                  acceso a los activos del negocio— y sin explicarlo el segundo
+                  clic se lee como un fallo del primero. */}
               <span style={{ display: 'block', marginTop: 8, fontSize: 13, color: 'var(--k-text-2)' }}>
-                Una sola autorización. Después eliges aquí qué Páginas e Instagram quieres
-                atender desde Kavea.
+                Este es el segundo diálogo de Facebook y pide algo distinto al de la entrada: allí
+                solo se comprobó quién eres, aquí le das a Kavea acceso a las Páginas e Instagram
+                de tu negocio. Una sola autorización; después eliges aquí qué cuentas atender.
               </span>
             </>
           )}
@@ -127,6 +134,7 @@ export default async function PaginaCanales({
         conexiones={conexiones}
         huso={org.zona_horaria ?? HUSO_POR_DEFECTO}
         embudos={embudos}
+        puedeConectar={puedeConectar === true}
       />
     </main>
   )

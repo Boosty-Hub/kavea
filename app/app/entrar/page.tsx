@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
+import { EntrarConFacebook } from '../entrar-con-facebook'
 
 export default function Entrar() {
   const router = useRouter()
@@ -10,6 +11,15 @@ export default function Entrar() {
   const [clave, setClave] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
+
+  // El aviso de vuelta del diálogo de Facebook se lee de la URL en un efecto y
+  // no con `useSearchParams`, que obliga a envolver la página en un Suspense
+  // para poder prerenderizarla y haría fallar el `build` de CI.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('fallo') === 'facebook') {
+      setError('No se completó la entrada con Facebook. Prueba otra vez o usa tu correo.')
+    }
+  }, [])
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -38,6 +48,19 @@ export default function Entrar() {
     <main className="pagina" style={{ maxWidth: 420 }}>
       <p className="label">Kavea</p>
       <h1 style={{ marginBlock: '12px 24px' }}>Entrar</h1>
+
+      <EntrarConFacebook />
+
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
+        }}
+      >
+        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+        o con tu correo
+        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+      </div>
 
       <form onSubmit={enviar} style={{ display: 'grid', gap: 16 }}>
         <div>

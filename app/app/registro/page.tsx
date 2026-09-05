@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { crearClienteNavegador } from '@/lib/supabase/navegador'
+import { EntrarConFacebook } from '../entrar-con-facebook'
 
 /**
  * Alta self-service, paso 1 de 2: la cuenta.
@@ -28,6 +29,14 @@ export default function Registro() {
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [enviado, setEnviado] = useState(false)
+  const [desdeElSitio, setDesdeElSitio] = useState(false)
+
+  // `?con=facebook` lo pone el botón del sitio público, que es estático y no
+  // puede abrir el diálogo él mismo. Quien llega así ya pulsó un botón que decía
+  // Facebook: pedirle que pulse otro igual sería cobrarle el clic dos veces.
+  useEffect(() => {
+    setDesdeElSitio(new URLSearchParams(window.location.search).get('con') === 'facebook')
+  }, [])
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
@@ -85,6 +94,23 @@ export default function Registro() {
       <p style={{ color: 'var(--k-text-2)', marginBottom: 24, lineHeight: 1.6 }}>
         Después eliges tu subdominio y conectas WhatsApp e Instagram desde el propio panel.
       </p>
+
+      <EntrarConFacebook texto="Crear cuenta con Facebook" arranqueAutomatico={desdeElSitio} />
+      <p style={{ color: 'var(--k-text-2)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+        Con Facebook no hay que confirmar el correo: Meta ya lo da verificado, así que se entra
+        directo a elegir el nombre del espacio.
+      </p>
+
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          margin: '20px 0', color: 'var(--k-text-2)', fontSize: 13,
+        }}
+      >
+        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+        o con tu correo
+        <span style={{ flex: 1, borderTop: '1px solid var(--k-border)' }} />
+      </div>
 
       <form onSubmit={enviar} style={{ display: 'grid', gap: 14 }}>
         <div>

@@ -68,6 +68,12 @@ const SECCIONES_CLIENTE: Seccion[] = [
     id: 'cuenta',
     titulo: 'Cuenta',
     entradas: [
+      // CANALES SUBE AL MENÚ, y no es una preferencia de navegación: hasta hoy
+      // solo se llegaba por el sub-nav de Ajustes, dos niveles dentro, en un
+      // producto cuyo valor entero empieza por conectar un canal. Meta rechazó
+      // Human Agent el 4-sep porque su revisor no encontró el botón de Facebook
+      // que vive ahí; si un revisor no lo encuentra, un cliente tampoco.
+      { href: '/ajustes/canales', etiqueta: 'Canales', icono: '◈' },
       { href: '/ajustes/organizacion', etiqueta: 'Ajustes', icono: '◎' },
     ],
   },

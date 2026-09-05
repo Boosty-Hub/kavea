@@ -131,6 +131,27 @@ export const conexionesDe = cache(async (organizacionId: string): Promise<Conexi
 })
 
 /**
+ * ¿Hay algún canal encendido?
+ *
+ * Es la pregunta que separa «espera a que alguien escriba» de «conecta un
+ * canal», y la bandeja no la hacía: su estado vacío daba por hecho que ya había
+ * una conexión y mandaba esperar a un espacio recién creado, donde lo único que
+ * hay que hacer es lo contrario.
+ *
+ * Cuenta, no trae filas: la respuesta es un booleano y traerse los canales para
+ * mirar el largo sería pagar la lista entera en cada carga de la bandeja.
+ */
+export const hayCanalVivo = cache(async (organizacionId: string): Promise<boolean> => {
+  const supabase = await crearClienteServidor()
+  const { count } = await supabase
+    .from('channels')
+    .select('id', { count: 'exact', head: true })
+    .eq('organization_id', organizacionId)
+    .eq('activo', true)
+  return (count ?? 0) > 0
+})
+
+/**
  * Los embudos a los que se puede mandar un canal.
  *
  * Los archivados no salen: ofrecer un destino que ya no se usa es prometer que

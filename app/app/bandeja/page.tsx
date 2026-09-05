@@ -5,6 +5,9 @@ import { HUSO_POR_DEFECTO } from '@/lib/fechas'
 import { listarTarjetas, contarPorEstado, type FilaBandeja } from '@/lib/bandeja'
 import { LogoCanal } from '@/lib/logos-canal'
 import { ESTADOS, etiquetaCanal, colorCanal, haceCuanto, calcularVentana, type Estado } from '@/lib/ventana'
+import { crearClienteServidor } from '@/lib/supabase/servidor'
+import { hayCanalVivo } from '@/lib/conexiones'
+import { Bienvenida } from './bienvenida'
 import { Refrescador } from './refrescador'
 import { AvisosDelSistema } from './avisos-del-sistema'
 import { Buscador } from './buscador'
@@ -69,6 +72,25 @@ export default async function Bandeja({
     sinLeer(),
   ])
 
+  // UN ESPACIO RECIÉN CREADO no tiene ni una tarjeta, ni abierta ni cerrada. Y
+  // solo entonces se preguntan las dos cosas que la bienvenida necesita:
+  // preguntarlas en cada carga de la bandeja serían dos consultas de más para
+  // siempre, y en la pantalla que más se recarga de Kavea.
+  //
+  // La comprobación NO es `tarjetas.length === 0`: con un filtro puesto eso
+  // también es cero en un espacio lleno, y entonces la bienvenida saldría a
+  // quien lleva meses trabajando.
+  const esNueva = (conteos.todas ?? 0) === 0 && (conteos.cerrada ?? 0) === 0
+  let bienvenida: { hayCanal: boolean; puedeConectar: boolean } | null = null
+  if (esNueva) {
+    const supabase = await crearClienteServidor()
+    const [hayCanal, { data: puede }] = await Promise.all([
+      hayCanalVivo(org.id),
+      supabase.rpc('puede', { org: org.id, accion: 'conectar' }),
+    ])
+    bienvenida = { hayCanal, puedeConectar: puede === true }
+  }
+
   return (
     <div className="bandeja">
       <Refrescador organizationId={org.id} />
@@ -103,7 +125,15 @@ export default async function Bandeja({
 
         <div className="lista">
           {tarjetas.length === 0 ? (
-            <EstadoVacio estado={estado} />
+            bienvenida ? (
+              <Bienvenida
+                nombre={org.nombre}
+                hayCanal={bienvenida.hayCanal}
+                puedeConectar={bienvenida.puedeConectar}
+              />
+            ) : (
+              <EstadoVacio estado={estado} />
+            )
           ) : (
             tarjetas.map((t) => <Fila key={t.id} t={t} huso={huso} />)
           )}

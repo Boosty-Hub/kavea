@@ -68,8 +68,21 @@ function viejo(c: Conexion): boolean {
 }
 
 export function Canales({
-  conexiones, huso, embudos,
-}: { conexiones: Conexion[]; huso: string; embudos: EmbudoBreve[] }) {
+  conexiones, huso, embudos, puedeConectar,
+}: {
+  conexiones: Conexion[]
+  huso: string
+  embudos: EmbudoBreve[]
+  /**
+   * Si el rol puede conectar (`0040_equipo.sql:43`: solo el `owner`).
+   *
+   * Llega por prop porque esta lista se pinta FUERA del guard de la página, y
+   * eso dejaba «Reconectar» a la vista de un `agente`, cuyo único destino
+   * posible es el 403 de `/api/meta/oauth/start`. Un enlace que solo puede
+   * fallar no informa de nada: enseña que el producto está roto.
+   */
+  puedeConectar: boolean
+}) {
   const router = useRouter()
   const [comprobando, setComprobando] = useState<string | null>(null)
   const [desconectando, setDesconectando] = useState<string | null>(null)
@@ -347,13 +360,23 @@ Escribe ${PALABRA} para confirmar.`,
                             no nulo— y solo en conexiones de Página: WhatsApp no entra por
                             esta configuración. */}
                         {c.token_invalido_desde && c.page_id ? (
-                          <a
-                            className="operar__control"
-                            style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
-                            href="/api/meta/oauth/start?canal=mensajeria"
-                          >
-                            Reconectar
-                          </a>
+                          puedeConectar ? (
+                            <a
+                              className="operar__control"
+                              style={{ fontSize: 13, textDecoration: 'none', color: 'var(--k-accent)' }}
+                              href="/api/meta/oauth/start?canal=mensajeria"
+                            >
+                              Reconectar
+                            </a>
+                          ) : (
+                            // A quien no puede reconectar se le dice qué pasa y a
+                            // quién acudir: esconderlo sin más deja un canal roto
+                            // sin explicación en la pantalla que existe para
+                            // explicar canales rotos.
+                            <span style={{ fontSize: 13, color: 'var(--k-text-2)' }}>
+                              Hay que volver a autorizar: lo hace el propietario del espacio
+                            </span>
+                          )
                         ) : null}
                         {c.estado === 'disconnected' ? (
                           // Lo único que tiene sentido ofrecer sobre algo ya
