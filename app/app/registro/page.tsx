@@ -35,7 +35,18 @@ export default function Registro() {
   // puede abrir el diálogo él mismo. Quien llega así ya pulsó un botón que decía
   // Facebook: pedirle que pulse otro igual sería cobrarle el clic dos veces.
   useEffect(() => {
-    setDesdeElSitio(new URLSearchParams(window.location.search).get('con') === 'facebook')
+    const q = new URLSearchParams(window.location.search)
+    // `sin-correo` lo pone `/entrar/retorno` cuando Facebook autentica pero no
+    // entrega correo. No se reintenta solo con Facebook: acabaría en el mismo
+    // sitio. Se le deja el alta por correo, que es la que sí funciona.
+    if (q.get('fallo') === 'sin-correo') {
+      setError(
+        'Facebook no nos dio tu correo, y sin correo no podemos crear tu espacio. ' +
+        'Créala aquí con tu correo, o revisa en Facebook que tu cuenta tenga uno.',
+      )
+      return
+    }
+    setDesdeElSitio(q.get('con') === 'facebook')
   }, [])
 
   async function enviar(e: React.FormEvent) {

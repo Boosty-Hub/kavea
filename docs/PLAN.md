@@ -222,15 +222,26 @@ revés.
 *Hecho cuando:* «Request again» enviado con el vídeo nuevo, y `kavea-vigilar-revision` vigilando el
 cambio de estado.
 
-**F10. Confirmar que Facebook devuelve el correo.**
-`email` **no** aparece entre los doce permisos `live` de la app —`public_profile` sí, comprobado
-con app access token el 5-sep— y el diálogo que abre Supabase pide `scope=email`. Con la app en
-desarrollo y una cuenta con rol da igual; para un cliente real puede volver sin correo, y entonces
-dos cosas se caen: el texto de `/registro` que promete «Meta ya lo da verificado» deja de ser
-cierto, y `registrarse` se queda sin el dato. Si vuelve vacío hay dos salidas: pedir el correo en
-`/crear`, o pedir `email` en el envío.
-*Hecho cuando:* un canje real enseña si `user.email` viene lleno o vacío, y la pantalla dice la
-verdad en los dos casos.
+**F10. Que Facebook devuelva el correo.** — 🔴 **CONTESTADO el 5-sep, y es lo que bloquea F7–F9.**
+El diálogo real contestó **`Invalid Scopes: email`**. La sospecha era correcta: `email` no está
+entre los doce permisos `live` —`public_profile` sí— porque esta app es de **Login for Business**, y
+ese producto no trae los permisos de identidad de consumo. La letra pequeña del error es lo peor:
+*«Users of your app will ignore these permissions if present»*, o sea que a un developer le bloquea
+y a un cliente le deja pasar **sin correo**. El fallo silencioso es el caso normal.
+
+Y sin correo el camino no es incómodo, está roto: `registrarse` (0087) exige `email_confirmed_at`
+no nulo, así que el cliente completaría el diálogo, elegiría el nombre de su espacio y al pulsar
+«Crear» se comería un «Confirma tu correo» que en ese camino no significa nada, porque nunca se
+mandó ninguno.
+
+*Puesto ya:* la guarda en `/entrar/retorno`, que manda a `/registro?fallo=sin-correo` con un
+mensaje verdadero en vez de dejar que lo descubra Postgres tres pantallas después.
+*Hecho cuando:* el caso de uso de autenticación está añadido en el panel de Meta —Use cases → Add
+use cases → «Authenticate and request data from users with Facebook Login», con `email`—, y un
+canje real vuelve con `user.email` lleno y aterriza en `/crear`.
+*Si ese caso de uso exigiera App Review*, cambia la estrategia: habría que pedir solo
+`public_profile` y relajar la exigencia de correo confirmado de la 0087 para el camino de un
+proveedor que ya verifica identidad, que es una migración y no un texto.
 
 **Riesgo asumido el 5-sep.** Sin publicar la app, el diálogo de Facebook solo lo completa quien
 tiene rol en la app: si el revisor prueba el botón con su propia cuenta verá «App not active». La

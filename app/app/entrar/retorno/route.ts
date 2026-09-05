@@ -56,9 +56,26 @@ export async function GET(peticion: NextRequest) {
     },
   )
 
-  const { error } = await supabase.auth.exchangeCodeForSession(codigo)
+  const { data: sesion, error } = await supabase.auth.exchangeCodeForSession(codigo)
   if (error) {
     return NextResponse.redirect(new URL('/entrar?fallo=facebook', peticion.url))
+  }
+
+  // SIN CORREO NO SE PUEDE SEGUIR, y hay que decirlo aquí y no dejar que lo
+  // descubra la base de datos tres pantallas después.
+  //
+  // `registrarse` (0087) exige `email_confirmed_at` no nulo, y si Facebook no
+  // entrega correo eso es null: el cliente completaría el diálogo, elegiría el
+  // nombre de su espacio y al pulsar «Crear» se comería un «Confirma tu correo»
+  // que en este camino no significa nada, porque aquí nunca se mandó ninguno.
+  //
+  // Y pasa de verdad: el 5-sep el diálogo contestó «Invalid Scopes: email»
+  // —la app es de Login for Business y no traía ningún caso de uso con los
+  // permisos de identidad—, con la letra pequeña de que a un usuario que no sea
+  // developer se le ignora el permiso en vez de bloquearlo. O sea que el fallo
+  // silencioso es el caso normal, no el raro.
+  if (!sesion?.user?.email) {
+    return NextResponse.redirect(new URL('/registro?fallo=sin-correo', peticion.url))
   }
 
   // Se pulsó desde el subdominio de un espacio: se entra a ese y se acabó.
